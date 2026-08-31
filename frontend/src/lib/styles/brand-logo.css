@@ -1,0 +1,23 @@
+.brand {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	color: #102a43;
+	font-family: 'Plus Jakarta Sans', sans-serif;
+	font-size: 1.05rem;
+	font-weight: 800;
+	letter-spacing: -0.04em;
+	text-decoration: none;
+}
+
+.brand-mark {
+	display: grid;
+	width: 31px;
+	aspect-ratio: 1;
+	place-items: center;
+	border-radius: 10px 10px 10px 2px;
+	background: linear-gradient(135deg, #123a5a, #0c6656);
+	box-shadow: 0 8px 20px rgb(12 102 86 / 24%);
+	color: #fff;
+	font-size: 0.86rem;
+}

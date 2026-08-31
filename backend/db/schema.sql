@@ -1,0 +1,7 @@
+CREATE TABLE users (
+  id UUID PRIMARY KEY,
+  username VARCHAR(50) NOT NULL UNIQUE,
+  display_name VARCHAR(100) NOT NULL,
+  password_hash TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
