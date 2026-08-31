@@ -4,6 +4,7 @@
 	import '$lib/styles/brand-logo.css';
 	import '$lib/styles/login.css';
 	import '$lib/styles/dashboard.css';
+	import '$lib/styles/weekly-progress.css';
 
 	let { children } = $props();
 </script>

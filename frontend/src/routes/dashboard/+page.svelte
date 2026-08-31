@@ -38,13 +38,13 @@
 				<p>Catat kehadiran dan lihat riwayat kerja.</p>
 			</article>
 
-			<article class="menu-card progress-card">
+			<a class="menu-card progress-card" href="/weekly-progress">
 				<div class="menu-icon" aria-hidden="true">
 					<svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 15v-4M12 15V8M16 15v-7" /></svg>
 				</div>
 				<h3>Weekly Progress</h3>
 				<p>Ringkas progres dan prioritas mingguan.</p>
-			</article>
+			</a>
 
 			<article class="menu-card overtime-card">
 				<div class="menu-icon" aria-hidden="true">
