@@ -1,7 +1,3 @@
-<script lang="ts">
-	import BrandLogo from '$lib/components/BrandLogo.svelte';
-</script>
-
 <svelte:head>
 	<title>Masuk | my-ple</title>
 	<meta
@@ -13,7 +9,7 @@
 <main class="login-page">
 	<section class="login-panel" aria-labelledby="login-title">
 		<div class="login-content">
-			<BrandLogo />
+			<img class="brand-logo" src="../../Logo_PLE-removebg-preview-300x233.png" alt="my-ple" />
 
 			<div class="login-heading">
 				<p class="eyebrow">MY-PLE WORKSPACE</p>

@@ -1,7 +1,5 @@
 .dashboard-page {
-	min-height: 100vh;
 	padding: clamp(32px, 6vw, 80px);
-	background: #f4f7f6;
 	color: #102a43;
 }
 
