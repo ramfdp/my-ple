@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	_ "embed"
 	"errors"
 	"fmt"
 
@@ -12,12 +13,21 @@ import (
 	"my-ple-backend/model"
 )
 
+//go:embed schema.sql
+var schemaSQL string
+
 type Database struct {
 	Conn *sql.DB
 }
 
 func NewDatabase(conn *sql.DB) *Database {
 	return &Database{Conn: conn}
+}
+
+// ponytail: auto-migrate standard embedded schema without external migration tooling
+func (db *Database) Migrate(ctx context.Context) error {
+	_, err := db.Conn.ExecContext(ctx, schemaSQL)
+	return err
 }
 
 // ponytail: single SELECT query covering all core user and profile fields

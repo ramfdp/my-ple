@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
@@ -113,6 +114,11 @@ func main() {
 			panic(err)
 		}
 		database = db.NewDatabase(conn)
+		if err := database.Migrate(context.Background()); err != nil {
+			fmt.Printf("Warning: auto-migration error: %v\n", err)
+		} else {
+			fmt.Println("Database schema auto-migrated successfully.")
+		}
 		defer conn.Close()
 	}
 	port := os.Getenv("PORT")

@@ -1,12 +1,12 @@
--- Roles table
-CREATE TABLE roles (
+-- 1. Roles table
+CREATE TABLE IF NOT EXISTS roles (
   id SERIAL PRIMARY KEY,
   name VARCHAR(50) NOT NULL UNIQUE,
   description TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Predefined roles
+-- 2. Predefined roles seed
 INSERT INTO roles (name) VALUES
   ('Admin'),
   ('Management'),
@@ -18,8 +18,8 @@ INSERT INTO roles (name) VALUES
   ('PMO')
 ON CONFLICT (name) DO NOTHING;
 
--- Users table (columns: id, name, email, role (FK), username, job_title, salary, residence, phone_number, employment_status, avatar_url, is_active, created_at, updated_at)
-CREATE TABLE users (
+-- 3. Users table (includes all core authentication and employee profile fields)
+CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
   email VARCHAR(255) NOT NULL UNIQUE,
@@ -37,11 +37,11 @@ CREATE TABLE users (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_users_role_id ON users (role_id);
-CREATE INDEX idx_users_email ON users (email);
-CREATE INDEX idx_users_username ON users (username);
+CREATE INDEX IF NOT EXISTS idx_users_role_id ON users (role_id);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
+CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
 
--- Migration helpers for existing databases
+-- 4. Safe column migration for existing database instances
 ALTER TABLE users ADD COLUMN IF NOT EXISTS job_title VARCHAR(100) NOT NULL DEFAULT '';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS salary BIGINT NOT NULL DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS residence VARCHAR(255) NOT NULL DEFAULT '';
@@ -50,14 +50,16 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS employment_status VARCHAR(50) NOT NUL
 ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT NOT NULL DEFAULT '';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true;
 
-CREATE TABLE report_sequences (
+-- 5. Report sequences table
+CREATE TABLE IF NOT EXISTS report_sequences (
   primary_division VARCHAR(100) NOT NULL,
   work_division VARCHAR(100) NOT NULL,
   last_number INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (primary_division, work_division)
 );
 
-CREATE TABLE reports (
+-- 6. Reports table
+CREATE TABLE IF NOT EXISTS reports (
   id UUID PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES users(id),
   primary_division VARCHAR(100) NOT NULL,
@@ -69,4 +71,4 @@ CREATE TABLE reports (
   UNIQUE (primary_division, work_division, number)
 );
 
-CREATE INDEX reports_by_division ON reports (primary_division, work_division, number);
+CREATE INDEX IF NOT EXISTS reports_by_division ON reports (primary_division, work_division, number);
