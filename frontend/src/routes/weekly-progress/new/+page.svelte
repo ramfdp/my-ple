@@ -21,15 +21,15 @@
 	const roles = Object.keys(roleCategories);
 	const initialRole = roles[0];
 	const initialCategory = Object.keys(roleCategories[initialRole])[0];
+	type SavedReport = [role: string, category: string, sequence: number, work: string];
 
 	let division = $state(divisions[0]);
 	let role = $state(initialRole);
 	let category = $state(initialCategory);
 	let project = $state(roleCategories[initialRole][initialCategory][0]);
 	let work = $state('');
-	let completedAt = $state('');
-	let savedReports = $state<Record<string, string[][]>>({});
-	let reportNumber = $derived(2 + (savedReports[division] ?? []).filter((report) => report[0] === category).length);
+	let savedReports = $state<Record<string, SavedReport[]>>({});
+	let reportNumber = $derived(1 + (savedReports[division] ?? []).filter((report) => report[1] === category).length);
 
 	$effect(() => {
 		const categories = Object.keys(roleCategories[role]);
@@ -48,8 +48,7 @@
 	function saveReport(event: SubmitEvent) {
 		event.preventDefault();
 		const reports = JSON.parse(localStorage.getItem('weekly-reports') ?? '{}');
-		const timestamp = new Intl.DateTimeFormat('id-ID', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(completedAt)).replace(' pukul', ',');
-		reports[division] = [...(reports[division] ?? []), [category, work.trim(), timestamp]];
+		reports[division] = [...(reports[division] ?? []), [role, category, reportNumber, work.trim()]];
 		localStorage.setItem('weekly-reports', JSON.stringify(reports));
 		goto(`/weekly-progress?division=${encodeURIComponent(division)}`);
 	}
@@ -76,7 +75,6 @@
 			<label>Pekerjaan<select bind:value={project}>{#each roleCategories[role][category] as item}<option value={item}>{item}</option>{/each}</select></label>
 			<label>Nomor laporan<input value={reportNumber} readonly aria-describedby="number-help" /><small id="number-help">Nomor dibuat otomatis agar tidak tumpang tindih.</small></label>
 			<label>Uraian pekerjaan yang dilakukan<textarea bind:value={work} rows="5" required maxlength="500" placeholder="Tuliskan pekerjaan yang sudah diselesaikan"></textarea></label>
-			<label>Waktu dikerjakan<input bind:value={completedAt} type="datetime-local" required /></label>
 			<button class="report-submit" type="submit">Simpan laporan</button>
 		</form>
 	</div>
