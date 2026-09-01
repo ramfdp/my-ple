@@ -136,6 +136,7 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 }
 
 func main() {
+	loadDotEnv(".env")
 	var database *db.Database
 	if url := os.Getenv("DATABASE_URL"); url != "" {
 		conn, err := sql.Open("pgx", url)
