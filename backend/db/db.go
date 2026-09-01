@@ -22,13 +22,52 @@ func NewDatabase(conn *sql.DB) *Database {
 
 func (db *Database) FindUser(ctx context.Context, username string) (model.User, error) {
 	var u model.User
-	err := db.Conn.QueryRowContext(ctx, `SELECT id, username, display_name, password_hash FROM users WHERE username = $1`, username).Scan(&u.ID, &u.Username, &u.DisplayName, &u.PasswordHash)
+	err := db.Conn.QueryRowContext(ctx, `
+		SELECT u.id, u.role_id, r.name, u.username, u.display_name, u.password_hash
+		FROM users u
+		JOIN roles r ON u.role_id = r.id
+		WHERE u.username = $1`, username,
+	).Scan(&u.ID, &u.RoleID, &u.RoleName, &u.Username, &u.DisplayName, &u.PasswordHash)
 	return u, err
 }
 
 func (db *Database) CreateUser(ctx context.Context, u model.User) (model.User, error) {
-	err := db.Conn.QueryRowContext(ctx, `INSERT INTO users (id, username, display_name, password_hash) VALUES ($1, $2, $3, $4) RETURNING id, username, display_name`, u.ID, u.Username, u.DisplayName, u.PasswordHash).Scan(&u.ID, &u.Username, &u.DisplayName)
+	err := db.Conn.QueryRowContext(ctx, `
+		INSERT INTO users (id, role_id, username, display_name, password_hash)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, role_id, username, display_name`,
+		u.ID, u.RoleID, u.Username, u.DisplayName, u.PasswordHash,
+	).Scan(&u.ID, &u.RoleID, &u.Username, &u.DisplayName)
 	return u, err
+}
+
+func (db *Database) ListRoles(ctx context.Context) ([]model.Role, error) {
+	rows, err := db.Conn.QueryContext(ctx, `SELECT id, name, COALESCE(description, '') FROM roles ORDER BY id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var roles []model.Role
+	for rows.Next() {
+		var r model.Role
+		if err := rows.Scan(&r.ID, &r.Name, &r.Description); err != nil {
+			return nil, err
+		}
+		roles = append(roles, r)
+	}
+	return roles, rows.Err()
+}
+
+func (db *Database) FindRoleByName(ctx context.Context, name string) (model.Role, error) {
+	var r model.Role
+	err := db.Conn.QueryRowContext(ctx, `SELECT id, name, COALESCE(description, '') FROM roles WHERE LOWER(name) = LOWER($1)`, name).Scan(&r.ID, &r.Name, &r.Description)
+	return r, err
+}
+
+func (db *Database) FindRoleByID(ctx context.Context, id int) (model.Role, error) {
+	var r model.Role
+	err := db.Conn.QueryRowContext(ctx, `SELECT id, name, COALESCE(description, '') FROM roles WHERE id = $1`, id).Scan(&r.ID, &r.Name, &r.Description)
+	return r, err
 }
 
 func (db *Database) CreateReport(ctx context.Context, userID string, input model.WeeklyReportInput) (model.WeeklyReport, error) {

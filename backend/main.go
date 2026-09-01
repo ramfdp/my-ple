@@ -39,6 +39,9 @@ func newHandler(database *db.Database, secret, corsOrigin string) http.Handler {
 		}
 
 		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/roles":
+			authCtrl.Roles(w, r)
+			return
 		case r.Method == http.MethodPost && r.URL.Path == "/auth/register":
 			authCtrl.Register(w, r)
 			return

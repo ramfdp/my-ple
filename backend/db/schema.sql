@@ -1,10 +1,34 @@
+-- Roles table
+CREATE TABLE roles (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(50) NOT NULL UNIQUE,
+  description TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Predefined roles
+INSERT INTO roles (name) VALUES
+  ('Admin'),
+  ('Management'),
+  ('Project Engineer'),
+  ('HR'),
+  ('Finance'),
+  ('IT'),
+  ('Business Development'),
+  ('PMO')
+ON CONFLICT (name) DO NOTHING;
+
+-- Users table (each user has exactly one role)
 CREATE TABLE users (
   id UUID PRIMARY KEY,
+  role_id INTEGER NOT NULL REFERENCES roles(id),
   username VARCHAR(50) NOT NULL UNIQUE,
   display_name VARCHAR(100) NOT NULL,
   password_hash TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE INDEX idx_users_role_id ON users (role_id);
 
 CREATE TABLE report_sequences (
   primary_division VARCHAR(100) NOT NULL,
