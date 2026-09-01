@@ -99,11 +99,12 @@
 .report-submit { padding: 11px 16px; border: 0; border-radius: 10px; background: #0c6656; color: #fff; font: inherit; font-weight: 700; text-decoration: none; }
 .work-table-wrap { margin-top: 28px; overflow-x: auto; border: 1px solid #dce7e4; border-radius: 14px; }
 .work-table { width: 100%; border-collapse: collapse; background: #fff; text-align: left; }
-.work-table th { padding: 15px 18px; background: #123a5a; color: #fff; font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
-.work-table td { padding: 18px; border-top: 1px solid #dce7e4; color: #29465d; line-height: 1.55; }
+.work-table th { padding: 15px 18px; background: #123a5a; color: #fff; font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em; text-align: center; text-transform: uppercase; }
+.work-table td { padding: 18px; border-top: 1px solid #dce7e4; color: #29465d; line-height: 1.55; text-align: center; vertical-align: middle; }
 .work-table .task-division { width: 180px; color: #0c6656; font-weight: 700; }
-.work-table .task-number { width: 90px; text-align: center; font-weight: 700; }
-.work-table .task-time { width: 220px; white-space: nowrap; }
+.work-table th:nth-child(2),
+.work-table .task-number { width: 90px; border-inline: 1px solid #dce7e4; text-align: center; font-weight: 700; }
+.work-table td:last-child { text-align: justify; text-align-last: center; }
 .work-table tbody tr:nth-child(even) { background: #f4f7f6; }
 .work-table tbody tr:hover { background: #eaf4f0; }
 .demo-note { margin: 24px 0 0; color: #778697; font-size: 0.8rem; font-style: italic; }

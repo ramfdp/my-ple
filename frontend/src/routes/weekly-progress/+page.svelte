@@ -3,6 +3,7 @@
 
 	type Task = [string, string, string];
 	type Division = { name: string; tasks: Task[] };
+	type TaskGroup = { category: string; tasks: Task[] };
 
 	const divisions: Division[] = [
 		{ name: 'Project Engineer', tasks: [['Quality Assurance 1', 'Memperbarui progres pekerjaan lapangan.', '25 Agustus 2026, 09.15'], ['Pengawasan', 'Meninjau gambar kerja dan kebutuhan material.', '27 Agustus 2026, 13.40'], ['Non-Pengawasan', 'Menyusun laporan koordinasi teknis mingguan.', '28 Agustus 2026, 16.20'], ['CIHPK', 'Memperbarui dokumentasi pekerjaan proyek.', '29 Agustus 2026, 10.10']] },
@@ -15,6 +16,15 @@
 
 	let selectedDivision = $state<number | null>(null);
 	let savedTasks = $state<Record<string, Task[]>>({});
+
+	function groupTasks(tasks: Task[]): TaskGroup[] {
+		return tasks.reduce<TaskGroup[]>((groups, task) => {
+			const group = groups.find((item) => item.category === task[0]);
+			if (group) group.tasks.push(task);
+			else groups.push({ category: task[0], tasks: [task] });
+			return groups;
+		}, []);
+	}
 
 	onMount(() => {
 		try {
@@ -57,6 +67,7 @@
 		{#if selectedDivision !== null}
 			{@const division = divisions[selectedDivision]}
 			{@const tasks = [...division.tasks, ...(savedTasks[division.name] ?? [])]}
+			{@const taskGroups = groupTasks(tasks)}
 			<section class="task-list" aria-labelledby="task-title">
 				<div class="task-list-header">
 					<div><h2 id="task-title">Pekerjaan yang sudah dilakukan</h2><p>Daftar pekerjaan pada minggu berjalan.</p></div>
@@ -64,8 +75,8 @@
 				</div>
 				<div class="work-table-wrap">
 					<table class="work-table">
-						<thead><tr><th scope="col">Divisi</th><th scope="col">Nomor</th><th scope="col">Pekerjaan yang dilakukan</th><th scope="col">Waktu dikerjakan</th></tr></thead>
-						<tbody>{#each tasks as task, index}<tr><td class="task-division">{task[0]}</td><td class="task-number">{tasks.slice(0, index).filter((item) => item[0] === task[0]).length + 1}</td><td>{task[1]}</td><td class="task-time">{task[2]} WIB</td></tr>{/each}</tbody>
+						<thead><tr><th scope="col">Category</th><th scope="col">Nomor</th><th scope="col">Pekerjaan yang dilakukan</th></tr></thead>
+						<tbody>{#each taskGroups as group}{#each group.tasks as task, index}<tr>{#if index === 0}<td class="task-division" rowspan={group.tasks.length}>{group.category}</td>{/if}<td class="task-number">{index + 1}</td><td>{task[1]}</td></tr>{/each}{/each}</tbody>
 					</table>
 				</div>
 				<p class="demo-note">Data contoh — akan dihubungkan ke laporan pengguna setelah database tersedia.</p>
