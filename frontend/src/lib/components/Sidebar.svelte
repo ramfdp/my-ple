@@ -22,7 +22,8 @@
 </aside>
 
 <style>
-	.sidebar { width: 240px; min-height: 100vh; padding: 20px; background: #102a43; color: #d8e7e2; transition: width 180ms ease; }
+	/* ponytail: sticky sidebar follows viewport during scroll, avoiding scroll-back trips */
+	.sidebar { position: sticky; top: 0; width: 240px; height: 100dvh; padding: 20px; background: #102a43; color: #d8e7e2; transition: width 180ms ease; flex-shrink: 0; overflow-y: auto; }
 	.sidebar.compact { width: 64px; padding: 20px 12px; }
 	.sidebar-toggle { width: 40px; height: 36px; border: 0; border-radius: 10px; background: rgb(255 255 255 / 10%); color: #fff; font-weight: 800; letter-spacing: 2px; }
 	.sidebar-brand { display: block; margin: 28px 12px 36px; color: #fff; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.05em; text-decoration: none; }
@@ -32,5 +33,4 @@
 	details a { padding-left: 24px; color: #9bb5b0; font-size: 0.82rem; }
 	summary:hover, nav > a:hover, details a:hover { background: rgb(255 255 255 / 10%); color: #fff; }
 	.logout-link { margin-top: 20px; color: #ffb7c2; }
-	@media (max-width: 700px) { .sidebar, .sidebar.compact { width: 100%; min-height: auto; padding: 14px 20px; } .sidebar-brand { margin: 18px 0; } }
 </style>
