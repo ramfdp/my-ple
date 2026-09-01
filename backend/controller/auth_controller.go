@@ -182,3 +182,63 @@ func (c *AuthController) Roles(w http.ResponseWriter, r *http.Request) {
 	}
 	WriteJSON(w, http.StatusOK, map[string]any{"roles": roles})
 }
+
+func (c *AuthController) ListUsers(w http.ResponseWriter, r *http.Request) {
+	users, err := c.DB.ListUsers(r.Context())
+	if err != nil {
+		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Gagal memuat pengguna."})
+		return
+	}
+	result := make([]map[string]any, len(users))
+	for i, user := range users {
+		result[i] = model.PublicUser(user)
+	}
+	WriteJSON(w, http.StatusOK, map[string]any{"users": result})
+}
+
+func (c *AuthController) UpdateUser(w http.ResponseWriter, r *http.Request, id string) {
+	var input model.UpdateUserInput
+	if !DecodeJSON(w, r, &input) {
+		return
+	}
+	input.Name, input.Email, input.Username = strings.TrimSpace(input.Name), strings.TrimSpace(strings.ToLower(input.Email)), strings.TrimSpace(input.Username)
+	if len(input.Name) < 2 || !emailPattern.MatchString(input.Email) || !usernamePattern.MatchString(input.Username) || input.RoleID < 1 || input.Salary < 0 {
+		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Data pengguna tidak valid."})
+		return
+	}
+	if _, err := c.DB.FindRoleByID(r.Context(), input.RoleID); err != nil {
+		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Role tidak valid."})
+		return
+	}
+	passwordHash := ""
+	if input.Password != "" {
+		if len(input.Password) < 8 {
+			WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Password minimal 8 karakter."})
+			return
+		}
+		hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+		if err != nil {
+			WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Terjadi kesalahan pada server."})
+			return
+		}
+		passwordHash = string(hash)
+	}
+	u, err := c.DB.UpdateUser(r.Context(), id, input, passwordHash)
+	if db.UniqueViolation(err) {
+		WriteJSON(w, http.StatusConflict, map[string]string{"error": "Username atau email sudah terdaftar."})
+		return
+	}
+	if err != nil {
+		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Gagal memperbarui pengguna."})
+		return
+	}
+	WriteJSON(w, http.StatusOK, map[string]any{"user": model.PublicUser(u)})
+}
+
+func (c *AuthController) DeleteUser(w http.ResponseWriter, r *http.Request, id string) {
+	if err := c.DB.DeleteUser(r.Context(), id); err != nil {
+		WriteJSON(w, http.StatusNotFound, map[string]string{"error": "Pengguna tidak ditemukan."})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}

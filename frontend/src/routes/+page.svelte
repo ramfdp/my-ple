@@ -1,3 +1,14 @@
+<script lang="ts">
+	import { goto } from '$app/navigation';
+	import { api } from '$lib/api';
+	let error = $state('');
+	async function login(event: SubmitEvent) {
+		event.preventDefault(); error = '';
+		const data = new FormData(event.currentTarget as HTMLFormElement);
+		try { const result = await api<{ token: string; user: object }>('/auth/login', { method: 'POST', body: JSON.stringify({ username: data.get('username'), password: data.get('password') }) }); localStorage.setItem('session', JSON.stringify(result)); goto('/dashboard'); } catch (e) { error = e instanceof Error ? e.message : 'Login failed.'; }
+	}
+</script>
+
 <svelte:head>
 	<title>Masuk | my-ple</title>
 	<meta
@@ -17,7 +28,7 @@
 				<p>Masuk untuk melanjutkan pekerjaan Anda.</p>
 			</div>
 
-			<form class="login-form" onsubmit={(event) => event.preventDefault()}>
+			<form class="login-form" onsubmit={login}>
 				<label for="username">Username</label>
 				<input id="username" name="username" autocomplete="username" placeholder="Masukkan username" required />
 
@@ -34,7 +45,7 @@
 				<button type="submit">Masuk <span aria-hidden="true">→</span></button>
 			</form>
 
-			<p class="form-note">Akses akun akan dihubungkan setelah layanan autentikasi tersedia.</p>
+			{#if error}<p class="form-note" style="color:#b91c1c">{error}</p>{/if}
 		</div>
 	</section>
 

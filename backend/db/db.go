@@ -67,6 +67,27 @@ func (db *Database) FindUserByID(ctx context.Context, id string) (model.User, er
 	return u, err
 }
 
+func (db *Database) ListUsers(ctx context.Context) ([]model.User, error) {
+	rows, err := db.Conn.QueryContext(ctx, `
+		SELECT u.id, u.name, u.email, u.role_id, r.name, u.username, u.password_hash,
+		       u.job_title, u.salary, u.residence, u.phone_number, u.employment_status,
+		       u.avatar_url, u.is_active, u.created_at, u.updated_at
+		FROM users u JOIN roles r ON u.role_id = r.id ORDER BY u.name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var users []model.User
+	for rows.Next() {
+		var u model.User
+		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.RoleID, &u.RoleName, &u.Username, &u.PasswordHash, &u.JobTitle, &u.Salary, &u.Residence, &u.PhoneNumber, &u.EmploymentStatus, &u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, rows.Err()
+}
+
 func (db *Database) CreateUser(ctx context.Context, u model.User) (model.User, error) {
 	if u.EmploymentStatus == "" {
 		u.EmploymentStatus = "Permanent Employee"
@@ -114,6 +135,36 @@ func (db *Database) UpdateUserProfile(ctx context.Context, id string, input mode
 		}
 	}
 	return u, err
+}
+
+func (db *Database) UpdateUser(ctx context.Context, id string, input model.UpdateUserInput, passwordHash string) (model.User, error) {
+	var u model.User
+	err := db.Conn.QueryRowContext(ctx, `
+		UPDATE users SET name=$2, email=$3, username=$4, password_hash=COALESCE(NULLIF($5, ''), password_hash),
+		role_id=$6, job_title=$7, salary=$8, residence=$9, phone_number=$10, employment_status=$11,
+		avatar_url=$12, is_active=$13, updated_at=NOW() WHERE id=$1
+		RETURNING id, name, email, role_id, username, password_hash, job_title, salary, residence, phone_number, employment_status, avatar_url, is_active, created_at, updated_at`,
+		id, input.Name, input.Email, input.Username, passwordHash, input.RoleID, input.JobTitle, input.Salary, input.Residence, input.PhoneNumber, input.EmploymentStatus, input.AvatarURL, input.IsActive,
+	).Scan(&u.ID, &u.Name, &u.Email, &u.RoleID, &u.Username, &u.PasswordHash, &u.JobTitle, &u.Salary, &u.Residence, &u.PhoneNumber, &u.EmploymentStatus, &u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt)
+	if err != nil {
+		return u, err
+	}
+	role, err := db.FindRoleByID(ctx, u.RoleID)
+	if err == nil {
+		u.RoleName = role.Name
+	}
+	return u, err
+}
+
+func (db *Database) DeleteUser(ctx context.Context, id string) error {
+	result, err := db.Conn.ExecContext(ctx, `DELETE FROM users WHERE id = $1`, id)
+	if err != nil {
+		return err
+	}
+	if count, _ := result.RowsAffected(); count == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 func (db *Database) ListRoles(ctx context.Context) ([]model.Role, error) {

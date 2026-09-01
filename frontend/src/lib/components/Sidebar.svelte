@@ -1,12 +1,18 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { onMount } from 'svelte';
 
 	// ponytail: native Svelte reactivity for mobile drawer without external drawer lib
 	let mobileOpen = $state(false);
+	let canManageEmployees = $state(false);
+	onMount(() => {
+		const saved = localStorage.getItem('session');
+		const role = saved ? JSON.parse(saved).user?.role?.toLowerCase() : '';
+		canManageEmployees = ['admin', 'management', 'hr'].includes(role);
+	});
 
 	const navItems = [
 		{ name: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
-		{ name: 'Employees', href: '/employees', icon: 'users' },
 		{ name: 'My Profile', href: '/my-profile', icon: 'user' },
 		{ name: 'Attendance', href: '/attendance', icon: 'calendar' },
 		{ name: 'Leave', href: '/leave', icon: 'clock' },
@@ -14,6 +20,7 @@
 		{ name: 'Documents', href: '/documents', icon: 'file' },
 		{ name: 'Settings', href: '/settings', icon: 'settings' }
 	];
+	let visibleNavItems = $derived(canManageEmployees ? [{ name: 'Employees', href: '/employees', icon: 'users' }, ...navItems] : navItems);
 
 	function isItemActive(href: string): boolean {
 		if (href === '/my-profile') {
@@ -73,7 +80,7 @@
 
 	<!-- Navigation Menu -->
 	<nav class="sidebar-nav">
-		{#each navItems as item}
+		{#each visibleNavItems as item}
 			{@const active = isItemActive(item.href)}
 			<a
 				href={item.href}

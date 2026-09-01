@@ -67,6 +67,21 @@ type UpdateProfileInput struct {
 	IsActive         *bool  `json:"isActive,omitempty"`
 }
 
+type UpdateUserInput struct {
+	Name             string `json:"name"`
+	Email            string `json:"email"`
+	Username         string `json:"username"`
+	Password         string `json:"password,omitempty"`
+	RoleID           int    `json:"roleId"`
+	JobTitle         string `json:"jobTitle"`
+	Salary           int64  `json:"salary"`
+	Residence        string `json:"residence"`
+	PhoneNumber      string `json:"phoneNumber"`
+	EmploymentStatus string `json:"employmentStatus"`
+	AvatarURL        string `json:"avatarUrl"`
+	IsActive         bool   `json:"isActive"`
+}
+
 func PublicUser(u User) map[string]any {
 	return map[string]any{
 		"id":               u.ID,

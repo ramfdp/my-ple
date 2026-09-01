@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 
@@ -21,7 +22,7 @@ func newHandler(database *db.Database, secret, corsOrigin string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", corsOrigin)
 		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -72,8 +73,39 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 			return
 		}
 		if (r.Method == http.MethodPut || r.Method == http.MethodPost || r.Method == http.MethodPatch) && r.URL.Path == "/profile" {
-			authCtrl.UpdateProfile(w, r, current.ID)
+			controller.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "Profil hanya dapat diperbarui melalui Manage Employees."})
 			return
+		}
+		if strings.EqualFold(current.RoleName, "Admin") || strings.EqualFold(current.RoleName, "Management") || strings.EqualFold(current.RoleName, "HR") {
+			if r.URL.Path == "/users" {
+				if r.Method == http.MethodGet {
+					authCtrl.ListUsers(w, r)
+					return
+				}
+				if r.Method == http.MethodPost {
+					authCtrl.Register(w, r)
+					return
+				}
+			}
+			if strings.HasPrefix(r.URL.Path, "/users/") {
+				id := strings.TrimPrefix(r.URL.Path, "/users/")
+				if id == "" {
+					controller.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "Endpoint tidak ditemukan."})
+					return
+				}
+				if r.Method == http.MethodPatch || r.Method == http.MethodPut {
+					authCtrl.UpdateUser(w, r, id)
+					return
+				}
+				if r.Method == http.MethodDelete {
+					if id == current.ID {
+						controller.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Anda tidak dapat menghapus akun sendiri."})
+						return
+					}
+					authCtrl.DeleteUser(w, r, id)
+					return
+				}
+			}
 		}
 		if r.Method == http.MethodGet && r.URL.Path == "/dashboard" {
 			name := current.Name
