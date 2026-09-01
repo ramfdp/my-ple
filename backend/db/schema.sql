@@ -18,17 +18,21 @@ INSERT INTO roles (name) VALUES
   ('PMO')
 ON CONFLICT (name) DO NOTHING;
 
--- Users table (each user has exactly one role)
+-- Users table (columns: id, name, email, role (FK), username, created_at, updated_at)
 CREATE TABLE users (
   id UUID PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  email VARCHAR(255) NOT NULL UNIQUE,
   role_id INTEGER NOT NULL REFERENCES roles(id),
   username VARCHAR(50) NOT NULL UNIQUE,
-  display_name VARCHAR(100) NOT NULL,
   password_hash TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_users_role_id ON users (role_id);
+CREATE INDEX idx_users_email ON users (email);
+CREATE INDEX idx_users_username ON users (username);
 
 CREATE TABLE report_sequences (
   primary_division VARCHAR(100) NOT NULL,

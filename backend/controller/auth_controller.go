@@ -13,7 +13,10 @@ import (
 	"my-ple-backend/model"
 )
 
-var usernamePattern = regexp.MustCompile(`^[a-zA-Z0-9_.-]{3,50}$`)
+var (
+	usernamePattern = regexp.MustCompile(`^[a-zA-Z0-9_.-]{3,50}$`)
+	emailPattern    = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
+)
 
 type AuthController struct {
 	DB     *db.Database
@@ -32,9 +35,24 @@ func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 	if !DecodeJSON(w, r, &input) {
 		return
 	}
-	input.DisplayName = strings.TrimSpace(input.DisplayName)
-	if !usernamePattern.MatchString(input.Username) || len(input.DisplayName) < 2 || len(input.DisplayName) > 100 || len(input.Password) < 8 {
-		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Username, nama, atau password tidak valid."})
+	input.Name = strings.TrimSpace(input.Name)
+	input.Email = strings.TrimSpace(strings.ToLower(input.Email))
+	input.Username = strings.TrimSpace(input.Username)
+
+	if len(input.Name) < 2 || len(input.Name) > 100 {
+		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Nama pengguna harus diisi (2-100 karakter)."})
+		return
+	}
+	if !emailPattern.MatchString(input.Email) {
+		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Format email tidak valid."})
+		return
+	}
+	if !usernamePattern.MatchString(input.Username) {
+		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Username tidak valid (3-50 karakter alfanumerik)."})
+		return
+	}
+	if len(input.Password) < 8 {
+		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Password minimal 8 karakter."})
 		return
 	}
 
@@ -66,13 +84,14 @@ func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 	}
 	u, err := c.DB.CreateUser(r.Context(), model.User{
 		ID:           db.NewID(),
+		Name:         input.Name,
+		Email:        input.Email,
 		RoleID:       role.ID,
 		Username:     input.Username,
-		DisplayName:  input.DisplayName,
 		PasswordHash: string(hash),
 	})
 	if db.UniqueViolation(err) {
-		WriteJSON(w, http.StatusConflict, map[string]string{"error": "Username sudah digunakan."})
+		WriteJSON(w, http.StatusConflict, map[string]string{"error": "Username atau email sudah terdaftar."})
 		return
 	}
 	if err != nil {
@@ -88,18 +107,23 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 	if !DecodeJSON(w, r, &input) {
 		return
 	}
-	u, err := c.DB.FindUser(r.Context(), input.Username)
+	identifier := strings.TrimSpace(input.Username)
+	if identifier == "" {
+		identifier = strings.TrimSpace(input.Email)
+	}
+	u, err := c.DB.FindUser(r.Context(), identifier)
 	if err != nil || bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(input.Password)) != nil {
-		WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Username atau password salah."})
+		WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Username/email atau password salah."})
 		return
 	}
 	profile := model.Claims{
-		ID:          u.ID,
-		Username:    u.Username,
-		DisplayName: u.DisplayName,
-		RoleID:      u.RoleID,
-		RoleName:    u.RoleName,
-		ExpiresAt:   time.Now().Add(8 * time.Hour).UnixMilli(),
+		ID:        u.ID,
+		Name:      u.Name,
+		Email:     u.Email,
+		Username:  u.Username,
+		RoleID:    u.RoleID,
+		RoleName:  u.RoleName,
+		ExpiresAt: time.Now().Add(8 * time.Hour).UnixMilli(),
 	}
 	WriteJSON(w, http.StatusOK, map[string]any{
 		"token": middleware.SignToken(profile, c.Secret),

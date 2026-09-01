@@ -66,8 +66,12 @@ func protectedHandler(database *db.Database) http.Handler {
 			return
 		}
 		if r.Method == http.MethodGet && r.URL.Path == "/dashboard" {
+			name := current.Name
+			if name == "" {
+				name = current.Username
+			}
 			controller.WriteJSON(w, http.StatusOK, map[string]any{
-				"greeting": "Halo, " + current.DisplayName,
+				"greeting": "Halo, " + name,
 				"menus": []map[string]string{
 					{"id": "attendance", "name": "Absensi"},
 					{"id": "weekly-progress", "name": "Weekly Progress"},

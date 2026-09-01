@@ -20,24 +20,24 @@ func NewDatabase(conn *sql.DB) *Database {
 	return &Database{Conn: conn}
 }
 
-func (db *Database) FindUser(ctx context.Context, username string) (model.User, error) {
+func (db *Database) FindUser(ctx context.Context, identifier string) (model.User, error) {
 	var u model.User
 	err := db.Conn.QueryRowContext(ctx, `
-		SELECT u.id, u.role_id, r.name, u.username, u.display_name, u.password_hash
+		SELECT u.id, u.name, u.email, u.role_id, r.name, u.username, u.password_hash, u.created_at, u.updated_at
 		FROM users u
 		JOIN roles r ON u.role_id = r.id
-		WHERE u.username = $1`, username,
-	).Scan(&u.ID, &u.RoleID, &u.RoleName, &u.Username, &u.DisplayName, &u.PasswordHash)
+		WHERE u.username = $1 OR LOWER(u.email) = LOWER($1)`, identifier,
+	).Scan(&u.ID, &u.Name, &u.Email, &u.RoleID, &u.RoleName, &u.Username, &u.PasswordHash, &u.CreatedAt, &u.UpdatedAt)
 	return u, err
 }
 
 func (db *Database) CreateUser(ctx context.Context, u model.User) (model.User, error) {
 	err := db.Conn.QueryRowContext(ctx, `
-		INSERT INTO users (id, role_id, username, display_name, password_hash)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, role_id, username, display_name`,
-		u.ID, u.RoleID, u.Username, u.DisplayName, u.PasswordHash,
-	).Scan(&u.ID, &u.RoleID, &u.Username, &u.DisplayName)
+		INSERT INTO users (id, name, email, role_id, username, password_hash, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+		RETURNING id, name, email, role_id, username, created_at, updated_at`,
+		u.ID, u.Name, u.Email, u.RoleID, u.Username, u.PasswordHash,
+	).Scan(&u.ID, &u.Name, &u.Email, &u.RoleID, &u.Username, &u.CreatedAt, &u.UpdatedAt)
 	return u, err
 }
 
