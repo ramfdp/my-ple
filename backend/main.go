@@ -106,6 +106,8 @@ func (db *database) listReports(ctx context.Context, primaryDivision string) ([]
 }
 
 func newHandler(db *database, secret, corsOrigin string) http.Handler {
+	auth := authController{db: db, secret: secret}
+	protected := requireAuth(secret, protectedHandler(db))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", corsOrigin)
 		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
@@ -155,25 +157,16 @@ func newHandler(db *database, secret, corsOrigin string) http.Handler {
 			writeJSON(w, http.StatusCreated, map[string]any{"user": publicUser(u)})
 			return
 		case r.Method == http.MethodPost && r.URL.Path == "/auth/login":
-			var input credentials
-			if !decodeJSON(w, r, &input) {
-				return
-			}
-			u, err := db.findUser(r.Context(), input.Username)
-			if err != nil || bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(input.Password)) != nil {
-				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Username atau password salah."})
-				return
-			}
-			profile := claims{ID: u.ID, Username: u.Username, DisplayName: u.DisplayName, ExpiresAt: time.Now().Add(8 * time.Hour).UnixMilli()}
-			writeJSON(w, http.StatusOK, map[string]any{"token": signToken(profile, secret), "user": publicUser(u)})
+			auth.login(w, r)
 			return
 		}
+		protected.ServeHTTP(w, r)
+	})
+}
 
-		current, ok := authenticated(r, secret)
-		if !ok {
-			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Autentikasi diperlukan."})
-			return
-		}
+func protectedHandler(db *database) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		current := r.Context().Value(authClaimsKey{}).(claims)
 		if r.Method == http.MethodGet && r.URL.Path == "/me" {
 			writeJSON(w, http.StatusOK, map[string]any{"user": current})
 			return
