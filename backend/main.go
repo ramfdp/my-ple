@@ -15,12 +15,12 @@ import (
 
 func newHandler(database *db.Database, secret, corsOrigin string) http.Handler {
 	authCtrl := controller.NewAuthController(database, secret)
-	protected := middleware.RequireAuth(secret, protectedHandler(database))
+	protected := middleware.RequireAuth(secret, protectedHandler(database, authCtrl))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", corsOrigin)
 		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, OPTIONS")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -53,7 +53,8 @@ func newHandler(database *db.Database, secret, corsOrigin string) http.Handler {
 	})
 }
 
-func protectedHandler(database *db.Database) http.Handler {
+// ponytail: unified protected routing for reports and employee profile
+func protectedHandler(database *db.Database, authCtrl *controller.AuthController) http.Handler {
 	weeklyCtrl := controller.NewWeeklyController(database)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		current, ok := middleware.GetClaims(r.Context())
@@ -62,7 +63,15 @@ func protectedHandler(database *db.Database) http.Handler {
 			return
 		}
 		if r.Method == http.MethodGet && r.URL.Path == "/me" {
-			controller.WriteJSON(w, http.StatusOK, map[string]any{"user": current})
+			authCtrl.Profile(w, r, current.ID)
+			return
+		}
+		if (r.Method == http.MethodGet) && r.URL.Path == "/profile" {
+			authCtrl.Profile(w, r, current.ID)
+			return
+		}
+		if (r.Method == http.MethodPut || r.Method == http.MethodPost || r.Method == http.MethodPatch) && r.URL.Path == "/profile" {
+			authCtrl.UpdateProfile(w, r, current.ID)
 			return
 		}
 		if r.Method == http.MethodGet && r.URL.Path == "/dashboard" {

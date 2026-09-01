@@ -83,12 +83,19 @@ func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u, err := c.DB.CreateUser(r.Context(), model.User{
-		ID:           db.NewID(),
-		Name:         input.Name,
-		Email:        input.Email,
-		RoleID:       role.ID,
-		Username:     input.Username,
-		PasswordHash: string(hash),
+		ID:               db.NewID(),
+		Name:             input.Name,
+		Email:            input.Email,
+		RoleID:           role.ID,
+		Username:         input.Username,
+		PasswordHash:     string(hash),
+		JobTitle:         input.JobTitle,
+		Salary:           input.Salary,
+		Residence:        input.Residence,
+		PhoneNumber:      input.PhoneNumber,
+		EmploymentStatus: input.EmploymentStatus,
+		AvatarURL:        input.AvatarURL,
+		IsActive:         true,
 	})
 	if db.UniqueViolation(err) {
 		WriteJSON(w, http.StatusConflict, map[string]string{"error": "Username atau email sudah terdaftar."})
@@ -128,6 +135,42 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, map[string]any{
 		"token": middleware.SignToken(profile, c.Secret),
 		"user":  model.PublicUser(u),
+	})
+}
+
+func (c *AuthController) Profile(w http.ResponseWriter, r *http.Request, userID string) {
+	u, err := c.DB.FindUserByID(r.Context(), userID)
+	if err != nil {
+		WriteJSON(w, http.StatusNotFound, map[string]string{"error": "Pengguna tidak ditemukan."})
+		return
+	}
+	WriteJSON(w, http.StatusOK, map[string]any{"user": model.PublicUser(u)})
+}
+
+func (c *AuthController) UpdateProfile(w http.ResponseWriter, r *http.Request, userID string) {
+	var input model.UpdateProfileInput
+	if !DecodeJSON(w, r, &input) {
+		return
+	}
+	input.Name = strings.TrimSpace(input.Name)
+	input.Email = strings.TrimSpace(strings.ToLower(input.Email))
+	if input.Email != "" && !emailPattern.MatchString(input.Email) {
+		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Format email tidak valid."})
+		return
+	}
+
+	u, err := c.DB.UpdateUserProfile(r.Context(), userID, input)
+	if db.UniqueViolation(err) {
+		WriteJSON(w, http.StatusConflict, map[string]string{"error": "Email sudah digunakan oleh pengguna lain."})
+		return
+	}
+	if err != nil {
+		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Gagal memperbarui profil pengguna."})
+		return
+	}
+	WriteJSON(w, http.StatusOK, map[string]any{
+		"message": "Employee profile updated successfully.",
+		"user":    model.PublicUser(u),
 	})
 }
 

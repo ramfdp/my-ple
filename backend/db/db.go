@@ -20,24 +20,89 @@ func NewDatabase(conn *sql.DB) *Database {
 	return &Database{Conn: conn}
 }
 
+// ponytail: single SELECT query covering all core user and profile fields
 func (db *Database) FindUser(ctx context.Context, identifier string) (model.User, error) {
 	var u model.User
 	err := db.Conn.QueryRowContext(ctx, `
-		SELECT u.id, u.name, u.email, u.role_id, r.name, u.username, u.password_hash, u.created_at, u.updated_at
+		SELECT u.id, u.name, u.email, u.role_id, r.name, u.username, u.password_hash,
+		       COALESCE(u.job_title, ''), COALESCE(u.salary, 0), COALESCE(u.residence, ''),
+		       COALESCE(u.phone_number, ''), COALESCE(u.employment_status, 'Permanent Employee'),
+		       COALESCE(u.avatar_url, ''), COALESCE(u.is_active, true), u.created_at, u.updated_at
 		FROM users u
 		JOIN roles r ON u.role_id = r.id
 		WHERE u.username = $1 OR LOWER(u.email) = LOWER($1)`, identifier,
-	).Scan(&u.ID, &u.Name, &u.Email, &u.RoleID, &u.RoleName, &u.Username, &u.PasswordHash, &u.CreatedAt, &u.UpdatedAt)
+	).Scan(
+		&u.ID, &u.Name, &u.Email, &u.RoleID, &u.RoleName, &u.Username, &u.PasswordHash,
+		&u.JobTitle, &u.Salary, &u.Residence, &u.PhoneNumber, &u.EmploymentStatus,
+		&u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt,
+	)
+	return u, err
+}
+
+func (db *Database) FindUserByID(ctx context.Context, id string) (model.User, error) {
+	var u model.User
+	err := db.Conn.QueryRowContext(ctx, `
+		SELECT u.id, u.name, u.email, u.role_id, r.name, u.username, u.password_hash,
+		       COALESCE(u.job_title, ''), COALESCE(u.salary, 0), COALESCE(u.residence, ''),
+		       COALESCE(u.phone_number, ''), COALESCE(u.employment_status, 'Permanent Employee'),
+		       COALESCE(u.avatar_url, ''), COALESCE(u.is_active, true), u.created_at, u.updated_at
+		FROM users u
+		JOIN roles r ON u.role_id = r.id
+		WHERE u.id = $1`, id,
+	).Scan(
+		&u.ID, &u.Name, &u.Email, &u.RoleID, &u.RoleName, &u.Username, &u.PasswordHash,
+		&u.JobTitle, &u.Salary, &u.Residence, &u.PhoneNumber, &u.EmploymentStatus,
+		&u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt,
+	)
 	return u, err
 }
 
 func (db *Database) CreateUser(ctx context.Context, u model.User) (model.User, error) {
+	if u.EmploymentStatus == "" {
+		u.EmploymentStatus = "Permanent Employee"
+	}
 	err := db.Conn.QueryRowContext(ctx, `
-		INSERT INTO users (id, name, email, role_id, username, password_hash, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-		RETURNING id, name, email, role_id, username, created_at, updated_at`,
+		INSERT INTO users (id, name, email, role_id, username, password_hash, job_title, salary, residence, phone_number, employment_status, avatar_url, is_active, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
+		RETURNING id, name, email, role_id, username, job_title, salary, residence, phone_number, employment_status, avatar_url, is_active, created_at, updated_at`,
 		u.ID, u.Name, u.Email, u.RoleID, u.Username, u.PasswordHash,
-	).Scan(&u.ID, &u.Name, &u.Email, &u.RoleID, &u.Username, &u.CreatedAt, &u.UpdatedAt)
+		u.JobTitle, u.Salary, u.Residence, u.PhoneNumber, u.EmploymentStatus, u.AvatarURL, u.IsActive,
+	).Scan(
+		&u.ID, &u.Name, &u.Email, &u.RoleID, &u.Username,
+		&u.JobTitle, &u.Salary, &u.Residence, &u.PhoneNumber, &u.EmploymentStatus,
+		&u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt,
+	)
+	return u, err
+}
+
+func (db *Database) UpdateUserProfile(ctx context.Context, id string, input model.UpdateProfileInput) (model.User, error) {
+	var u model.User
+	err := db.Conn.QueryRowContext(ctx, `
+		UPDATE users
+		SET name = COALESCE(NULLIF($2, ''), name),
+		    email = COALESCE(NULLIF($3, ''), email),
+		    job_title = COALESCE(NULLIF($4, ''), job_title),
+		    salary = CASE WHEN $5 > 0 THEN $5 ELSE salary END,
+		    residence = COALESCE(NULLIF($6, ''), residence),
+		    phone_number = COALESCE(NULLIF($7, ''), phone_number),
+		    employment_status = COALESCE(NULLIF($8, ''), employment_status),
+		    avatar_url = COALESCE(NULLIF($9, ''), avatar_url),
+		    role_id = CASE WHEN $10 > 0 THEN $10 ELSE role_id END,
+		    updated_at = NOW()
+		WHERE id = $1
+		RETURNING id, name, email, role_id, username, password_hash, job_title, salary, residence, phone_number, employment_status, avatar_url, is_active, created_at, updated_at`,
+		id, input.Name, input.Email, input.JobTitle, input.Salary, input.Residence, input.PhoneNumber, input.EmploymentStatus, input.AvatarURL, input.RoleID,
+	).Scan(
+		&u.ID, &u.Name, &u.Email, &u.RoleID, &u.Username, &u.PasswordHash,
+		&u.JobTitle, &u.Salary, &u.Residence, &u.PhoneNumber, &u.EmploymentStatus,
+		&u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt,
+	)
+	if err == nil {
+		role, rErr := db.FindRoleByID(ctx, u.RoleID)
+		if rErr == nil {
+			u.RoleName = role.Name
+		}
+	}
 	return u, err
 }
 
