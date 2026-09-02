@@ -6,8 +6,9 @@ import (
 	"os"
 	"testing"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
 	"my-ple-backend/model"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func TestProjectEngineerReportPostgres(t *testing.T) {
@@ -41,7 +42,7 @@ func TestProjectEngineerReportPostgres(t *testing.T) {
 	if err != nil || created.Role != input.Role || created.Work != input.Work {
 		t.Fatalf("create = %#v, %v", created, err)
 	}
-	updated, err := database.UpdateReport(context.Background(), created.ID, user.ID, model.WeeklyReportUpdateInput{PrimaryDivision: input.PrimaryDivision, WorkDivision: "Non-Supervisory", Role: "PE", Work: "MPS PIT", Description: "updated"})
+	updated, err := database.UpdateReport(context.Background(), created.ID, user.ID, model.WeeklyReportUpdateInput{PrimaryDivision: input.PrimaryDivision, WorkDivision: "Non-MK supervisi", Role: "PE", Work: "MPS PIT", Description: "updated"})
 	if err != nil || updated.Role != "PE" || updated.Work != "MPS PIT" || updated.Description != "updated" {
 		t.Fatalf("update = %#v, %v", updated, err)
 	}

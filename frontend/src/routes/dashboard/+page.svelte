@@ -1,5 +1,9 @@
 <script lang="ts">
-	const userName = 'Nama Pengguna';
+	import { onMount } from 'svelte';
+	import { api, type User } from '$lib/api';
+
+	let userName = $state('Nama Pengguna');
+	onMount(async () => { userName = (await api<{ user: User }>('/me')).user.name; });
 </script>
 
 <svelte:head>

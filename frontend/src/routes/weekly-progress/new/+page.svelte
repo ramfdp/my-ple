@@ -5,9 +5,9 @@
 
 	const divisions = ['Project Engineer', 'AI Dev', 'Keuangan', 'Business Development', 'HR', 'PMO'];
 	const categories: Record<string, string[]> = {'AI Dev':['Pengembangan','Pengujian Model','Deployment','Dokumentasi'],Keuangan:['Pembukuan','Pembayaran','Anggaran','Pelaporan'],'Business Development':['Prospek','Proposal','Kemitraan','Tindak Lanjut'],HR:['Kehadiran','Rekrutmen','Administrasi','Pengembangan SDM'],PMO:['Milestone','Rapat','Risiko','Pelaporan']};
-	const qaJobs = ['MPS PIT','MPS SGR','MPS SGP','SHL JN','Governance SOP','Natural Gas Purchasing Power Study','Waipirit Port FS and DED Review','Project Management Office','Reimagine IPS House','Jember Station Area Redevelopment','Supervision of JAKG Large Warehouse Renovation','Supervision of BY Manggarai Hydrant Installation','Internal'];
+	const qaJobs = ['MPS PIT','MPS SGR','MPS SGP','SHL JN','SOP Tata Kelola','Studi Daya Beli Gas Bumi','Review FS dan DED Pelabuhan Waipirit','Project Management Office','Reimagine Rumah IPS','Penataan Kawasan Stasiun Jember','Pengawasan Renovasi Gudang Besar JAKG','Pengawasan Instalasi Hidran BY Manggarai','Internal'];
 	const projectEngineer: Record<string, Record<string, string[]>> = {
-		PE:{Supervisory:['Jember Station Area Planning','Supervision of the JAKG Large Warehouse Renovation','Supervision of the BY Manggarai Hydrant Installation'],'Non-Supervisory':['MPS PIT','MPS SGR','MPS SGP','SHL JN','SOP Governance','Natural Gas Purchasing Power Study','Waipirit Port FS and DED Review','Project Management Office','Reimagine IPS Housing']},
+		PE:{'MK supervisi':['Penataan Kawasan Stasiun Jember','Pengawasan Renovasi Gudang Besar JAKG','Pengawasan Instalasi Hidran BY Manggarai'],'Non-MK supervisi':['MPS PIT','MPS SGR','MPS SGP','SHL JN','SOP Tata Kelola','Studi Daya Beli Gas Bumi','Review FS dan DED Pelabuhan Waipirit','Project Management Office','Reimagine Rumah IPS']},
 		'QA 1':{'QA 1':qaJobs},'QA 2':{'QA 2':qaJobs},CIHPK:{JAKG:['JAKG Supervising Consultant (SPMK Date: March 12, 2026)'],'Manggarai Hydrant':['Supervising Consultant for the Manggarai Balai Yasa Hydrant Installation (SPMK Date: June 8, 2026)'],Jember:['Jember Station Area Redevelopment']}
 	};
 	let division = $state(divisions[0]), role = $state('PE'), category = $state(''), job = $state(''), description = $state(''), error = $state(''), submitting = $state(false);
@@ -19,6 +19,12 @@
 		const jobs = projectEngineer[role][category] ?? [];
 		if (!jobs.includes(job)) job = jobs.length === 1 ? jobs[0] : '';
 	});
+	function changeDivision(event: Event) {
+		division = (event.currentTarget as HTMLSelectElement).value;
+		role = division === 'Project Engineer' ? 'PE' : '';
+		category = division === 'Project Engineer' ? 'MK supervisi' : categories[division][0];
+		job = '';
+	}
 	onMount(() => { localStorage.removeItem('weekly-reports'); const requested = new URLSearchParams(location.search).get('division'); if (requested && divisions.includes(requested)) division = requested; });
 	async function saveReport(event: SubmitEvent) {
 		event.preventDefault(); error = ''; submitting = true;
@@ -33,7 +39,7 @@
 	<a class="back-link" href="/weekly-progress">← Kembali ke weekly progress</a>
 	<header class="weekly-header"><p class="weekly-kicker">WEEKLY PROGRESS</p><h1>Input laporan pekerjaan.</h1><p>Isi pekerjaan yang sudah dilakukan agar tampil pada daftar progres.</p></header>
 	<form class="report-form" onsubmit={saveReport}>
-		<label>Main Division<select bind:value={division}>{#each divisions as item}<option value={item}>{item}</option>{/each}</select></label>
+		<label>Main Division<select value={division} onchange={changeDivision}>{#each divisions as item}<option value={item}>{item}</option>{/each}</select></label>
 		<label>Role{#if division === 'Project Engineer'}<select bind:value={role}>{#each Object.keys(projectEngineer) as item}<option value={item}>{item}</option>{/each}</select>{:else}<input value="Not configured" readonly />{/if}</label>
 		<label>Job Category{#if division === 'Project Engineer'}<select bind:value={category}>{#each Object.keys(projectEngineer[role]) as item}<option value={item}>{item}</option>{/each}</select>{:else}<select bind:value={category}>{#each categories[division] as item}<option value={item}>{item}</option>{/each}</select>{/if}</label>
 		<label>Job{#if division === 'Project Engineer'}<select bind:value={job} required><option value="" disabled>Select job</option>{#each projectEngineer[role][category] ?? [] as item}<option value={item}>{item}</option>{/each}</select>{:else}<input value="Not configured" readonly />{/if}</label>

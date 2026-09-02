@@ -16,7 +16,7 @@ func TestProjectEngineerRoleWorkValidation(t *testing.T) {
 	if validReportInput(base) {
 		t.Fatal("CIHPK accepted a general work option")
 	}
-	base.Role, base.WorkDivision, base.Work = "PE", "Non-Supervisory", "MPS PIT"
+	base.Role, base.WorkDivision, base.Work = "PE", "Non-MK supervisi", "MPS PIT"
 	if !validReportInput(base) {
 		t.Fatal("PE work was rejected")
 	}

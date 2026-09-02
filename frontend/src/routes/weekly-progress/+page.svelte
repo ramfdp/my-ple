@@ -4,12 +4,12 @@
 
 	const divisions = ['Project Engineer', 'AI Dev', 'Keuangan', 'Business Development', 'HR', 'PMO'];
 	const workDivisions: Record<string, string[]> = {
-		'Project Engineer': ['Supervisory', 'Non-Supervisory', 'QA 1', 'QA 2', 'JAKG', 'Manggarai Hydrant', 'Jember'],
+		'Project Engineer': ['MK supervisi', 'Non-MK supervisi', 'QA 1', 'QA 2', 'JAKG', 'Manggarai Hydrant', 'Jember'],
 		'AI Dev': ['Pengembangan', 'Pengujian Model', 'Deployment', 'Dokumentasi'], Keuangan: ['Pembukuan', 'Pembayaran', 'Anggaran', 'Pelaporan'],
 		'Business Development': ['Prospek', 'Proposal', 'Kemitraan', 'Tindak Lanjut'], HR: ['Kehadiran', 'Rekrutmen', 'Administrasi', 'Pengembangan SDM'], PMO: ['Milestone', 'Rapat', 'Risiko', 'Pelaporan']
 	};
-	const qaJobs = ['MPS PIT','MPS SGR','MPS SGP','SHL JN','Governance SOP','Natural Gas Purchasing Power Study','Waipirit Port FS and DED Review','Project Management Office','Reimagine IPS House','Jember Station Area Redevelopment','Supervision of JAKG Large Warehouse Renovation','Supervision of BY Manggarai Hydrant Installation','Internal'];
-	const projectEngineer: Record<string, Record<string, string[]>> = {PE:{Supervisory:['Jember Station Area Planning','Supervision of the JAKG Large Warehouse Renovation','Supervision of the BY Manggarai Hydrant Installation'],'Non-Supervisory':['MPS PIT','MPS SGR','MPS SGP','SHL JN','SOP Governance','Natural Gas Purchasing Power Study','Waipirit Port FS and DED Review','Project Management Office','Reimagine IPS Housing']},'QA 1':{'QA 1':qaJobs},'QA 2':{'QA 2':qaJobs},CIHPK:{JAKG:['JAKG Supervising Consultant (SPMK Date: March 12, 2026)'],'Manggarai Hydrant':['Supervising Consultant for the Manggarai Balai Yasa Hydrant Installation (SPMK Date: June 8, 2026)'],Jember:['Jember Station Area Redevelopment']}};
+	const qaJobs = ['MPS PIT','MPS SGR','MPS SGP','SHL JN','SOP Tata Kelola','Studi Daya Beli Gas Bumi','Review FS dan DED Pelabuhan Waipirit','Project Management Office','Reimagine Rumah IPS','Penataan Kawasan Stasiun Jember','Pengawasan Renovasi Gudang Besar JAKG','Pengawasan Instalasi Hidran BY Manggarai','Internal'];
+	const projectEngineer: Record<string, Record<string, string[]>> = {PE:{'MK supervisi':['Penataan Kawasan Stasiun Jember','Pengawasan Renovasi Gudang Besar JAKG','Pengawasan Instalasi Hidran BY Manggarai'],'Non-MK supervisi':['MPS PIT','MPS SGR','MPS SGP','SHL JN','SOP Tata Kelola','Studi Daya Beli Gas Bumi','Review FS dan DED Pelabuhan Waipirit','Project Management Office','Reimagine Rumah IPS']},'QA 1':{'QA 1':qaJobs},'QA 2':{'QA 2':qaJobs},CIHPK:{JAKG:['JAKG Supervising Consultant (SPMK Date: March 12, 2026)'],'Manggarai Hydrant':['Supervising Consultant for the Manggarai Balai Yasa Hydrant Installation (SPMK Date: June 8, 2026)'],Jember:['Jember Station Area Redevelopment']}};
 	let selectedDivision = $state<number | null>(null);
 	let reports = $state<Report[]>([]);
 	let loading = $state(false);
