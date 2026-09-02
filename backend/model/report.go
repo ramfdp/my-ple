@@ -19,9 +19,16 @@ type WeeklyReportInput struct {
 
 type WeeklyReport struct {
 	ID              string    `json:"id"`
+	UserID          string    `json:"userId"`
 	PrimaryDivision string    `json:"primaryDivision"`
 	WorkDivision    string    `json:"workDivision"`
 	Number          int       `json:"number"`
 	Description     string    `json:"description"`
 	CompletedAt     time.Time `json:"completedAt"`
+}
+
+type WeeklyReportUpdateInput struct {
+	PrimaryDivision string `json:"primaryDivision"`
+	WorkDivision    string `json:"workDivision"`
+	Description     string `json:"description"`
 }

@@ -1,56 +1,49 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { api, type ReportInput } from '$lib/api';
 
 	const divisions = ['Project Engineer', 'AI Dev', 'Keuangan', 'Business Development', 'HR', 'PMO'];
-	const roleCategories: Record<string, Record<string, string[]>> = {
-		PE: {
-			'MK / supervisi': ['Penataan Kawasan Stasiun Jember', 'Pengawasan Renovasi Gudang Besar JAKG', 'Pengawasan Instalasi Hidran BY Manggarai'],
-			'Non MK / Non Supervisi': ['MPS PIT', 'MPS SGR', 'MPS SGP', 'SHL JN', 'SOP Tata Kelola', 'Studi Daya Beli Gas Bumi', 'Review FS dan DED Pelabuhan Waipirit', 'Project Management Office', 'Reimagine Rumah IPS']
-		},
-		'Quality Assurance': {
-			'QA 1': ['MPS PIT', 'MPS SGR', 'MPS SGP', 'SHL JN', 'SOP Tata Kelola', 'Studi Daya Beli Gas Bumi', 'Review FS dan DED Pelabuhan Waipirit', 'Project Management Office', 'Reimagine Rumah IPS', 'Penataan Kawasan Stasiun Jember', 'Pengawasan Renovasi Gudang Besar JAKG', 'Pengawasan Instalasi Hidran BY Manggarai', 'internal'],
-			'QA 2': ['MPS PIT', 'MPS SGR', 'MPS SGP', 'SHL JN', 'SOP Tata Kelola', 'Studi Daya Beli Gas Bumi', 'Review FS dan DED Pelabuhan Waipirit', 'Project Management Office', 'Reimagine Rumah IPS', 'Penataan Kawasan Stasiun Jember', 'Pengawasan Renovasi Gudang Besar JAKG', 'Pengawasan Instalasi Hidran BY Manggarai', 'internal']
-		},
-		CIHPK: {
-			JAKG: ['Konsultan Pengawas JAKG (Tanggal SPMK: 12 Maret 2026)'],
-			'Hydrant Manggarai': ['Konsultan Pengawas Instalasi Hydrant Balai Yasa Manggarai (Tanggal SPMK: 08 Juni 2026)'],
-			Jember: ['Penataan Kawasan Stasiun Jember']
-		}
+	const workDivisions: Record<string, string[]> = {
+		'Project Engineer': ['Quality Assurance 1', 'Quality Assurance 2', 'Pengawasan', 'Non-Pengawasan', 'CIHPK'],
+		'AI Dev': ['Pengembangan', 'Pengujian Model', 'Deployment', 'Dokumentasi'],
+		Keuangan: ['Pembukuan', 'Pembayaran', 'Anggaran', 'Pelaporan'],
+		'Business Development': ['Prospek', 'Proposal', 'Kemitraan', 'Tindak Lanjut'],
+		HR: ['Kehadiran', 'Rekrutmen', 'Administrasi', 'Pengembangan SDM'],
+		PMO: ['Milestone', 'Rapat', 'Risiko', 'Pelaporan']
 	};
-	const roles = Object.keys(roleCategories);
-	const initialRole = roles[0];
-	const initialCategory = Object.keys(roleCategories[initialRole])[0];
-	type SavedReport = [role: string, category: string, sequence: number, work: string];
 
 	let division = $state(divisions[0]);
-	let role = $state(initialRole);
-	let category = $state(initialCategory);
-	let project = $state(roleCategories[initialRole][initialCategory][0]);
+	let workDivision = $state(workDivisions[divisions[0]][0]);
 	let work = $state('');
-	let savedReports = $state<Record<string, SavedReport[]>>({});
-	let reportNumber = $derived(1 + (savedReports[division] ?? []).filter((report) => report[1] === category).length);
+	let error = $state('');
+	let submitting = $state(false);
 
 	$effect(() => {
-		const categories = Object.keys(roleCategories[role]);
-		const selectedCategory = categories.includes(category) ? category : categories[0];
-		if (category !== selectedCategory) category = selectedCategory;
-		const projects = roleCategories[role][selectedCategory];
-		if (!projects.includes(project)) project = projects[0];
+		if (!workDivisions[division].includes(workDivision)) workDivision = workDivisions[division][0];
 	});
 
 	onMount(() => {
+		localStorage.removeItem('weekly-reports');
 		const requestedDivision = new URLSearchParams(location.search).get('division');
 		if (requestedDivision && divisions.includes(requestedDivision)) division = requestedDivision;
-		savedReports = JSON.parse(localStorage.getItem('weekly-reports') ?? '{}');
 	});
 
-	function saveReport(event: SubmitEvent) {
+	async function saveReport(event: SubmitEvent) {
 		event.preventDefault();
-		const reports = JSON.parse(localStorage.getItem('weekly-reports') ?? '{}');
-		reports[division] = [...(reports[division] ?? []), [role, category, reportNumber, work.trim()]];
-		localStorage.setItem('weekly-reports', JSON.stringify(reports));
-		goto(`/weekly-progress?division=${encodeURIComponent(division)}`);
+		error = '';
+		submitting = true;
+		try {
+			await api<{ report: unknown }>('/reports', {
+				method: 'POST',
+				body: JSON.stringify({ primaryDivision: division, workDivision, description: work.trim() } satisfies ReportInput)
+			});
+			await goto(`/weekly-progress?division=${encodeURIComponent(division)}`);
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Laporan tidak dapat disimpan.';
+		} finally {
+			submitting = false;
+		}
 	}
 </script>
 
@@ -70,12 +63,11 @@
 
 		<form class="report-form" onsubmit={saveReport}>
 			<label>Divisi utama<select bind:value={division}>{#each divisions as item}<option value={item}>{item}</option>{/each}</select></label>
-			<label>Role<select bind:value={role}>{#each roles as item}<option value={item}>{item}</option>{/each}</select></label>
-			<label>Kategori<select bind:value={category}>{#each Object.keys(roleCategories[role]) as item}<option value={item}>{item}</option>{/each}</select></label>
-			<label>Pekerjaan<select bind:value={project}>{#each roleCategories[role][category] as item}<option value={item}>{item}</option>{/each}</select></label>
-			<label>Nomor laporan<input value={reportNumber} readonly aria-describedby="number-help" /><small id="number-help">Nomor dibuat otomatis agar tidak tumpang tindih.</small></label>
+			<label>Kategori pekerjaan<select bind:value={workDivision}>{#each workDivisions[division] as item}<option value={item}>{item}</option>{/each}</select></label>
+			<label>Nomor laporan<input value="Dibuat saat disimpan" readonly aria-describedby="number-help" /><small id="number-help">Nomor dibuat oleh database agar tidak tumpang tindih.</small></label>
 			<label>Uraian pekerjaan yang dilakukan<textarea bind:value={work} rows="5" required maxlength="500" placeholder="Tuliskan pekerjaan yang sudah diselesaikan"></textarea></label>
-			<button class="report-submit" type="submit">Simpan laporan</button>
+			{#if error}<p class="demo-note">{error}</p>{/if}
+			<button class="report-submit" type="submit" disabled={submitting}>{submitting ? 'Menyimpan…' : 'Simpan laporan'}</button>
 		</form>
 	</div>
 </main>

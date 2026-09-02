@@ -1,41 +1,63 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { api, session, type Report } from '$lib/api';
 
-	type Task = [role: string, category: string, sequence: number, work: string];
-	type LegacyTask = [string, string];
-	type Division = { name: string; tasks: LegacyTask[] };
-
-	const divisions: Division[] = [
-		{ name: 'Project Engineer', tasks: [['Quality Assurance 1', 'Memperbarui progres pekerjaan lapangan.'], ['Pengawasan', 'Meninjau gambar kerja dan kebutuhan material.'], ['Non-Pengawasan', 'Menyusun laporan koordinasi teknis mingguan.'], ['CIHPK', 'Memperbarui dokumentasi pekerjaan proyek.']] },
-		{ name: 'AI Dev', tasks: [['Pengembangan', 'Mengembangkan fitur otomatisasi berbasis AI.'], ['Pengujian Model', 'Menguji akurasi keluaran model AI.'], ['Deployment', 'Memantau performa layanan AI.'], ['Dokumentasi', 'Memperbarui dokumentasi implementasi AI.']] },
-		{ name: 'Keuangan', tasks: [['Pembukuan', 'Merekap transaksi dan dokumen pendukung.'], ['Pembayaran', 'Meninjau tagihan serta jadwal pembayaran.'], ['Anggaran', 'Memperbarui proyeksi arus kas mingguan.'], ['Pelaporan', 'Memeriksa kelengkapan laporan biaya proyek.']] },
-		{ name: 'Business Development', tasks: [['Prospek', 'Memperbarui daftar prospek dan peluang kerja sama.'], ['Proposal', 'Menyiapkan bahan proposal atau presentasi.'], ['Kemitraan', 'Menindaklanjuti komunikasi dengan calon mitra.'], ['Tindak Lanjut', 'Menyusun ringkasan peluang proyek baru.']] },
-		{ name: 'HR', tasks: [['Kehadiran', 'Meninjau data kehadiran dan kebutuhan tim.'], ['Rekrutmen', 'Melakukan koordinasi proses rekrutmen.'], ['Administrasi', 'Memperbarui administrasi karyawan.'], ['Pengembangan SDM', 'Menyusun rekap kebutuhan personel proyek.']] },
-		{ name: 'PMO', tasks: [['Milestone', 'Memantau capaian milestone setiap proyek.'], ['Rapat', 'Menyusun catatan rapat dan tindak lanjut.'], ['Risiko', 'Memperbarui daftar risiko serta isu proyek.'], ['Pelaporan', 'Mengonsolidasikan laporan kemajuan proyek.']] }
-	];
-
+	const divisions = ['Project Engineer', 'AI Dev', 'Keuangan', 'Business Development', 'HR', 'PMO'];
+	const workDivisions: Record<string, string[]> = {
+		'Project Engineer': ['Quality Assurance 1', 'Quality Assurance 2', 'Pengawasan', 'Non-Pengawasan', 'CIHPK'],
+		'AI Dev': ['Pengembangan', 'Pengujian Model', 'Deployment', 'Dokumentasi'], Keuangan: ['Pembukuan', 'Pembayaran', 'Anggaran', 'Pelaporan'],
+		'Business Development': ['Prospek', 'Proposal', 'Kemitraan', 'Tindak Lanjut'], HR: ['Kehadiran', 'Rekrutmen', 'Administrasi', 'Pengembangan SDM'], PMO: ['Milestone', 'Rapat', 'Risiko', 'Pelaporan']
+	};
 	let selectedDivision = $state<number | null>(null);
-	let savedTasks = $state<Record<string, Task[]>>({});
+	let reports = $state<Report[]>([]);
+	let loading = $state(false);
+	let error = $state('');
+	let editing = $state<Report | null>(null);
+	let editWorkDivision = $state('');
+	let editDescription = $state('');
 
-	function loadSavedTasks(): Record<string, Task[]> {
-		const parsed: unknown = JSON.parse(localStorage.getItem('weekly-reports') ?? '{}');
-		if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-		return Object.fromEntries(Object.entries(parsed).map(([division, reports]) => [division, Array.isArray(reports) ? reports.flatMap((report, index) => {
-			if (!Array.isArray(report)) return [];
-			if (report.length === 3) return [[division, String(report[0]), index + 2, String(report[1])] as Task];
-			return [[String(report[0]), String(report[1]), Number(report[2]) || index + 1, String(report[3])] as Task];
-		}) : []]));
+	async function selectDivision(index: number) {
+		selectedDivision = index;
+		reports = [];
+		loading = true;
+		error = '';
+		try {
+			reports = (await api<{ reports: Report[] }>(`/reports?primaryDivision=${encodeURIComponent(divisions[index])}`)).reports;
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Laporan tidak dapat dimuat.';
+		} finally {
+			loading = false;
+		}
+	}
+
+	async function saveEdit() {
+		if (!editing) return;
+		error = '';
+		try {
+			await api<{ report: Report }>(`/reports/${editing.id}`, { method: 'PUT', body: JSON.stringify({ primaryDivision: editing.primaryDivision, workDivision: editWorkDivision, description: editDescription }) });
+			editing = null;
+			if (selectedDivision !== null) await selectDivision(selectedDivision);
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Laporan tidak dapat diperbarui.';
+		}
+	}
+
+	async function deleteReport(report: Report) {
+		if (!confirm(`Hapus laporan #${report.number}?`)) return;
+		error = '';
+		try {
+			await api<void>(`/reports/${report.id}`, { method: 'DELETE' });
+			if (selectedDivision !== null) await selectDivision(selectedDivision);
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Laporan tidak dapat dihapus.';
+		}
 	}
 
 	onMount(() => {
-		try {
-			savedTasks = loadSavedTasks();
-			const requestedDivision = new URLSearchParams(location.search).get('division');
-			const index = divisions.findIndex((division) => division.name === requestedDivision);
-			if (index >= 0) selectedDivision = index;
-		} catch {
-			localStorage.removeItem('weekly-reports');
-		}
+		localStorage.removeItem('weekly-reports');
+		const requested = new URLSearchParams(location.search).get('division');
+		const index = divisions.indexOf(requested ?? '');
+		if (index >= 0) void selectDivision(index);
 	});
 </script>
 
@@ -47,39 +69,17 @@
 <main class="weekly-progress-page">
 	<div class="weekly-progress-shell">
 		<a class="back-link" href="/dashboard">← Kembali ke dashboard</a>
-		<header class="weekly-header">
-			<p class="weekly-kicker">WEEKLY PROGRESS</p>
-			<h1>Progres kerja per divisi.</h1>
-			<p>Pilih divisi terlebih dahulu untuk melihat daftar pekerjaan minggu ini.</p>
-		</header>
-
+		<header class="weekly-header"><p class="weekly-kicker">WEEKLY PROGRESS</p><h1>Progres kerja per divisi.</h1><p>Pilih divisi terlebih dahulu untuk melihat daftar pekerjaan minggu ini.</p></header>
 		<section class="division-selection" aria-labelledby="division-title">
-			<h2 id="division-title">Pilih divisi</h2>
-			<p>Daftar ini menentukan pekerjaan yang akan ditampilkan.</p>
-			<div class="division-grid">
-				{#each divisions as division, index}
-					<button class:selected={selectedDivision === index} class="division-button" type="button" aria-pressed={selectedDivision === index} onclick={() => (selectedDivision = index)}>
-						{division.name}<span aria-hidden="true">→</span>
-					</button>
-				{/each}
-			</div>
+			<h2 id="division-title">Pilih divisi</h2><p>Daftar ini menentukan pekerjaan yang akan ditampilkan.</p>
+			<div class="division-grid">{#each divisions as division, index}<button class:selected={selectedDivision === index} class="division-button" type="button" aria-pressed={selectedDivision === index} onclick={() => void selectDivision(index)}>{division}<span aria-hidden="true">→</span></button>{/each}</div>
 		</section>
-
 		{#if selectedDivision !== null}
-			{@const division = divisions[selectedDivision]}
-			{@const tasks = [...division.tasks.map(([category, work]) => [division.name, category, 1, work] as Task), ...(savedTasks[division.name] ?? [])]}
 			<section class="task-list" aria-labelledby="task-title">
-				<div class="task-list-header">
-					<div><h2 id="task-title">Pekerjaan yang sudah dilakukan</h2><p>Daftar pekerjaan pada minggu berjalan.</p></div>
-					<div class="task-list-actions"><p class="selected-division">{division.name}</p><a class="report-button" href={`/weekly-progress/new?division=${encodeURIComponent(division.name)}`}>+ Input laporan</a></div>
-				</div>
-				<div class="work-table-wrap">
-					<table class="work-table">
-						<thead><tr><th scope="col">Role</th><th scope="col">Category</th><th scope="col">Number</th><th scope="col">Work Performed</th></tr></thead>
-						<tbody>{#each tasks as task}<tr><td class="task-role">{task[0]}</td><td>{task[1]}</td><td class="task-number">{task[2]}</td><td>{task[3]}</td></tr>{/each}</tbody>
-					</table>
-				</div>
-				<p class="demo-note">Data contoh — akan dihubungkan ke laporan pengguna setelah database tersedia.</p>
+				<div class="task-list-header"><div><h2 id="task-title">Pekerjaan yang sudah dilakukan</h2><p>Daftar pekerjaan pada minggu berjalan.</p></div><div class="task-list-actions"><p class="selected-division">{divisions[selectedDivision]}</p><a class="report-button" href={`/weekly-progress/new?division=${encodeURIComponent(divisions[selectedDivision])}`}>+ Input laporan</a></div></div>
+				<div class="work-table-wrap"><table class="work-table"><thead><tr><th scope="col">Role</th><th scope="col">Category</th><th scope="col">Number</th><th scope="col">Work Performed</th><th scope="col">Actions</th></tr></thead><tbody>{#if loading}<tr><td colspan="5">Memuat laporan…</td></tr>{:else if reports.length === 0}<tr><td colspan="5">No report available</td></tr>{:else}{#each reports as report}<tr><td class="task-role">{report.primaryDivision}</td><td>{report.workDivision}</td><td class="task-number">{report.number}</td><td>{report.description}</td><td>{#if session()?.user.id === report.userId}<button type="button" onclick={() => { editing = report; editWorkDivision = report.workDivision; editDescription = report.description; }}>Edit</button> <button type="button" onclick={() => void deleteReport(report)}>Delete</button>{/if}</td></tr>{/each}{/if}</tbody></table></div>
+				{#if error}<p class="demo-note">{error}</p>{/if}
+				{#if editing}<form class="report-form" onsubmit={(event) => { event.preventDefault(); void saveEdit(); }}><label>Kategori pekerjaan<select bind:value={editWorkDivision}>{#each workDivisions[editing.primaryDivision] as item}<option value={item}>{item}</option>{/each}</select></label><label>Uraian pekerjaan yang dilakukan<textarea bind:value={editDescription} rows="5" required maxlength="500"></textarea></label><button class="report-submit" type="submit">Simpan perubahan</button><button type="button" onclick={() => (editing = null)}>Batal</button></form>{/if}
 			</section>
 		{/if}
 	</div>

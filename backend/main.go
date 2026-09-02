@@ -140,6 +140,21 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 			weeklyCtrl.List(w, r)
 			return
 		}
+		if strings.HasPrefix(r.URL.Path, "/reports/") {
+			id := strings.TrimPrefix(r.URL.Path, "/reports/")
+			if id == "" || strings.Contains(id, "/") {
+				controller.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "Endpoint tidak ditemukan."})
+				return
+			}
+			if r.Method == http.MethodPut || r.Method == http.MethodPatch {
+				weeklyCtrl.Update(w, r, id)
+				return
+			}
+			if r.Method == http.MethodDelete {
+				weeklyCtrl.Delete(w, r, id)
+				return
+			}
+		}
 		controller.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "Endpoint tidak ditemukan."})
 	})
 }
