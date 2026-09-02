@@ -17,7 +17,7 @@ type WeeklyController struct {
 }
 
 func validReportInput(input model.WeeklyReportInput) bool {
-	return model.WeeklyWorkDivisions[input.PrimaryDivision][input.WorkDivision] && input.Description != "" && len(input.Description) <= 500
+	return model.ValidWeeklyReport(input.PrimaryDivision, input.WorkDivision, input.Role, input.Work, input.Description)
 }
 
 func NewWeeklyController(database *db.Database) *WeeklyController {
@@ -38,6 +38,8 @@ func (c *WeeklyController) Create(w http.ResponseWriter, r *http.Request) {
 	input.PrimaryDivision = strings.TrimSpace(input.PrimaryDivision)
 	input.WorkDivision = strings.TrimSpace(input.WorkDivision)
 	input.Description = strings.TrimSpace(input.Description)
+	input.Role = strings.TrimSpace(input.Role)
+	input.Work = strings.TrimSpace(input.Work)
 	if !validReportInput(input) {
 		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Data laporan tidak valid."})
 		return
@@ -64,7 +66,9 @@ func (c *WeeklyController) Update(w http.ResponseWriter, r *http.Request, id str
 	input.Description = strings.TrimSpace(input.Description)
 	input.PrimaryDivision = strings.TrimSpace(input.PrimaryDivision)
 	input.WorkDivision = strings.TrimSpace(input.WorkDivision)
-	if !model.WeeklyWorkDivisions[input.PrimaryDivision][input.WorkDivision] || input.Description == "" || len(input.Description) > 500 {
+	input.Role = strings.TrimSpace(input.Role)
+	input.Work = strings.TrimSpace(input.Work)
+	if !model.ValidWeeklyReport(input.PrimaryDivision, input.WorkDivision, input.Role, input.Work, input.Description) {
 		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Uraian laporan tidak valid."})
 		return
 	}

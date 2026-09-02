@@ -64,6 +64,8 @@ CREATE TABLE IF NOT EXISTS reports (
   user_id UUID NOT NULL REFERENCES users(id),
   primary_division VARCHAR(100) NOT NULL,
   work_division VARCHAR(100) NOT NULL,
+	 report_role VARCHAR(50) NOT NULL DEFAULT '',
+	 work VARCHAR(255) NOT NULL DEFAULT '',
   number INTEGER NOT NULL,
   description VARCHAR(500) NOT NULL,
   completed_at TIMESTAMPTZ NOT NULL,
@@ -72,3 +74,7 @@ CREATE TABLE IF NOT EXISTS reports (
 );
 
 CREATE INDEX IF NOT EXISTS reports_by_division ON reports (primary_division, work_division, number);
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS report_role VARCHAR(50) NOT NULL DEFAULT '';
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS work VARCHAR(255) NOT NULL DEFAULT '';
+ALTER TABLE report_sequences DROP COLUMN IF EXISTS report_role;
+ALTER TABLE report_sequences DROP COLUMN IF EXISTS work;

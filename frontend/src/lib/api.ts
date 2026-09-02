@@ -8,9 +8,9 @@ export interface User {
 export interface Role { id: number; name: string }
 export interface Report {
 	id: string; userId: string; primaryDivision: string; workDivision: string;
-	number: number; description: string; completedAt: string;
+	role: string; work: string; number: number; description: string; completedAt: string;
 }
-export interface ReportInput { primaryDivision: string; workDivision: string; description: string }
+export interface ReportInput { primaryDivision: string; workDivision: string; role: string; work: string; description: string }
 
 export function session(): { token: string; user: User } | null {
 	if (typeof localStorage === 'undefined') return null;

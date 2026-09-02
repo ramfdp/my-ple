@@ -4,16 +4,20 @@
 
 	const divisions = ['Project Engineer', 'AI Dev', 'Keuangan', 'Business Development', 'HR', 'PMO'];
 	const workDivisions: Record<string, string[]> = {
-		'Project Engineer': ['Quality Assurance 1', 'Quality Assurance 2', 'Pengawasan', 'Non-Pengawasan', 'CIHPK'],
+		'Project Engineer': ['Supervisory', 'Non-Supervisory', 'QA 1', 'QA 2', 'JAKG', 'Manggarai Hydrant', 'Jember'],
 		'AI Dev': ['Pengembangan', 'Pengujian Model', 'Deployment', 'Dokumentasi'], Keuangan: ['Pembukuan', 'Pembayaran', 'Anggaran', 'Pelaporan'],
 		'Business Development': ['Prospek', 'Proposal', 'Kemitraan', 'Tindak Lanjut'], HR: ['Kehadiran', 'Rekrutmen', 'Administrasi', 'Pengembangan SDM'], PMO: ['Milestone', 'Rapat', 'Risiko', 'Pelaporan']
 	};
+	const qaJobs = ['MPS PIT','MPS SGR','MPS SGP','SHL JN','Governance SOP','Natural Gas Purchasing Power Study','Waipirit Port FS and DED Review','Project Management Office','Reimagine IPS House','Jember Station Area Redevelopment','Supervision of JAKG Large Warehouse Renovation','Supervision of BY Manggarai Hydrant Installation','Internal'];
+	const projectEngineer: Record<string, Record<string, string[]>> = {PE:{Supervisory:['Jember Station Area Planning','Supervision of the JAKG Large Warehouse Renovation','Supervision of the BY Manggarai Hydrant Installation'],'Non-Supervisory':['MPS PIT','MPS SGR','MPS SGP','SHL JN','SOP Governance','Natural Gas Purchasing Power Study','Waipirit Port FS and DED Review','Project Management Office','Reimagine IPS Housing']},'QA 1':{'QA 1':qaJobs},'QA 2':{'QA 2':qaJobs},CIHPK:{JAKG:['JAKG Supervising Consultant (SPMK Date: March 12, 2026)'],'Manggarai Hydrant':['Supervising Consultant for the Manggarai Balai Yasa Hydrant Installation (SPMK Date: June 8, 2026)'],Jember:['Jember Station Area Redevelopment']}};
 	let selectedDivision = $state<number | null>(null);
 	let reports = $state<Report[]>([]);
 	let loading = $state(false);
 	let error = $state('');
 	let editing = $state<Report | null>(null);
 	let editWorkDivision = $state('');
+	let editRole = $state('');
+	let editProjectWork = $state('');
 	let editDescription = $state('');
 
 	async function selectDivision(index: number) {
@@ -34,7 +38,7 @@
 		if (!editing) return;
 		error = '';
 		try {
-			await api<{ report: Report }>(`/reports/${editing.id}`, { method: 'PUT', body: JSON.stringify({ primaryDivision: editing.primaryDivision, workDivision: editWorkDivision, description: editDescription }) });
+			await api<{ report: Report }>(`/reports/${editing.id}`, { method: 'PUT', body: JSON.stringify({ primaryDivision: editing.primaryDivision, workDivision: editWorkDivision, role: editing.primaryDivision === 'Project Engineer' ? editRole : '', work: editing.primaryDivision === 'Project Engineer' ? editProjectWork : '', description: editDescription }) });
 			editing = null;
 			if (selectedDivision !== null) await selectDivision(selectedDivision);
 		} catch (err) {
@@ -77,9 +81,9 @@
 		{#if selectedDivision !== null}
 			<section class="task-list" aria-labelledby="task-title">
 				<div class="task-list-header"><div><h2 id="task-title">Pekerjaan yang sudah dilakukan</h2><p>Daftar pekerjaan pada minggu berjalan.</p></div><div class="task-list-actions"><p class="selected-division">{divisions[selectedDivision]}</p><a class="report-button" href={`/weekly-progress/new?division=${encodeURIComponent(divisions[selectedDivision])}`}>+ Input laporan</a></div></div>
-				<div class="work-table-wrap"><table class="work-table"><thead><tr><th scope="col">Role</th><th scope="col">Category</th><th scope="col">Number</th><th scope="col">Work Performed</th><th scope="col">Actions</th></tr></thead><tbody>{#if loading}<tr><td colspan="5">Memuat laporan…</td></tr>{:else if reports.length === 0}<tr><td colspan="5">No report available</td></tr>{:else}{#each reports as report}<tr><td class="task-role">{report.primaryDivision}</td><td>{report.workDivision}</td><td class="task-number">{report.number}</td><td>{report.description}</td><td>{#if session()?.user.id === report.userId}<button type="button" onclick={() => { editing = report; editWorkDivision = report.workDivision; editDescription = report.description; }}>Edit</button> <button type="button" onclick={() => void deleteReport(report)}>Delete</button>{/if}</td></tr>{/each}{/if}</tbody></table></div>
+				<div class="work-table-wrap"><table class="work-table"><thead><tr><th scope="col">Division</th><th scope="col">Category</th><th scope="col">Role</th><th scope="col">Work</th><th scope="col">Number</th><th scope="col">Work Performed</th><th scope="col">Actions</th></tr></thead><tbody>{#if loading}<tr><td colspan="7">Memuat laporan…</td></tr>{:else if reports.length === 0}<tr><td colspan="7">No report available</td></tr>{:else}{#each reports as report}<tr><td class="task-role">{report.primaryDivision}</td><td>{report.workDivision}</td><td>{report.role || '—'}</td><td>{report.work || '—'}</td><td class="task-number">{report.number}</td><td>{report.description}</td><td>{#if session()?.user.id === report.userId}<button type="button" onclick={() => { editing = report; editWorkDivision = report.workDivision; editRole = report.role; editProjectWork = report.work; editDescription = report.description; }}>Edit</button> <button type="button" onclick={() => void deleteReport(report)}>Delete</button>{/if}</td></tr>{/each}{/if}</tbody></table></div>
 				{#if error}<p class="demo-note">{error}</p>{/if}
-				{#if editing}<form class="report-form" onsubmit={(event) => { event.preventDefault(); void saveEdit(); }}><label>Kategori pekerjaan<select bind:value={editWorkDivision}>{#each workDivisions[editing.primaryDivision] as item}<option value={item}>{item}</option>{/each}</select></label><label>Uraian pekerjaan yang dilakukan<textarea bind:value={editDescription} rows="5" required maxlength="500"></textarea></label><button class="report-submit" type="submit">Simpan perubahan</button><button type="button" onclick={() => (editing = null)}>Batal</button></form>{/if}
+				{#if editing}<form class="report-form" onsubmit={(event) => { event.preventDefault(); void saveEdit(); }}>{#if editing.primaryDivision === 'Project Engineer'}<label>Role<select bind:value={editRole} onchange={() => { editWorkDivision = Object.keys(projectEngineer[editRole])[0]; editProjectWork = projectEngineer[editRole][editWorkDivision][0] ?? ''; }}>{#each Object.keys(projectEngineer) as item}<option value={item}>{item}</option>{/each}</select></label><label>Job Category<select bind:value={editWorkDivision} onchange={() => { editProjectWork = projectEngineer[editRole][editWorkDivision][0] ?? ''; }}>{#each Object.keys(projectEngineer[editRole]) as item}<option value={item}>{item}</option>{/each}</select></label><label>Job<select bind:value={editProjectWork} required>{#each projectEngineer[editRole][editWorkDivision] ?? [] as item}<option value={item}>{item}</option>{/each}</select></label>{:else}<label>Job Category<select bind:value={editWorkDivision}>{#each workDivisions[editing.primaryDivision] as item}<option value={item}>{item}</option>{/each}</select></label>{/if}<label>Uraian pekerjaan yang dilakukan<textarea bind:value={editDescription} rows="5" required maxlength="500"></textarea></label><button class="report-submit" type="submit">Simpan perubahan</button><button type="button" onclick={() => (editing = null)}>Batal</button></form>{/if}
 			</section>
 		{/if}
 	</div>
