@@ -257,7 +257,7 @@ func (db *Database) ListReports(ctx context.Context, primaryDivision string) ([]
 		return nil, err
 	}
 	defer rows.Close()
-	var reports []model.WeeklyReport
+	reports := []model.WeeklyReport{}
 	for rows.Next() {
 		var item model.WeeklyReport
 		if err := rows.Scan(&item.ID, &item.UserID, &item.PrimaryDivision, &item.WorkDivision, &item.Number, &item.Role, &item.Work, &item.Description, &item.CompletedAt); err != nil {

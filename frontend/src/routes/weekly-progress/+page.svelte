@@ -26,7 +26,7 @@
 		loading = true;
 		error = '';
 		try {
-			reports = (await api<{ reports: Report[] }>(`/reports?primaryDivision=${encodeURIComponent(divisions[index])}`)).reports;
+			reports = (await api<{ reports: Report[] | null }>(`/reports?primaryDivision=${encodeURIComponent(divisions[index])}`)).reports ?? [];
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Laporan tidak dapat dimuat.';
 		} finally {
