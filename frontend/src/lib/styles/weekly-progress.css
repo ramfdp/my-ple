@@ -98,13 +98,31 @@
 .report-button,
 .report-submit { padding: 11px 16px; border: 0; border-radius: 10px; background: #0c6656; color: #fff; font: inherit; font-weight: 700; text-decoration: none; }
 .work-table-wrap { margin-top: 28px; overflow-x: auto; border: 1px solid #dce7e4; border-radius: 14px; }
-.work-table { width: 100%; border-collapse: collapse; background: #fff; text-align: left; }
-.work-table th { padding: 15px 18px; background: #123a5a; color: #fff; font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em; text-align: center; text-transform: uppercase; }
-.work-table td { padding: 18px; border-top: 1px solid #dce7e4; color: #29465d; line-height: 1.55; text-align: center; vertical-align: middle; }
-.work-table .task-role { width: 180px; color: #0c6656; font-weight: 700; }
-.work-table th:nth-child(3),
-.work-table .task-number { width: 90px; border-inline: 1px solid #dce7e4; text-align: center; font-weight: 700; }
-.work-table td:last-child { text-align: justify; text-align-last: center; }
+.work-table { width: 100%; table-layout: fixed; border-collapse: collapse; background: #fff; text-align: left; }
+.work-table th { box-sizing: border-box; padding: 15px 14px; background: #123a5a; color: #fff; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-align: center; text-transform: uppercase; }
+.work-table td { box-sizing: border-box; padding: 14px; border-top: 1px solid #dce7e4; color: #29465d; line-height: 1.55; text-align: center; vertical-align: middle; }
+.work-table th:nth-child(1), .work-table .task-role { width: 10%; color: #0c6656; font-weight: 700; }
+.work-table th:nth-child(2) { width: 10%; }
+.work-table th:nth-child(3) { width: 7%; }
+.work-table th:nth-child(4), .work-table .task-work { width: 12%; font-weight: 700; }
+.work-table th:nth-child(5), .work-table .task-number { width: 6%; border-inline: 1px solid #dce7e4; text-align: center; font-weight: 800; }
+.work-table th:nth-child(6), .work-table .task-description { width: 43%; text-align: left; }
+.work-table th:nth-child(7), .work-table .task-actions { width: 12%; padding-inline: 12px; }
+.report-row-actions { display: grid; gap: 7px; }
+.report-row-actions button { min-height: 34px; border: 1px solid transparent; border-radius: 8px; font: inherit; font-size: 0.78rem; font-weight: 800; cursor: pointer; transition: background 160ms ease, border-color 160ms ease, transform 160ms ease; }
+.report-row-actions button:hover, .report-row-actions button:focus-visible { transform: translateY(-1px); outline: none; }
+.edit-report { border-color: #b7d9d0 !important; background: #eef8f4; color: #0c6656; }
+.edit-report:hover, .edit-report:focus-visible { border-color: #0c6656 !important; background: #dff2eb; }
+.delete-report { background: #fff1f2; color: #b42336; }
+.delete-report:hover, .delete-report:focus-visible { border-color: #d92d45; background: #ffe4e7; }
+.no-actions { color: #94a3b8; font-weight: 700; }
+.work-table th:nth-child(1), .work-table .task-category { width: 17%; color: #0c6656; font-weight: 800; }
+.work-table th:nth-child(2), .work-table .task-role { width: 10%; color: #0c6656; font-weight: 800; }
+.work-table th:nth-child(3), .work-table .task-number { width: 6%; }
+.work-table th:nth-child(4), .work-table .task-description { width: 52%; }
+.work-table th:nth-child(5), .work-table .task-actions { width: 15%; }
+.work-table .task-work-title { padding: 10px 14px; background: #dff2eb; color: #123a5a; font-weight: 800; text-align: left; }
+.work-table .work-group-row:hover .task-work-title { background: #dff2eb; }
 .work-table tbody tr:nth-child(even) { background: #f4f7f6; }
 .work-table tbody tr:hover { background: #eaf4f0; }
 .demo-note { margin: 24px 0 0; color: #778697; font-size: 0.8rem; font-style: italic; }

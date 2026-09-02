@@ -12,10 +12,5 @@
 		"moduleResolution": "bundler",
 		"jsx": "react-jsx"
 	},
-	"exclude": ["src/react-components", "node_modules", ".svelte-kit"],
-	// Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias
-	// except $lib which is handled by https://svelte.dev/docs/kit/configuration#files
-	//
-	// To make changes to top-level options such as include and exclude, we recommend extending
-	// the generated config; see https://svelte.dev/docs/kit/configuration#typescript
+	"exclude": ["src/react-components", "tests", "node_modules", ".svelte-kit"]
 }

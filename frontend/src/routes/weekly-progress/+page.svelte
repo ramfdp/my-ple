@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api, session, type Report } from '$lib/api';
+	import { groupReports } from '$lib/utils/report-table';
 
 	const divisions = ['Project Engineer', 'AI Dev', 'Keuangan', 'Business Development', 'HR', 'PMO'];
 	const workDivisions: Record<string, string[]> = {
@@ -19,6 +20,7 @@
 	let editRole = $state('');
 	let editProjectWork = $state('');
 	let editDescription = $state('');
+	const tableRows = $derived(groupReports(reports));
 
 	async function selectDivision(index: number) {
 		selectedDivision = index;
@@ -81,7 +83,26 @@
 		{#if selectedDivision !== null}
 			<section class="task-list" aria-labelledby="task-title">
 				<div class="task-list-header"><div><h2 id="task-title">Pekerjaan yang sudah dilakukan</h2><p>Daftar pekerjaan pada minggu berjalan.</p></div><div class="task-list-actions"><p class="selected-division">{divisions[selectedDivision]}</p><a class="report-button" href={`/weekly-progress/new?division=${encodeURIComponent(divisions[selectedDivision])}`}>+ Input laporan</a></div></div>
-				<div class="work-table-wrap"><table class="work-table"><thead><tr><th scope="col">Division</th><th scope="col">Category</th><th scope="col">Role</th><th scope="col">Work</th><th scope="col">Number</th><th scope="col">Work Performed</th><th scope="col">Actions</th></tr></thead><tbody>{#if loading}<tr><td colspan="7">Memuat laporan…</td></tr>{:else if reports.length === 0}<tr><td colspan="7">No report available</td></tr>{:else}{#each reports as report}<tr><td class="task-role">{report.primaryDivision}</td><td>{report.workDivision}</td><td>{report.role || '—'}</td><td>{report.work || '—'}</td><td class="task-number">{report.number}</td><td>{report.description}</td><td>{#if session()?.user.id === report.userId}<button type="button" onclick={() => { editing = report; editWorkDivision = report.workDivision; editRole = report.role; editProjectWork = report.work; editDescription = report.description; }}>Edit</button> <button type="button" onclick={() => void deleteReport(report)}>Delete</button>{/if}</td></tr>{/each}{/if}</tbody></table></div>
+				<div class="work-table-wrap">
+					<table class="work-table">
+						<thead><tr><th scope="col">Kategori</th><th scope="col">Role</th><th scope="col">No.</th><th scope="col">Pekerjaan yang dilakukan</th><th scope="col">Aksi</th></tr></thead>
+						<tbody>
+							{#if loading}<tr><td colspan="5">Memuat laporan…</td></tr>
+							{:else if reports.length === 0}<tr><td colspan="5">Belum ada laporan.</td></tr>
+							{:else}{#each tableRows as row}
+								{#if row.type === 'work'}
+									<tr class="work-group-row">
+										{#if row.category}<td rowspan={row.categoryRowSpan ?? 1} class="task-category">{row.category}</td>{/if}
+										{#if row.role}<td rowspan={row.roleRowSpan ?? 1} class="task-role">{row.role}</td>{/if}
+										<td colspan="3" class="task-work-title">{row.work}</td>
+									</tr>
+								{:else}
+									<tr><td class="task-number">{row.report.number}</td><td class="task-description">{row.report.description}</td><td class="task-actions">{#if session()?.user.id === row.report.userId}<div class="report-row-actions"><button class="edit-report" type="button" onclick={() => { editing = row.report; editWorkDivision = row.report.workDivision; editRole = row.report.role; editProjectWork = row.report.work; editDescription = row.report.description; }}>Edit</button><button class="delete-report" type="button" onclick={() => void deleteReport(row.report)}>Hapus</button></div>{:else}<span class="no-actions">—</span>{/if}</td></tr>
+								{/if}
+							{/each}{/if}
+						</tbody>
+					</table>
+				</div>
 				{#if error}<p class="demo-note">{error}</p>{/if}
 				{#if editing}<form class="report-form" onsubmit={(event) => { event.preventDefault(); void saveEdit(); }}>{#if editing.primaryDivision === 'Project Engineer'}<label>Role<select bind:value={editRole} onchange={() => { editWorkDivision = Object.keys(projectEngineer[editRole])[0]; editProjectWork = projectEngineer[editRole][editWorkDivision][0] ?? ''; }}>{#each Object.keys(projectEngineer) as item}<option value={item}>{item}</option>{/each}</select></label><label>Job Category<select bind:value={editWorkDivision} onchange={() => { editProjectWork = projectEngineer[editRole][editWorkDivision][0] ?? ''; }}>{#each Object.keys(projectEngineer[editRole]) as item}<option value={item}>{item}</option>{/each}</select></label><label>Job<select bind:value={editProjectWork} required>{#each projectEngineer[editRole][editWorkDivision] ?? [] as item}<option value={item}>{item}</option>{/each}</select></label>{:else}<label>Job Category<select bind:value={editWorkDivision}>{#each workDivisions[editing.primaryDivision] as item}<option value={item}>{item}</option>{/each}</select></label>{/if}<label>Uraian pekerjaan yang dilakukan<textarea bind:value={editDescription} rows="5" required maxlength="500"></textarea></label><button class="report-submit" type="submit">Simpan perubahan</button><button type="button" onclick={() => (editing = null)}>Batal</button></form>{/if}
 			</section>
