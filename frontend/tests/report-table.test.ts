@@ -29,7 +29,31 @@ test('creates work title rows while merging the surrounding category and role ce
 	]);
 });
 
-test('keeps a category sequence ordered and resets it for a new category', () => {
+test('orders Project Engineer categories as MK, Non-MK, QA 1, QA 2, then CIHPK', () => {
+	const rows = groupReports([
+		report('1', 'JAKG', 'CIHPK', 'JAKG', 1),
+		report('2', 'QA 2', 'QA 2', 'MPS SGR', 1),
+		report('3', 'Non-MK supervisi', 'PE', 'MPS SGR', 1),
+		report('4', 'MK supervisi', 'PE', 'Penataan Kawasan Stasiun Jember', 1),
+		report('5', 'QA 1', 'QA 1', 'MPS PIT', 1),
+		report('6', 'Manggarai Hydrant', 'CIHPK', 'Hydrant', 1)
+	]);
+
+	assert.deepEqual(rows.filter((row) => row.type === 'work' && row.category).map((row) => row.category), [
+		'MK supervisi', 'Non-MK supervisi', 'QA 1', 'QA 2', 'JAKG', 'Manggarai Hydrant'
+	]);
+});
+
+test('displays CIHPK category reports from one even when stored numbers are stale', () => {
+	const rows = groupReports([
+		report('5', 'JAKG', 'CIHPK', 'JAKG Supervising Consultant', 5),
+		report('6', 'JAKG', 'CIHPK', 'JAKG Supervising Consultant', 6)
+	]);
+
+	assert.deepEqual(rows.filter((row) => row.type === 'report').map((row) => row.displayNumber), [1, 2]);
+});
+
+test('restarts visible numbering for every work while keeping its later reports in sequence', () => {
 	const rows = groupReports([
 		report('4', 'MK supervisi', 'PE', 'Penataan Kawasan Stasiun Jember', 4),
 		report('3', 'MK supervisi', 'PE', 'Pengawasan Renovasi Gudang Besar JAKG', 3),
@@ -38,5 +62,5 @@ test('keeps a category sequence ordered and resets it for a new category', () =>
 		report('5', 'Non-MK supervisi', 'PE', 'Studi Daya Beli Gas Bumi', 1)
 	]);
 
-	assert.deepEqual(rows.filter((row) => row.type === 'report').map((row) => row.report.number), [1, 2, 3, 4, 1]);
+	assert.deepEqual(rows.filter((row) => row.type === 'report').map((row) => row.displayNumber), [1, 2, 1, 3, 1]);
 });

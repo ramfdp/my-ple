@@ -8,13 +8,21 @@ export interface GroupableReport {
 
 export type TableReport<T extends GroupableReport> =
 	| { type: 'work'; work: string; category?: string; role?: string; categoryRowSpan?: number; roleRowSpan?: number }
-	| { type: 'report'; report: T };
+	| { type: 'report'; report: T; displayNumber: number };
+
+const projectEngineerCategoryOrder = ['MK supervisi', 'Non-MK supervisi', 'QA 1', 'QA 2'];
 
 function compareReports(a: GroupableReport, b: GroupableReport) {
-	for (const field of ['primaryDivision', 'workDivision'] as const) {
-		const comparison = a[field].localeCompare(b[field], 'id');
-		if (comparison !== 0) return comparison;
-	}
+	const divisionComparison = a.primaryDivision.localeCompare(b.primaryDivision, 'id');
+	if (divisionComparison !== 0) return divisionComparison;
+
+	const categoryRank = (category: string) => {
+		const rank = projectEngineerCategoryOrder.indexOf(category);
+		return rank === -1 ? projectEngineerCategoryOrder.length : rank;
+	};
+	const categoryComparison = categoryRank(a.workDivision) - categoryRank(b.workDivision) || a.workDivision.localeCompare(b.workDivision, 'id');
+	if (categoryComparison !== 0) return categoryComparison;
+
 	return a.number - b.number;
 }
 
@@ -30,10 +38,14 @@ function renderedSpan<T extends GroupableReport>(reports: T[], start: number, sa
 export function groupReports<T extends GroupableReport>(reports: T[]): TableReport<T>[] {
 	const sortedReports = [...reports].sort(compareReports);
 	const rows: TableReport<T>[] = [];
+	const displayedNumbers = new Map<string, number>();
 
 	for (let index = 0; index < sortedReports.length; index += 1) {
 		const report = sortedReports[index];
 		const previous = sortedReports[index - 1];
+		const workKey = `${report.primaryDivision}\u0000${report.workDivision}\u0000${report.role}\u0000${report.work}`;
+		const displayNumber = (displayedNumbers.get(workKey) ?? 0) + 1;
+		displayedNumbers.set(workKey, displayNumber);
 		const categoryStart = !previous || report.primaryDivision !== previous.primaryDivision || report.workDivision !== previous.workDivision;
 		const roleStart = categoryStart || report.role !== previous.role;
 		const workStart = roleStart || report.work !== previous.work;
@@ -44,7 +56,7 @@ export function groupReports<T extends GroupableReport>(reports: T[]): TableRepo
 			...(categoryStart ? { category: report.workDivision, categoryRowSpan: renderedSpan(sortedReports, index, (item) => item.primaryDivision === report.primaryDivision && item.workDivision === report.workDivision) } : {}),
 			...(roleStart ? { role: report.role || '—', roleRowSpan: renderedSpan(sortedReports, index, (item) => item.primaryDivision === report.primaryDivision && item.workDivision === report.workDivision && item.role === report.role) } : {})
 		});
-		rows.push({ type: 'report', report });
+		rows.push({ type: 'report', report, displayNumber });
 	}
 
 	return rows;

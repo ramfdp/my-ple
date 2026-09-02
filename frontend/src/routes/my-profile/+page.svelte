@@ -78,13 +78,13 @@
 
 <style>
 	.profile-page { width: min(100%, 1120px); margin: 0 auto; padding: clamp(24px, 5vw, 56px); color: #102a43; }
-	.page-intro { margin-bottom: 24px; }
+	.page-intro { margin-bottom: 24px; animation: profile-reveal 420ms cubic-bezier(.22, 1, .36, 1) both; }
 	.page-intro h1, .page-intro p, h2 { margin: 0; }
 	.page-intro h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: clamp(1.8rem, 4vw, 2.5rem); letter-spacing: -0.04em; }
 	.page-intro > p:last-child { margin-top: 6px; color: #708090; }
 	.eyebrow { margin-bottom: 8px !important; color: #0c6656; font-size: .7rem; font-weight: 700; letter-spacing: .14em; }
-	.profile-card, .details-card, .state-card { overflow: hidden; border: 1px solid #dfe8e6; border-radius: 20px; background: #fff; box-shadow: 0 10px 28px rgb(16 42 67 / 6%); }
-	.cover { height: clamp(132px, 18vw, 184px); background: linear-gradient(105deg, #d9f5f1, #dff5df 58%, #edf6cb); }
+	.profile-card, .details-card, .state-card { overflow: hidden; border: 1px solid #dfe8e6; border-radius: 20px; background: #fff; box-shadow: 0 10px 28px rgb(16 42 67 / 0.08); animation: profile-reveal 480ms 80ms cubic-bezier(.22, 1, .36, 1) both; }
+	.cover { height: clamp(132px, 18vw, 184px); background: linear-gradient(105deg, #d9f5f1, #dff5df 48%, #edf6cb); }
 	.identity { display: flex; align-items: flex-end; gap: 22px; min-width: 0; padding: 0 28px 26px; }
 	.avatar-wrap { z-index: 1; flex: 0 0 auto; margin-top: -54px; }
 	.identity-copy { min-width: 0; flex: 1; padding-top: 20px; }
@@ -94,7 +94,7 @@
 	.join-date { display: grid; gap: 3px; flex: 0 0 auto; text-align: right; }
 	.join-date span { color: #7b8a99; font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; }
 	.join-date strong { font-size: .9rem; }
-	.details-card { margin-top: 20px; padding: 24px; }
+	.details-card { margin-top: 20px; padding: 24px; animation-delay: 160ms; }
 	.details-card > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; padding-bottom: 18px; border-bottom: 1px solid #edf1f0; }
 	.details-card h2, .state-card h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.15rem; letter-spacing: -.025em; }
 	.details-card header p, .state-card p { margin: 4px 0 0; color: #708090; font-size: .84rem; }
@@ -115,6 +115,7 @@
 	.loading-details > i { width: 20%; height: 20px; margin-bottom: 24px; }
 	.loading-details div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 	.loading-details span { height: 76px; }
+	@keyframes profile-reveal { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
 	@keyframes pulse { 50% { opacity: .6; } }
 	@media (max-width: 900px) { .details-grid, .loading-details div { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 	@media (max-width: 640px) {
@@ -128,5 +129,6 @@
 		.details-grid, .loading-details div { grid-template-columns: 1fr; }
 		.state-card button { width: 100%; }
 	}
-	@media (prefers-reduced-motion: reduce) { .loading-card, .loading-details { animation: none; } }
+	@media (max-width: 480px) { .profile-page { padding: 20px 14px; } .page-intro { margin-bottom: 18px; } .page-intro h1 { font-size: 1.75rem; } .identity { padding-inline: 14px; } .details-card { padding: 14px; } .details-card > header { gap: 10px; } }
+	@media (prefers-reduced-motion: reduce) { .page-intro, .profile-card, .details-card, .state-card, .loading-card, .loading-details { animation: none; } }
 </style>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { fade, fly } from 'svelte/transition';
 	import { api, session, type Report } from '$lib/api';
 	import { groupReports } from '$lib/utils/report-table';
 
@@ -16,6 +17,7 @@
 	let loading = $state(false);
 	let error = $state('');
 	let editing = $state<Report | null>(null);
+	let deleting = $state<Report | null>(null);
 	let editWorkDivision = $state('');
 	let editRole = $state('');
 	let editProjectWork = $state('');
@@ -48,11 +50,12 @@
 		}
 	}
 
-	async function deleteReport(report: Report) {
-		if (!confirm(`Hapus laporan #${report.number}?`)) return;
+	async function deleteReport() {
+		if (!deleting) return;
 		error = '';
 		try {
-			await api<void>(`/reports/${report.id}`, { method: 'DELETE' });
+			await api<void>(`/reports/${deleting.id}`, { method: 'DELETE' });
+			deleting = null;
 			if (selectedDivision !== null) await selectDivision(selectedDivision);
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Laporan tidak dapat dihapus.';
@@ -85,27 +88,55 @@
 				<div class="task-list-header"><div><h2 id="task-title">Pekerjaan yang sudah dilakukan</h2><p>Daftar pekerjaan pada minggu berjalan.</p></div><div class="task-list-actions"><p class="selected-division">{divisions[selectedDivision]}</p><a class="report-button" href={`/weekly-progress/new?division=${encodeURIComponent(divisions[selectedDivision])}`}>+ Input laporan</a></div></div>
 				<div class="work-table-wrap">
 					<table class="work-table">
-						<thead><tr><th scope="col">Kategori</th><th scope="col">Role</th><th scope="col">No.</th><th scope="col">Pekerjaan yang dilakukan</th><th scope="col">Aksi</th></tr></thead>
+						<thead><tr><th scope="col">Role</th><th scope="col">Kategori</th><th scope="col">No.</th><th scope="col">Pekerjaan yang dilakukan</th><th scope="col">Aksi</th></tr></thead>
 						<tbody>
 							{#if loading}<tr><td colspan="5">Memuat laporan…</td></tr>
 							{:else if reports.length === 0}<tr><td colspan="5">Belum ada laporan.</td></tr>
 							{:else}{#each tableRows as row}
 								{#if row.type === 'work'}
 									<tr class="work-group-row">
-										{#if row.category}<td rowspan={row.categoryRowSpan ?? 1} class="task-category">{row.category}</td>{/if}
 										{#if row.role}<td rowspan={row.roleRowSpan ?? 1} class="task-role">{row.role}</td>{/if}
+										{#if row.category}<td rowspan={row.categoryRowSpan ?? 1} class="task-category">{row.category}</td>{/if}
 										<td colspan="3" class="task-work-title">{row.work}</td>
 									</tr>
 								{:else}
-									<tr><td class="task-number">{row.report.number}</td><td class="task-description">{row.report.description}</td><td class="task-actions">{#if session()?.user.id === row.report.userId}<div class="report-row-actions"><button class="edit-report" type="button" onclick={() => { editing = row.report; editWorkDivision = row.report.workDivision; editRole = row.report.role; editProjectWork = row.report.work; editDescription = row.report.description; }}>Edit</button><button class="delete-report" type="button" onclick={() => void deleteReport(row.report)}>Hapus</button></div>{:else}<span class="no-actions">—</span>{/if}</td></tr>
+									<tr><td class="task-number">{row.displayNumber}</td><td class="task-description">{row.report.description}</td><td class="task-actions">{#if session()?.user.id === row.report.userId}<div class="report-row-actions"><button class="edit-report" type="button" onclick={() => { editing = row.report; editWorkDivision = row.report.workDivision; editRole = row.report.role; editProjectWork = row.report.work; editDescription = row.report.description; }}>Edit</button><button class="delete-report" type="button" onclick={() => (deleting = row.report)}>Hapus</button></div>{:else}<span class="no-actions">—</span>{/if}</td></tr>
 								{/if}
 							{/each}{/if}
 						</tbody>
 					</table>
 				</div>
 				{#if error}<p class="demo-note">{error}</p>{/if}
-				{#if editing}<form class="report-form" onsubmit={(event) => { event.preventDefault(); void saveEdit(); }}>{#if editing.primaryDivision === 'Project Engineer'}<label>Role<select bind:value={editRole} onchange={() => { editWorkDivision = Object.keys(projectEngineer[editRole])[0]; editProjectWork = projectEngineer[editRole][editWorkDivision][0] ?? ''; }}>{#each Object.keys(projectEngineer) as item}<option value={item}>{item}</option>{/each}</select></label><label>Job Category<select bind:value={editWorkDivision} onchange={() => { editProjectWork = projectEngineer[editRole][editWorkDivision][0] ?? ''; }}>{#each Object.keys(projectEngineer[editRole]) as item}<option value={item}>{item}</option>{/each}</select></label><label>Job<select bind:value={editProjectWork} required>{#each projectEngineer[editRole][editWorkDivision] ?? [] as item}<option value={item}>{item}</option>{/each}</select></label>{:else}<label>Job Category<select bind:value={editWorkDivision}>{#each workDivisions[editing.primaryDivision] as item}<option value={item}>{item}</option>{/each}</select></label>{/if}<label>Uraian pekerjaan yang dilakukan<textarea bind:value={editDescription} rows="5" required maxlength="500"></textarea></label><button class="report-submit" type="submit">Simpan perubahan</button><button type="button" onclick={() => (editing = null)}>Batal</button></form>{/if}
 			</section>
 		{/if}
 	</div>
 </main>
+
+{#if editing}
+	<div class="report-drawer-layer" transition:fade={{ duration: 180 }}>
+		<button class="report-drawer-backdrop" type="button" aria-label="Tutup edit laporan" onclick={() => (editing = null)}></button>
+		<div class="report-drawer" role="dialog" aria-modal="true" aria-labelledby="edit-report-title" transition:fly={{ x: 32, duration: 240, opacity: 0 }}>
+			<div class="report-drawer-header"><h2 id="edit-report-title">Edit laporan</h2><button class="drawer-close" type="button" aria-label="Tutup" onclick={() => (editing = null)}>×</button></div>
+			<form class="report-form report-drawer-form" onsubmit={(event) => { event.preventDefault(); void saveEdit(); }}>
+				{#if editing.primaryDivision === 'Project Engineer'}
+					<label>Role<select bind:value={editRole} onchange={() => { editWorkDivision = Object.keys(projectEngineer[editRole])[0]; editProjectWork = projectEngineer[editRole][editWorkDivision][0] ?? ''; }}>{#each Object.keys(projectEngineer) as item}<option value={item}>{item}</option>{/each}</select></label>
+					<label>Job Category<select bind:value={editWorkDivision} onchange={() => { editProjectWork = projectEngineer[editRole][editWorkDivision][0] ?? ''; }}>{#each Object.keys(projectEngineer[editRole]) as item}<option value={item}>{item}</option>{/each}</select></label>
+					<label>Job<select bind:value={editProjectWork} required>{#each projectEngineer[editRole][editWorkDivision] ?? [] as item}<option value={item}>{item}</option>{/each}</select></label>
+				{:else}
+					<label>Job Category<select bind:value={editWorkDivision}>{#each workDivisions[editing.primaryDivision] as item}<option value={item}>{item}</option>{/each}</select></label>
+				{/if}
+				<label>Uraian pekerjaan yang dilakukan<textarea bind:value={editDescription} rows="5" required maxlength="500"></textarea></label>
+				<div class="drawer-form-actions"><button class="report-submit" type="submit">Simpan perubahan</button><button class="drawer-cancel" type="button" onclick={() => (editing = null)}>Batal</button></div>
+			</form>
+		</div>
+	</div>
+{/if}
+{#if deleting}
+	<div class="report-modal-layer" transition:fade={{ duration: 180 }}>
+		<button class="report-modal-backdrop" type="button" aria-label="Batal hapus laporan" onclick={() => (deleting = null)}></button>
+		<div class="report-delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-report-title" transition:fly={{ y: 18, duration: 220, opacity: 0 }}>
+			<h2 id="delete-report-title">Hapus laporan?</h2><p>Make sure Anda ingin menghapus laporan ini. Tindakan ini tidak dapat dibatalkan.</p>
+			<div class="delete-modal-actions"><button class="delete-confirm" type="button" onclick={() => void deleteReport()}>Hapus laporan</button><button class="drawer-cancel" type="button" onclick={() => (deleting = null)}>Batal</button></div>
+		</div>
+	</div>
+{/if}
