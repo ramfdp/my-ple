@@ -1,7 +1,15 @@
 package controller
 
 import (
+	"fmt"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -13,10 +21,18 @@ import (
 	"my-ple-backend/model"
 )
 
+const maxAvatarSize = 1 << 20
+
 var (
-	usernamePattern = regexp.MustCompile(`^[a-zA-Z0-9_.-]{3,50}$`)
-	emailPattern    = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
+	usernamePattern  = regexp.MustCompile(`^[a-zA-Z0-9_.-]{3,50}$`)
+	emailPattern     = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
+	userIDPattern    = regexp.MustCompile(`^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$`)
+	employmentStatus = map[string]bool{"Permanent Employee": true, "Contract Employee": true, "Intern": true}
 )
+
+func ownsAvatar(id, path string) bool {
+	return strings.HasPrefix(path, "/uploads/"+id+".") || strings.HasPrefix(path, "/uploads/"+id+"-")
+}
 
 type AuthController struct {
 	DB     *db.Database
@@ -53,6 +69,13 @@ func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(input.Password) < 8 {
 		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Password minimal 8 karakter."})
+		return
+	}
+	if input.EmploymentStatus == "" {
+		input.EmploymentStatus = "Permanent Employee"
+	}
+	if !employmentStatus[input.EmploymentStatus] {
+		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Status kepegawaian tidak valid."})
 		return
 	}
 
@@ -94,7 +117,6 @@ func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 		Residence:        input.Residence,
 		PhoneNumber:      input.PhoneNumber,
 		EmploymentStatus: input.EmploymentStatus,
-		AvatarURL:        input.AvatarURL,
 		IsActive:         true,
 	})
 	if db.UniqueViolation(err) {
@@ -202,7 +224,10 @@ func (c *AuthController) UpdateUser(w http.ResponseWriter, r *http.Request, id s
 		return
 	}
 	input.Name, input.Email, input.Username = strings.TrimSpace(input.Name), strings.TrimSpace(strings.ToLower(input.Email)), strings.TrimSpace(input.Username)
-	if len(input.Name) < 2 || !emailPattern.MatchString(input.Email) || !usernamePattern.MatchString(input.Username) || input.RoleID < 1 || input.Salary < 0 {
+	if input.AvatarURL != "" && !ownsAvatar(id, input.AvatarURL) {
+		input.AvatarURL = ""
+	}
+	if len(input.Name) < 2 || !emailPattern.MatchString(input.Email) || !usernamePattern.MatchString(input.Username) || input.RoleID < 1 || input.Salary < 0 || !employmentStatus[input.EmploymentStatus] {
 		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Data pengguna tidak valid."})
 		return
 	}
@@ -231,6 +256,79 @@ func (c *AuthController) UpdateUser(w http.ResponseWriter, r *http.Request, id s
 	if err != nil {
 		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Gagal memperbarui pengguna."})
 		return
+	}
+	WriteJSON(w, http.StatusOK, map[string]any{"user": model.PublicUser(u)})
+}
+
+func (c *AuthController) UploadAvatar(w http.ResponseWriter, r *http.Request, id string) {
+	if !userIDPattern.MatchString(id) {
+		WriteJSON(w, http.StatusNotFound, map[string]string{"error": "Pengguna tidak ditemukan."})
+		return
+	}
+	previous, err := c.DB.FindUserByID(r.Context(), id)
+	if err != nil {
+		WriteJSON(w, http.StatusNotFound, map[string]string{"error": "Pengguna tidak ditemukan."})
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxAvatarSize+10240)
+	if err := r.ParseMultipartForm(maxAvatarSize + 10240); err != nil {
+		WriteJSON(w, http.StatusRequestEntityTooLarge, map[string]string{"error": "Ukuran foto maksimal 1 MB."})
+		return
+	}
+	file, header, err := r.FormFile("avatar")
+	if err != nil || header.Size > maxAvatarSize {
+		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Pilih foto berukuran maksimal 1 MB."})
+		return
+	}
+	defer file.Close()
+	_, format, err := image.Decode(io.LimitReader(file, maxAvatarSize+1))
+	if err != nil {
+		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "File harus berupa gambar JPEG, PNG, atau GIF yang valid."})
+		return
+	}
+	ext := map[string]string{"jpeg": "jpg", "png": "png", "gif": "gif"}[format]
+	if ext == "" {
+		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "File harus berupa gambar JPEG, PNG, atau GIF yang valid."})
+		return
+	}
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Gagal memproses foto."})
+		return
+	}
+	dir := os.Getenv("UPLOAD_DIR")
+	if dir == "" {
+		dir = "upload"
+	}
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Gagal menyimpan foto."})
+		return
+	}
+	name := fmt.Sprintf("%s-%s.%s", id, db.NewID(), ext)
+	tmp, err := os.CreateTemp(dir, ".avatar-*")
+	if err != nil {
+		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Gagal menyimpan foto."})
+		return
+	}
+	_, copyErr := io.Copy(tmp, io.LimitReader(file, maxAvatarSize+1))
+	closeErr := tmp.Close()
+	if copyErr != nil || closeErr != nil {
+		os.Remove(tmp.Name())
+		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Gagal menyimpan foto."})
+		return
+	}
+	if err := os.Rename(tmp.Name(), filepath.Join(dir, name)); err != nil {
+		os.Remove(tmp.Name())
+		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Gagal menyimpan foto."})
+		return
+	}
+	u, err := c.DB.UpdateAvatar(r.Context(), id, "/uploads/"+name)
+	if err != nil {
+		os.Remove(filepath.Join(dir, name))
+		WriteJSON(w, http.StatusNotFound, map[string]string{"error": "Pengguna tidak ditemukan."})
+		return
+	}
+	if ownsAvatar(id, previous.AvatarURL) && previous.AvatarURL != u.AvatarURL {
+		_ = os.Remove(filepath.Join(dir, filepath.Base(previous.AvatarURL)))
 	}
 	WriteJSON(w, http.StatusOK, map[string]any{"user": model.PublicUser(u)})
 }

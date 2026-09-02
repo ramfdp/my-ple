@@ -1,4 +1,4 @@
-const apiUrl = 'http://localhost:3000';
+const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 export interface User {
 	id: string; name: string; email: string; username: string; roleId: number; role: string;
@@ -19,3 +19,12 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
 	if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || 'Request failed.');
 	return response.status === 204 ? undefined as T : response.json();
 }
+
+export async function upload<T>(path: string, body: FormData): Promise<T> {
+	const current = session();
+	const response = await fetch(`${apiUrl}${path}`, { method: 'POST', body, headers: current ? { Authorization: `Bearer ${current.token}` } : {} });
+	if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || 'Upload failed.');
+	return response.json();
+}
+
+export const assetUrl = (path: string) => path.startsWith('/uploads/') ? `${apiUrl}${path}` : path;

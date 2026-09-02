@@ -73,7 +73,6 @@
 			</div>
 			<div class="brand-details">
 				<span class="brand-title">my-ple</span>
-				<span class="brand-badge">HR Portal</span>
 			</div>
 		</a>
 	</div>

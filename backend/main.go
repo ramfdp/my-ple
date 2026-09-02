@@ -18,6 +18,7 @@ import (
 func newHandler(database *db.Database, secret, corsOrigin string) http.Handler {
 	authCtrl := controller.NewAuthController(database, secret)
 	protected := middleware.RequireAuth(secret, protectedHandler(database, authCtrl))
+	uploads := http.StripPrefix("/uploads/", http.FileServer(http.Dir(envOr("UPLOAD_DIR", "upload"))))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", corsOrigin)
@@ -33,6 +34,10 @@ func newHandler(database *db.Database, secret, corsOrigin string) http.Handler {
 				status = "configured"
 			}
 			controller.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok", "database": status})
+			return
+		}
+		if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/uploads/") {
+			uploads.ServeHTTP(w, r)
 			return
 		}
 		if database == nil {
@@ -77,6 +82,10 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 			return
 		}
 		if strings.EqualFold(current.RoleName, "Admin") || strings.EqualFold(current.RoleName, "Management") || strings.EqualFold(current.RoleName, "HR") {
+			if r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/users/") && strings.HasSuffix(r.URL.Path, "/avatar") {
+				authCtrl.UploadAvatar(w, r, strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/users/"), "/avatar"))
+				return
+			}
 			if r.URL.Path == "/users" {
 				if r.Method == http.MethodGet {
 					authCtrl.ListUsers(w, r)

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { api, type User } from '$lib/api';
+	import { api, assetUrl, type User } from '$lib/api';
 	let user = $state<User | null>(null), error = $state('');
 	onMount(async () => { try { user = (await api<{ user: User }>('/me')).user; } catch (e) { error = e instanceof Error ? e.message : 'Gagal memuat profil.'; } });
 	const fields = (user: User) => [['Name', user.name], ['Email', user.email], ['Username', user.username], ['Role', user.role], ['Job title', user.jobTitle], ['Residence', user.residence], ['Phone number', user.phoneNumber], ['Employment status', user.employmentStatus]];
@@ -9,7 +9,7 @@
 <main class="profile">
 	<h1>My Profile</h1><p>Your employee data. Changes are managed from Manage Employees.</p>
 	{#if error}<p class="error">{error}</p>{:else if !user}<p>Loading profile…</p>{:else}
-		<section><img src={user.avatarUrl || '/Logo_PLE-removebg-preview-300x233.png'} alt={user.name} /><div><h2>{user.name}</h2><span>{user.jobTitle} · {user.role}</span></div></section>
+		<section><img src={assetUrl(user.avatarUrl) || '/Logo_PLE-removebg-preview-300x233.png'} alt={user.name} /><div><h2>{user.name}</h2><span>{user.jobTitle} · {user.role}</span></div></section>
 		<dl>{#each fields(user) as field}<div><dt>{field[0]}</dt><dd>{field[1] || '—'}</dd></div>{/each}</dl>
 	{/if}
 </main>

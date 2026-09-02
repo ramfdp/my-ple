@@ -156,6 +156,22 @@ func (db *Database) UpdateUser(ctx context.Context, id string, input model.Updat
 	return u, err
 }
 
+func (db *Database) UpdateAvatar(ctx context.Context, id, avatarURL string) (model.User, error) {
+	var u model.User
+	err := db.Conn.QueryRowContext(ctx, `
+		UPDATE users SET avatar_url=$2, updated_at=NOW() WHERE id=$1
+		RETURNING id, name, email, role_id, username, password_hash, job_title, salary, residence, phone_number, employment_status, avatar_url, is_active, created_at, updated_at`, id, avatarURL,
+	).Scan(&u.ID, &u.Name, &u.Email, &u.RoleID, &u.Username, &u.PasswordHash, &u.JobTitle, &u.Salary, &u.Residence, &u.PhoneNumber, &u.EmploymentStatus, &u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt)
+	if err != nil {
+		return u, err
+	}
+	role, err := db.FindRoleByID(ctx, u.RoleID)
+	if err == nil {
+		u.RoleName = role.Name
+	}
+	return u, err
+}
+
 func (db *Database) DeleteUser(ctx context.Context, id string) error {
 	result, err := db.Conn.ExecContext(ctx, `DELETE FROM users WHERE id = $1`, id)
 	if err != nil {
