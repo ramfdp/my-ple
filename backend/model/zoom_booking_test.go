@@ -1,6 +1,7 @@
 package model
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -23,11 +24,14 @@ func TestValidZoomBooking(t *testing.T) {
 }
 
 func TestValidZoomResourceUpdate(t *testing.T) {
-	if !ValidZoomResourceUpdate(ZoomResourceUpdateInput{MeetingID: "123 456", MeetingURL: "https://zoom.us/j/123", Description: "NP account"}) {
+	if !ValidZoomResourceUpdate(ZoomResourceUpdateInput{MeetingID: "123 456", HostKey: "654321", MeetingURL: "https://zoom.us/j/123", Description: "NP account"}) {
 		t.Fatal("valid resource information was rejected")
 	}
 	if ValidZoomResourceUpdate(ZoomResourceUpdateInput{MeetingURL: "javascript:alert(1)"}) {
 		t.Fatal("unsafe meeting URL was accepted")
+	}
+	if ValidZoomResourceUpdate(ZoomResourceUpdateInput{HostKey: strings.Repeat("1", 101)}) {
+		t.Fatal("host key longer than 100 characters was accepted")
 	}
 }
 

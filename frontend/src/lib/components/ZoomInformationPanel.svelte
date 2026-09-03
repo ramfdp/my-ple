@@ -10,9 +10,9 @@
 			<div class="zoom-info-heading"><div><h3>{resource.name}</h3><span>{resource.code}</span></div>{#if canEdit}<button type="button" onclick={() => onedit(resource)}>Edit</button>{/if}</div>
 			<dl>
 				<div><dt>Meeting ID</dt><dd>{resource.meetingId || 'Belum dikonfigurasi'}</dd></div>
+				<div><dt>Host key</dt><dd>{resource.hostKey || 'Belum dikonfigurasi'}</dd></div>
 				<div><dt>Meeting URL</dt><dd>{#if resource.meetingUrl}<a href={resource.meetingUrl} target="_blank" rel="noreferrer">Buka link Zoom</a>{:else}Belum dikonfigurasi{/if}</dd></div>
 				<div><dt>Deskripsi</dt><dd>{resource.description || 'Belum dikonfigurasi'}</dd></div>
-				<div><dt>Host key</dt><dd>{resource.hostKey || 'Belum dikonfigurasi'}</dd></div>
 			</dl>
 		</section>
 	{/each}

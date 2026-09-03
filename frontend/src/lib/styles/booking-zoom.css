@@ -12,12 +12,12 @@
 .zoom-secondary, .today-button { border-color: #dbe5e3; background: #fff; color: #334155; }
 .zoom-danger { background: #fff1f2; color: #be123c; border-color: #fecdd3; }
 .booking-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 280px; align-items: start; gap: 18px; }
-.schedule-card { position: relative; min-width: 0; overflow: hidden; border: 1px solid #e1e9e7; border-radius: 18px; background: #fff; box-shadow: 0 12px 30px rgb(16 42 67 / 6%); }
+.schedule-card { position: relative; align-self: stretch; display: flex; min-width: 0; overflow: hidden; flex-direction: column; border: 1px solid #e1e9e7; border-radius: 18px; background: #fff; box-shadow: 0 12px 30px rgb(16 42 67 / 6%); }
 .schedule-toolbar { display: flex; align-items: center; gap: 16px; padding: 18px 20px; border-bottom: 1px solid #e7eeec; }
 .schedule-toolbar h2 { margin: 3px 0 0; font: 700 1.08rem 'Plus Jakarta Sans', sans-serif; }
 .week-actions { display: flex; align-items: center; gap: 9px; margin-left: auto; }
 .week-button { width: 40px; height: 40px; padding: 0; border-color: #dbe5e3; background: #f8fafc; color: #102a43; }
-.calendar-scroll { max-height: 68vh; overflow: auto; }
+.calendar-scroll { min-height: 0; overflow: auto; flex: 1; }
 .zoom-calendar { display: grid; grid-template-columns: 66px repeat(21, 104px); min-width: 2250px; }
 .calendar-corner, .calendar-day-head { position: sticky; top: 0; z-index: 5; height: 64px; border-bottom: 1px solid #dfe8e6; background: #fbfdfc; }
 .calendar-corner { grid-column: 1; grid-row: 1 / span 2; left: 0; z-index: 8; display: grid; height: 108px; place-items: center; color: #94a3b8; font-size: .68rem; }
@@ -65,5 +65,5 @@
 .zoom-info-panel > header { padding: 18px; border-bottom: 1px solid #edf2f1; }.zoom-info-panel h2 { margin: 3px 0 0; font: 700 1rem 'Plus Jakarta Sans', sans-serif; }
 .zoom-info-item { padding: 16px 18px; border-bottom: 1px solid #edf2f1; }.zoom-info-item:last-child { border-bottom: 0; }.zoom-info-heading { display: flex; justify-content: space-between; gap: 12px; }.zoom-info-heading h3 { margin: 0; font: 700 .9rem 'Plus Jakarta Sans', sans-serif; }.zoom-info-heading span { color: #0f766e; font-size: .72rem; font-weight: 800; }.zoom-info-heading button { align-self: start; border: 0; background: transparent; color: #0f766e; font-size: .72rem; font-weight: 800; }
 .zoom-info-item dl { display: grid; gap: 10px; margin: 14px 0 0; }.zoom-info-item dl div { display: grid; gap: 2px; }.zoom-info-item dt { color: #94a3b8; font-size: .62rem; font-weight: 800; text-transform: uppercase; }.zoom-info-item dd { overflow-wrap: anywhere; margin: 0; color: #475569; font-size: .75rem; line-height: 1.4; }.zoom-info-item a { color: #0f766e; }
-@media (max-width: 1050px) { .booking-workspace { grid-template-columns: 1fr; }.zoom-info-panel { position: static; }.zoom-info-panel { display: grid; grid-template-columns: repeat(3, 1fr); }.zoom-info-panel > header { grid-column: 1 / -1; }.zoom-info-item { border-right: 1px solid #edf2f1; border-bottom: 0; } }
+@media (max-width: 1050px) { .booking-workspace { grid-template-columns: 1fr; }.schedule-card { display: block; }.calendar-scroll { max-height: 68vh; }.zoom-info-panel { position: static; }.zoom-info-panel { display: grid; grid-template-columns: repeat(3, 1fr); }.zoom-info-panel > header { grid-column: 1 / -1; }.zoom-info-item { border-right: 1px solid #edf2f1; border-bottom: 0; } }
 @media (max-width: 640px) { .booking-page { padding: 24px 16px; }.booking-header { align-items: stretch; flex-direction: column; }.booking-header .zoom-primary { align-self: flex-start; }.schedule-toolbar { align-items: flex-start; }.today-button { padding-inline: 10px; }.zoom-form-grid { grid-template-columns: 1fr; }.empty-booking { width: calc(100% - 32px); justify-content: space-between; }.zoom-modal { border-radius: 14px; }.zoom-info-panel { grid-template-columns: 1fr; }.zoom-info-panel > header { grid-column: auto; }.zoom-info-item { border-right: 0; border-bottom: 1px solid #edf2f1; } }

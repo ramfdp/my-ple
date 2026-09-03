@@ -19,7 +19,7 @@ export interface ZoomBookingInput { title: string; description: string; zoomReso
 export interface ZoomResource {
   hostKey: string; id: number; name: string; code: string; description: string; meetingUrl: string; meetingId: string; createdAt: string; updatedAt: string 
 }
-export interface ZoomResourceInput { description: string; meetingUrl: string; meetingId: string }
+export interface ZoomResourceInput { description: string; meetingUrl: string; meetingId: string; hostKey: string }
 
 export function session(): { token: string; user: User } | null {
 	if (typeof window === 'undefined') return null;

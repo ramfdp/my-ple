@@ -87,9 +87,12 @@ CREATE TABLE IF NOT EXISTS zoom_resources (
   description VARCHAR(1000) NOT NULL DEFAULT '',
   meeting_url TEXT NOT NULL DEFAULT '',
   meeting_id VARCHAR(100) NOT NULL DEFAULT '',
+	 host_key VARCHAR(100) NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE zoom_resources ADD COLUMN IF NOT EXISTS host_key VARCHAR(100) NOT NULL DEFAULT '';
 
 INSERT INTO zoom_resources (id, name, code) VALUES
   (1, 'Zoom 1', 'NP'),
