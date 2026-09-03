@@ -25,7 +25,7 @@ func TestProjectEngineerRoleWorkValidation(t *testing.T) {
 func TestProjectEngineerIndonesianWorkValidation(t *testing.T) {
 	for _, input := range []model.WeeklyReportInput{
 		{PrimaryDivision: "Project Engineer", WorkDivision: "MK supervisi", Role: "PE", Work: "Penataan Kawasan Stasiun Jember", Description: "selesai"},
-		{PrimaryDivision: "Project Engineer", WorkDivision: "QA 1", Role: "QA 1", Work: "SOP Tata Kelola", Description: "selesai"},
+		{PrimaryDivision: "Project Engineer", WorkDivision: "QA", Role: "QA", Work: "SOP Tata Kelola", Description: "selesai"},
 	} {
 		if !validReportInput(input) {
 			t.Fatalf("valid Indonesian work was rejected: %s", input.Work)

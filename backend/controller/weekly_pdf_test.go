@@ -34,7 +34,7 @@ func TestWeeklyPDFGroupsProjectsAndCreatesMultiplePages(t *testing.T) {
 	}
 }
 
-func TestWeeklyPDFUsesDivisionTitleAndOneMergedCategoryCell(t *testing.T) {
+func TestWeeklyPDFUsesDivisionTitleAndMergedRoleAndCategoryCells(t *testing.T) {
 	start, next := model.ReportingWeek(time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC))
 	period := model.ReportingPeriod{Start: start, End: next.AddDate(0, 0, -1), Label: model.IndonesianWeekLabel(start, next)}
 	reports := []model.WeeklyReport{
@@ -57,13 +57,21 @@ func TestWeeklyPDFUsesDivisionTitleAndOneMergedCategoryCell(t *testing.T) {
 	if !bytes.Contains(data, []byte("Weekly Report Project Engineer")) {
 		t.Fatal("selected division is missing from title")
 	}
-	for _, category := range []string{"MK supervisi", "Non-MK supervisi", "QA 1", "QA 2", "JAKG", "Jember"} {
+	for _, category := range []string{"MK supervisi", "Non-MK supervisi", "JAKG", "Jember"} {
 		if got := bytes.Count(data, []byte("("+category+")Tj")); got != 1 {
 			t.Fatalf("category %q rendered %d times", category, got)
 		}
 	}
+	if bytes.Contains(data, []byte("QA 1")) || bytes.Contains(data, []byte("QA 2")) || bytes.Count(data, []byte("(QA)Tj")) != 2 {
+		t.Fatal("legacy QA role/category values were not merged into canonical QA")
+	}
+	for _, role := range []string{"PE", "CIHPK"} {
+		if got := bytes.Count(data, []byte("("+role+")Tj")); got != 1 {
+			t.Fatalf("role %q rendered %d times", role, got)
+		}
+	}
 	numberCommands := regexp.MustCompile(`(?m)^([0-9.]+) [^\r\n]*\([0-9]+\)Tj`).FindAllSubmatch(data, -1)
-	expectedX := fmt.Sprintf("%.2f", (15.0+42.0)*72/25.4)
+	expectedX := fmt.Sprintf("%.2f", (15.0+20.0+42.0)*72/25.4)
 	if len(numberCommands) != len(reports) {
 		t.Fatalf("number cells = %d, reports = %d", len(numberCommands), len(reports))
 	}

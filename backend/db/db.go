@@ -7,6 +7,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -373,9 +374,34 @@ func (db *Database) ListReports(ctx context.Context, primaryDivision string, wee
 		if err := rows.Scan(&item.ID, &item.UserID, &item.PrimaryDivision, &item.WorkDivision, &item.Number, &item.Role, &item.Work, &item.Description, &item.CompletedAt); err != nil {
 			return nil, err
 		}
+		model.NormalizeWeeklyReport(&item)
 		reports = append(reports, item)
 	}
-	return reports, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	roleRank := map[string]int{"PE": 1, "QA": 2, "CIHPK": 3}
+	categoryRank := map[string]int{"MK supervisi": 1, "Non-MK supervisi": 2, "QA": 3, "JAKG": 4, "Manggarai Hydrant": 5, "Jember": 6}
+	sort.SliceStable(reports, func(i, j int) bool {
+		a, b := reports[i], reports[j]
+		if roleRank[a.Role] != roleRank[b.Role] {
+			return roleRank[a.Role] < roleRank[b.Role]
+		}
+		if categoryRank[a.WorkDivision] != categoryRank[b.WorkDivision] {
+			return categoryRank[a.WorkDivision] < categoryRank[b.WorkDivision]
+		}
+		if a.WorkDivision != b.WorkDivision {
+			return a.WorkDivision < b.WorkDivision
+		}
+		if a.Work != b.Work {
+			return a.Work < b.Work
+		}
+		if a.Number != b.Number {
+			return a.Number < b.Number
+		}
+		return a.CompletedAt.Before(b.CompletedAt)
+	})
+	return reports, nil
 }
 
 func (db *Database) UpdateReport(ctx context.Context, id, userID string, input model.WeeklyReportUpdateInput) (model.WeeklyReport, error) {

@@ -51,6 +51,7 @@ func (c *WeeklyController) Create(w http.ResponseWriter, r *http.Request) {
 	input.Description = strings.TrimSpace(input.Description)
 	input.Role = strings.TrimSpace(input.Role)
 	input.Work = strings.TrimSpace(input.Work)
+	input.Role, input.WorkDivision = model.NormalizeWeeklyRoleCategory(input.Role, input.WorkDivision)
 	if !validReportInput(input) {
 		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Data laporan tidak valid."})
 		return
@@ -88,6 +89,7 @@ func (c *WeeklyController) Update(w http.ResponseWriter, r *http.Request, id str
 	input.WorkDivision = strings.TrimSpace(input.WorkDivision)
 	input.Role = strings.TrimSpace(input.Role)
 	input.Work = strings.TrimSpace(input.Work)
+	input.Role, input.WorkDivision = model.NormalizeWeeklyRoleCategory(input.Role, input.WorkDivision)
 	if !model.ValidWeeklyReport(input.PrimaryDivision, input.WorkDivision, input.Role, input.Work, input.Description) {
 		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Uraian laporan tidak valid."})
 		return

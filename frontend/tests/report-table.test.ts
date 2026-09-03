@@ -46,7 +46,7 @@ test('creates work title rows while merging the surrounding category and role ce
 	]);
 });
 
-test('orders Project Engineer categories as MK, Non-MK, QA 1, QA 2, then CIHPK', () => {
+test('normalizes legacy QA categories before grouping', () => {
 	const rows = groupReports([
 		report('1', 'JAKG', 'CIHPK', 'JAKG', 1),
 		report('2', 'QA 2', 'QA 2', 'MPS SGR', 1),
@@ -57,8 +57,9 @@ test('orders Project Engineer categories as MK, Non-MK, QA 1, QA 2, then CIHPK',
 	]);
 
 	assert.deepEqual(rows.filter((row) => row.type === 'work' && row.category).map((row) => row.category), [
-		'MK supervisi', 'Non-MK supervisi', 'QA 1', 'QA 2', 'JAKG', 'Manggarai Hydrant'
+		'MK supervisi', 'Non-MK supervisi', 'QA', 'JAKG', 'Manggarai Hydrant'
 	]);
+	assert.deepEqual(rows.filter((row) => row.type === 'work' && row.category === 'QA').map((row) => [row.category, row.role, row.categoryRowSpan]), [['QA', 'QA', 4]]);
 });
 
 test('displays CIHPK category reports from one even when stored numbers are stale', () => {

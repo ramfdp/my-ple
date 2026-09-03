@@ -11,7 +11,9 @@ export type TableReport<T extends GroupableReport> =
 	| { type: 'work'; work: string; category?: string; role?: string; categoryRowSpan?: number; roleRowSpan?: number }
 	| { type: 'report'; report: T; displayNumber: number };
 
-const projectEngineerCategoryOrder = ['MK supervisi', 'Non-MK supervisi', 'QA 1', 'QA 2'];
+const projectEngineerCategoryOrder = ['MK supervisi', 'Non-MK supervisi', 'QA'];
+
+const canonicalQA = (value: string) => value === 'QA 1' || value === 'QA 2' ? 'QA' : value;
 
 const groupKey = (report: GroupableReport) => `${report.primaryDivision}\u0000${report.workDivision}\u0000${report.role}\u0000${report.work}`;
 
@@ -43,9 +45,10 @@ function renderedSpan<T extends GroupableReport>(reports: T[], start: number, sa
 }
 
 export function groupReports<T extends GroupableReport>(reports: T[]): TableReport<T>[] {
+	const normalized = reports.map((report) => ({ ...report, role: canonicalQA(report.role), workDivision: canonicalQA(report.workDivision) }));
 	const groupOrder = new Map<string, number>();
-	for (const report of reports) groupOrder.set(groupKey(report), Math.min(groupOrder.get(groupKey(report)) ?? Infinity, report.number));
-	const sortedReports = [...reports].sort((a, b) => compareReports(a, b, groupOrder));
+	for (const report of normalized) groupOrder.set(groupKey(report), Math.min(groupOrder.get(groupKey(report)) ?? Infinity, report.number));
+	const sortedReports = normalized.sort((a, b) => compareReports(a, b, groupOrder));
 	const rows: TableReport<T>[] = [];
 	const displayedNumbers = new Map<string, number>();
 
