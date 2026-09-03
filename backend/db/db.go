@@ -7,6 +7,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -21,6 +22,7 @@ type Database struct {
 }
 
 var ErrInvalidReport = errors.New("invalid report")
+var ErrZoomBookingConflict = errors.New("zoom booking conflict")
 
 func NewDatabase(conn *sql.DB) *Database {
 	return &Database{Conn: conn}
@@ -191,6 +193,105 @@ func (db *Database) DeleteUser(ctx context.Context, id string) error {
 		return sql.ErrNoRows
 	}
 	return tx.Commit()
+}
+
+func scanZoomBooking(row interface{ Scan(...any) error }) (model.ZoomBooking, error) {
+	var booking model.ZoomBooking
+	err := row.Scan(&booking.ID, &booking.UserID, &booking.CreatedBy, &booking.Title, &booking.Description, &booking.StartAt, &booking.EndAt, &booking.CreatedAt, &booking.UpdatedAt,
+		&booking.ZoomResource.ID, &booking.ZoomResource.Name, &booking.ZoomResource.Code, &booking.ZoomResource.Description, &booking.ZoomResource.MeetingURL, &booking.ZoomResource.MeetingID, &booking.ZoomResource.CreatedAt, &booking.ZoomResource.UpdatedAt)
+	return booking, err
+}
+
+func zoomBookingSelect() string {
+	return `z.id, z.user_id, u.name, z.title, z.description, z.start_at, z.end_at, z.created_at, z.updated_at,
+		r.id, r.name, r.code, r.description, r.meeting_url, r.meeting_id, r.created_at, r.updated_at`
+}
+
+func zoomConflict(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23P01" {
+		return ErrZoomBookingConflict
+	}
+	return err
+}
+
+func (db *Database) CreateZoomBooking(ctx context.Context, userID string, input model.ZoomBookingInput) (model.ZoomBooking, error) {
+	booking, err := scanZoomBooking(db.Conn.QueryRowContext(ctx, `
+		WITH inserted AS (
+			INSERT INTO zoom_bookings (id, user_id, zoom_resource_id, title, description, start_at, end_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *
+		)
+		SELECT `+zoomBookingSelect()+` FROM inserted z JOIN users u ON u.id=z.user_id JOIN zoom_resources r ON r.id=z.zoom_resource_id`,
+		NewID(), userID, input.ZoomResourceID, input.Title, input.Description, input.StartAt, input.EndAt))
+	return booking, zoomConflict(err)
+}
+
+func (db *Database) ListZoomBookings(ctx context.Context, start, end time.Time) ([]model.ZoomBooking, error) {
+	rows, err := db.Conn.QueryContext(ctx, `
+		SELECT `+zoomBookingSelect()+`
+		FROM zoom_bookings z JOIN users u ON u.id = z.user_id JOIN zoom_resources r ON r.id=z.zoom_resource_id
+		WHERE z.start_at < $2 AND z.end_at > $1 ORDER BY z.start_at`, start, end)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	bookings := []model.ZoomBooking{}
+	for rows.Next() {
+		booking, err := scanZoomBooking(rows)
+		if err != nil {
+			return nil, err
+		}
+		bookings = append(bookings, booking)
+	}
+	return bookings, rows.Err()
+}
+
+func (db *Database) UpdateZoomBooking(ctx context.Context, id, userID string, input model.ZoomBookingInput) (model.ZoomBooking, error) {
+	booking, err := scanZoomBooking(db.Conn.QueryRowContext(ctx, `
+		WITH updated AS (
+		UPDATE zoom_bookings SET title=$3, description=$4, zoom_resource_id=$5, start_at=$6, end_at=$7, updated_at=NOW()
+		WHERE id=$1 AND user_id=$2 AND start_at > NOW()
+		RETURNING *) SELECT `+zoomBookingSelect()+` FROM updated z JOIN users u ON u.id=z.user_id JOIN zoom_resources r ON r.id=z.zoom_resource_id`,
+		id, userID, input.Title, input.Description, input.ZoomResourceID, input.StartAt, input.EndAt))
+	return booking, zoomConflict(err)
+}
+
+func scanZoomResource(row interface{ Scan(...any) error }) (model.ZoomResource, error) {
+	var resource model.ZoomResource
+	err := row.Scan(&resource.ID, &resource.Name, &resource.Code, &resource.Description, &resource.MeetingURL, &resource.MeetingID, &resource.CreatedAt, &resource.UpdatedAt)
+	return resource, err
+}
+
+func (db *Database) ListZoomResources(ctx context.Context) ([]model.ZoomResource, error) {
+	rows, err := db.Conn.QueryContext(ctx, `SELECT id, name, code, description, meeting_url, meeting_id, created_at, updated_at FROM zoom_resources ORDER BY id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	resources := []model.ZoomResource{}
+	for rows.Next() {
+		resource, err := scanZoomResource(rows)
+		if err != nil {
+			return nil, err
+		}
+		resources = append(resources, resource)
+	}
+	return resources, rows.Err()
+}
+
+func (db *Database) UpdateZoomResource(ctx context.Context, id int, input model.ZoomResourceUpdateInput) (model.ZoomResource, error) {
+	return scanZoomResource(db.Conn.QueryRowContext(ctx, `UPDATE zoom_resources SET description=$2, meeting_url=$3, meeting_id=$4, updated_at=NOW() WHERE id=$1 RETURNING id, name, code, description, meeting_url, meeting_id, created_at, updated_at`, id, input.Description, input.MeetingURL, input.MeetingID))
+}
+
+func (db *Database) DeleteZoomBooking(ctx context.Context, id, userID string) error {
+	result, err := db.Conn.ExecContext(ctx, `DELETE FROM zoom_bookings WHERE id=$1 AND user_id=$2 AND start_at > NOW()`, id, userID)
+	if err != nil {
+		return err
+	}
+	if count, _ := result.RowsAffected(); count == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 func (db *Database) ListRoles(ctx context.Context) ([]model.Role, error) {

@@ -58,13 +58,13 @@
 				<p>Kelola daftar dan pengajuan lembur.</p>
 			</article>
 
-			<article class="menu-card zoom-card">
+			<a class="menu-card zoom-card" href="/booking-zoom">
 				<div class="menu-icon" aria-hidden="true">
 					<svg viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2" /><path d="m16 10 5-3v10l-5-3" /></svg>
 				</div>
 				<h3>Booking Zoom</h3>
 				<p>Jadwalkan ruang rapat virtual Anda.</p>
-			</article>
+			</a>
 		</div>
 	</section>
 </main>

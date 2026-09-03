@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -63,6 +64,8 @@ func newHandler(database *db.Database, secret, corsOrigin string) http.Handler {
 // ponytail: unified protected routing for reports and employee profile
 func protectedHandler(database *db.Database, authCtrl *controller.AuthController) http.Handler {
 	weeklyCtrl := controller.NewWeeklyController(database)
+	zoomCtrl := controller.NewZoomBookingController(database)
+	zoomResourceCtrl := controller.NewZoomResourceController(database)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		current, ok := middleware.GetClaims(r.Context())
 		if !ok {
@@ -131,6 +134,40 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 				},
 			})
 			return
+		}
+		if r.URL.Path == "/zoom-bookings" {
+			if r.Method == http.MethodGet {
+				zoomCtrl.List(w, r)
+				return
+			}
+			if r.Method == http.MethodPost {
+				zoomCtrl.Create(w, r)
+				return
+			}
+		}
+		if r.Method == http.MethodGet && r.URL.Path == "/zoom-resources" {
+			zoomResourceCtrl.List(w, r)
+			return
+		}
+		if (r.Method == http.MethodPut || r.Method == http.MethodPatch) && strings.HasPrefix(r.URL.Path, "/zoom-resources/") {
+			id, err := strconv.Atoi(strings.TrimPrefix(r.URL.Path, "/zoom-resources/"))
+			if err == nil {
+				zoomResourceCtrl.Update(w, r, id)
+				return
+			}
+		}
+		if strings.HasPrefix(r.URL.Path, "/zoom-bookings/") {
+			id := strings.TrimPrefix(r.URL.Path, "/zoom-bookings/")
+			if id != "" && !strings.Contains(id, "/") {
+				if r.Method == http.MethodPut || r.Method == http.MethodPatch {
+					zoomCtrl.Update(w, r, id)
+					return
+				}
+				if r.Method == http.MethodDelete {
+					zoomCtrl.Delete(w, r, id)
+					return
+				}
+			}
 		}
 		if r.Method == http.MethodPost && r.URL.Path == "/reports" {
 			weeklyCtrl.Create(w, r)

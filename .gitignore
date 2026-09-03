@@ -1,3 +1,4 @@
 /graphify-out
 /.agents
 /.tmp-gocache
+/. tmp-go-cache

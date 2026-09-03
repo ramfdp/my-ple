@@ -6,6 +6,7 @@
 	import '$lib/styles/login.css';
 	import '$lib/styles/dashboard.css';
 	import '$lib/styles/weekly-progress.css';
+	import '$lib/styles/booking-zoom.css';
 
 	let { children } = $props();
 	let showSidebar = $derived(page.url.pathname !== '/');

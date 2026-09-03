@@ -11,9 +11,18 @@ export interface Report {
 	role: string; work: string; number: number; description: string; completedAt: string;
 }
 export interface ReportInput { primaryDivision: string; workDivision: string; role: string; work: string; description: string }
+export interface ZoomBooking {
+	id: string; userId: string; createdBy: string; title: string; description: string; zoomResource: ZoomResource;
+	startAt: string; endAt: string; createdAt: string; updatedAt: string;
+}
+export interface ZoomBookingInput { title: string; description: string; zoomResourceId: number; startAt: string; endAt: string }
+export interface ZoomResource {
+  hostKey: string; id: number; name: string; code: string; description: string; meetingUrl: string; meetingId: string; createdAt: string; updatedAt: string 
+}
+export interface ZoomResourceInput { description: string; meetingUrl: string; meetingId: string }
 
 export function session(): { token: string; user: User } | null {
-	if (typeof localStorage === 'undefined') return null;
+	if (typeof window === 'undefined') return null;
 	const value = localStorage.getItem('session');
 	return value ? JSON.parse(value) : null;
 }
