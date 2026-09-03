@@ -4,6 +4,7 @@ export interface GroupableReport {
 	role: string;
 	work: string;
 	number: number;
+	completedAt?: string;
 }
 
 export type TableReport<T extends GroupableReport> =
@@ -12,7 +13,9 @@ export type TableReport<T extends GroupableReport> =
 
 const projectEngineerCategoryOrder = ['MK supervisi', 'Non-MK supervisi', 'QA 1', 'QA 2'];
 
-function compareReports(a: GroupableReport, b: GroupableReport) {
+const groupKey = (report: GroupableReport) => `${report.primaryDivision}\u0000${report.workDivision}\u0000${report.role}\u0000${report.work}`;
+
+function compareReports(a: GroupableReport, b: GroupableReport, groupOrder: Map<string, number>) {
 	const divisionComparison = a.primaryDivision.localeCompare(b.primaryDivision, 'id');
 	if (divisionComparison !== 0) return divisionComparison;
 
@@ -23,7 +26,11 @@ function compareReports(a: GroupableReport, b: GroupableReport) {
 	const categoryComparison = categoryRank(a.workDivision) - categoryRank(b.workDivision) || a.workDivision.localeCompare(b.workDivision, 'id');
 	if (categoryComparison !== 0) return categoryComparison;
 
-	return a.number - b.number;
+	const roleComparison = a.role.localeCompare(b.role, 'id');
+	if (roleComparison !== 0) return roleComparison;
+	const workComparison = (groupOrder.get(groupKey(a)) ?? 0) - (groupOrder.get(groupKey(b)) ?? 0) || a.work.localeCompare(b.work, 'id');
+	if (workComparison !== 0) return workComparison;
+	return (a.completedAt ?? '').localeCompare(b.completedAt ?? '') || a.number - b.number;
 }
 
 function renderedSpan<T extends GroupableReport>(reports: T[], start: number, sameGroup: (report: T) => boolean) {
@@ -36,14 +43,16 @@ function renderedSpan<T extends GroupableReport>(reports: T[], start: number, sa
 }
 
 export function groupReports<T extends GroupableReport>(reports: T[]): TableReport<T>[] {
-	const sortedReports = [...reports].sort(compareReports);
+	const groupOrder = new Map<string, number>();
+	for (const report of reports) groupOrder.set(groupKey(report), Math.min(groupOrder.get(groupKey(report)) ?? Infinity, report.number));
+	const sortedReports = [...reports].sort((a, b) => compareReports(a, b, groupOrder));
 	const rows: TableReport<T>[] = [];
 	const displayedNumbers = new Map<string, number>();
 
 	for (let index = 0; index < sortedReports.length; index += 1) {
 		const report = sortedReports[index];
 		const previous = sortedReports[index - 1];
-		const workKey = `${report.primaryDivision}\u0000${report.workDivision}\u0000${report.role}\u0000${report.work}`;
+		const workKey = groupKey(report);
 		const displayNumber = (displayedNumbers.get(workKey) ?? 0) + 1;
 		displayedNumbers.set(workKey, displayNumber);
 		const categoryStart = !previous || report.primaryDivision !== previous.primaryDivision || report.workDivision !== previous.workDivision;

@@ -3,6 +3,7 @@ module my-ple-backend
 go 1.26.1
 
 require (
+	github.com/go-pdf/fpdf v0.9.0
 	github.com/jackc/pgx/v5 v5.10.0
 	golang.org/x/crypto v0.55.0
 )

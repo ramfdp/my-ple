@@ -11,6 +11,23 @@ const report = (id: string, category: string, role: string, work: string, number
 	number
 });
 
+test('groups interleaved projects once and restarts numbering for each project', () => {
+	const rows = groupReports([
+		report('1', 'MK supervisi', 'PE', 'Project A', 1),
+		report('2', 'MK supervisi', 'PE', 'Project B', 2),
+		report('3', 'MK supervisi', 'PE', 'Project A', 3),
+		report('4', 'MK supervisi', 'PE', 'Project C', 4)
+	]);
+
+	assert.deepEqual(rows.map((row) => row.type === 'work'
+		? ['project', row.work]
+		: ['item', row.report.id, row.displayNumber]), [
+		['project', 'Project A'], ['item', '1', 1], ['item', '3', 2],
+		['project', 'Project B'], ['item', '2', 1],
+		['project', 'Project C'], ['item', '4', 1]
+	]);
+});
+
 test('creates work title rows while merging the surrounding category and role cells', () => {
 	const rows = groupReports([
 		report('1', 'MK supervisi', 'PE', 'Penataan Kawasan Stasiun Jember', 1),
@@ -62,5 +79,14 @@ test('restarts visible numbering for every work while keeping its later reports 
 		report('5', 'Non-MK supervisi', 'PE', 'Studi Daya Beli Gas Bumi', 1)
 	]);
 
-	assert.deepEqual(rows.filter((row) => row.type === 'report').map((row) => row.displayNumber), [1, 2, 1, 3, 1]);
+	assert.deepEqual(rows.filter((row) => row.type === 'report').map((row) => row.displayNumber), [1, 2, 3, 1, 1]);
+});
+
+test('renumbers a project after deleting an item and appending another', () => {
+	const remaining = [
+		report('1', 'MK supervisi', 'PE', 'Project A', 1),
+		report('3', 'MK supervisi', 'PE', 'Project A', 3)
+	];
+	assert.deepEqual(groupReports(remaining).filter((row) => row.type === 'report').map((row) => row.displayNumber), [1, 2]);
+	assert.deepEqual(groupReports([...remaining, report('4', 'MK supervisi', 'PE', 'Project A', 4)]).filter((row) => row.type === 'report').map((row) => row.displayNumber), [1, 2, 3]);
 });

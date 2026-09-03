@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS reports (
 );
 
 CREATE INDEX IF NOT EXISTS reports_by_division ON reports (primary_division, work_division, number);
+CREATE INDEX IF NOT EXISTS reports_by_week ON reports (completed_at, primary_division);
 ALTER TABLE reports ADD COLUMN IF NOT EXISTS report_role VARCHAR(50) NOT NULL DEFAULT '';
 ALTER TABLE reports ADD COLUMN IF NOT EXISTS work VARCHAR(255) NOT NULL DEFAULT '';
 ALTER TABLE report_sequences DROP COLUMN IF EXISTS report_role;

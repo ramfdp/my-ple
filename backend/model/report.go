@@ -1,6 +1,30 @@
 package model
 
-import "time"
+import (
+	"fmt"
+	"time"
+	_ "time/tzdata"
+)
+
+const ReportingTimezone = "Asia/Jakarta"
+
+var indonesianMonths = [...]string{"Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"}
+
+func ReportingWeek(now time.Time) (time.Time, time.Time) {
+	location, _ := time.LoadLocation(ReportingTimezone)
+	local := now.In(location)
+	daysSinceMonday := (int(local.Weekday()) + 6) % 7
+	start := time.Date(local.Year(), local.Month(), local.Day()-daysSinceMonday, 0, 0, 0, 0, location)
+	return start, start.AddDate(0, 0, 7)
+}
+
+func IndonesianWeekLabel(start, next time.Time) string {
+	end := next.AddDate(0, 0, -1)
+	if start.Month() == end.Month() && start.Year() == end.Year() {
+		return fmt.Sprintf("%d - %d %s %d", start.Day(), end.Day(), indonesianMonths[end.Month()-1], end.Year())
+	}
+	return fmt.Sprintf("%d %s - %d %s %d", start.Day(), indonesianMonths[start.Month()-1], end.Day(), indonesianMonths[end.Month()-1], end.Year())
+}
 
 var WeeklyWorkDivisions = map[string]map[string]bool{
 	"Project Engineer":     {"MK supervisi": true, "Non-MK supervisi": true, "QA 1": true, "QA 2": true, "JAKG": true, "Manggarai Hydrant": true, "Jember": true},
@@ -45,6 +69,11 @@ type WeeklyReport struct {
 	Number          int       `json:"number"`
 	Description     string    `json:"description"`
 	CompletedAt     time.Time `json:"completedAt"`
+}
+type ReportingPeriod struct {
+	Start time.Time `json:"start"`
+	End   time.Time `json:"end"`
+	Label string    `json:"label"`
 }
 type WeeklyReportUpdateInput struct {
 	PrimaryDivision string `json:"primaryDivision"`

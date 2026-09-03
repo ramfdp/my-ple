@@ -177,6 +177,10 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 			weeklyCtrl.List(w, r)
 			return
 		}
+		if r.Method == http.MethodGet && r.URL.Path == "/reports.pdf" {
+			weeklyCtrl.ExportPDF(w, r)
+			return
+		}
 		if strings.HasPrefix(r.URL.Path, "/reports/") {
 			id := strings.TrimPrefix(r.URL.Path, "/reports/")
 			if id == "" || strings.Contains(id, "/") {

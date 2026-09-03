@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
-	import { api, session, type Report } from '$lib/api';
+	import { api, download, session, type Report, type ReportingPeriod } from '$lib/api';
 	import { groupReports } from '$lib/utils/report-table';
 
 	const divisions = ['Project Engineer', 'AI Dev', 'Keuangan', 'Business Development', 'HR', 'PMO'];
@@ -16,6 +16,9 @@
 	let reports = $state<Report[]>([]);
 	let loading = $state(false);
 	let error = $state('');
+	let period = $state<ReportingPeriod | null>(null);
+	let exporting = $state(false);
+	let rolloverTimer: ReturnType<typeof setTimeout> | undefined;
 	let editing = $state<Report | null>(null);
 	let deleting = $state<Report | null>(null);
 	let editWorkDivision = $state('');
@@ -30,11 +33,34 @@
 		loading = true;
 		error = '';
 		try {
-			reports = (await api<{ reports: Report[] | null }>(`/reports?primaryDivision=${encodeURIComponent(divisions[index])}`)).reports ?? [];
+			const response = await api<{ reports: Report[] | null; period: ReportingPeriod }>(`/reports?primaryDivision=${encodeURIComponent(divisions[index])}`);
+			reports = response.reports ?? [];
+			period = response.period;
+			clearTimeout(rolloverTimer);
+			rolloverTimer = setTimeout(() => void selectDivision(index), new Date(response.period.end).getTime() + 86_400_000 - Date.now() + 1_000);
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Laporan tidak dapat dimuat.';
 		} finally {
 			loading = false;
+		}
+	}
+
+	async function exportPDF() {
+		if (selectedDivision === null || reports.length === 0 || exporting) return;
+		exporting = true;
+		error = '';
+		try {
+			const { blob, filename } = await download(`/reports.pdf?primaryDivision=${encodeURIComponent(divisions[selectedDivision])}`);
+			const url = URL.createObjectURL(blob);
+			const link = document.createElement('a');
+			link.href = url;
+			link.download = filename;
+			link.click();
+			URL.revokeObjectURL(url);
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Laporan tidak dapat diekspor.';
+		} finally {
+			exporting = false;
 		}
 	}
 
@@ -67,6 +93,7 @@
 		const requested = new URLSearchParams(location.search).get('division');
 		const index = divisions.indexOf(requested ?? '');
 		if (index >= 0) void selectDivision(index);
+		return () => clearTimeout(rolloverTimer);
 	});
 </script>
 
@@ -85,13 +112,13 @@
 		</section>
 		{#if selectedDivision !== null}
 			<section class="task-list" aria-labelledby="task-title">
-				<div class="task-list-header"><div><h2 id="task-title">Pekerjaan yang sudah dilakukan</h2><p>Daftar pekerjaan pada minggu berjalan.</p></div><div class="task-list-actions"><p class="selected-division">{divisions[selectedDivision]}</p><a class="report-button" href={`/weekly-progress/new?division=${encodeURIComponent(divisions[selectedDivision])}`}>+ Input laporan</a></div></div>
+				<div class="task-list-header"><div><h2 id="task-title">Pekerjaan yang sudah dilakukan</h2><p>Daftar pekerjaan pada minggu berjalan.</p>{#if period}<p class="report-period">Periode: {period.label}</p>{/if}</div><div class="task-list-actions"><p class="selected-division">{divisions[selectedDivision]}</p><div class="report-actions"><button class="report-button export-button" type="button" disabled={reports.length === 0 || exporting || loading} onclick={() => void exportPDF()}>{exporting ? 'Mengekspor…' : 'Export PDF'}</button><a class="report-button" href={`/weekly-progress/new?division=${encodeURIComponent(divisions[selectedDivision])}`}>+ Input laporan</a></div></div></div>
 				<div class="work-table-wrap">
 					<table class="work-table">
 						<thead><tr><th scope="col">Role</th><th scope="col">Kategori</th><th scope="col">No.</th><th scope="col">Pekerjaan yang dilakukan</th><th scope="col">Aksi</th></tr></thead>
 						<tbody>
 							{#if loading}<tr><td colspan="5">Memuat laporan…</td></tr>
-							{:else if reports.length === 0}<tr><td colspan="5">Belum ada laporan.</td></tr>
+							{:else if reports.length === 0}<tr><td colspan="5">Belum ada laporan pekerjaan untuk periode ini.</td></tr>
 							{:else}{#each tableRows as row}
 								{#if row.type === 'work'}
 									<tr class="work-group-row">

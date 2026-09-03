@@ -352,8 +352,17 @@ func (db *Database) CreateReport(ctx context.Context, userID string, input model
 	return result, nil
 }
 
-func (db *Database) ListReports(ctx context.Context, primaryDivision string) ([]model.WeeklyReport, error) {
-	rows, err := db.Conn.QueryContext(ctx, `SELECT id, user_id, primary_division, work_division, number, report_role, work, description, completed_at FROM reports WHERE primary_division = $1 ORDER BY work_division, number`, primaryDivision)
+func (db *Database) CleanupExpiredReports(ctx context.Context, weekStart time.Time) error {
+	_, err := db.Conn.ExecContext(ctx, `DELETE FROM reports WHERE completed_at < $1`, weekStart)
+	return err
+}
+
+func (db *Database) ListReports(ctx context.Context, primaryDivision string, weekStart, nextWeekStart time.Time) ([]model.WeeklyReport, error) {
+	rows, err := db.Conn.QueryContext(ctx, `
+		SELECT id, user_id, primary_division, work_division, number, report_role, work, description, completed_at
+		FROM reports WHERE primary_division = $1 AND completed_at >= $2 AND completed_at < $3
+		ORDER BY CASE work_division WHEN 'MK supervisi' THEN 1 WHEN 'Non-MK supervisi' THEN 2 WHEN 'QA 1' THEN 3 WHEN 'QA 2' THEN 4 ELSE 5 END,
+		work_division, report_role, MIN(number) OVER (PARTITION BY primary_division, work_division, report_role, work), number, completed_at, id`, primaryDivision, weekStart, nextWeekStart)
 	if err != nil {
 		return nil, err
 	}

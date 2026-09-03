@@ -95,8 +95,12 @@
 .task-list-header p { margin: 9px 0 0; color: #708090; }
 .task-list-actions { display: grid; justify-items: end; gap: 14px; }
 .selected-division { margin: 0; color: #791f31; font-size: 0.8rem; font-weight: 800; letter-spacing: 0.08em; text-align: right; }
+.report-period { color: #0c6656 !important; font-weight: 800; }
+.report-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
 .report-button,
-.report-submit { padding: 11px 16px; border: 0; border-radius: 10px; background: #0c6656; color: #fff; font: inherit; font-weight: 700; text-decoration: none; }
+.report-submit { padding: 11px 16px; border: 0; border-radius: 10px; background: #0c6656; color: #fff; font: inherit; font-weight: 700; text-decoration: none; cursor: pointer; }
+.report-button:disabled { opacity: .55; cursor: not-allowed; }
+.export-button { background: #123a5a; }
 .work-table-wrap { margin-top: 28px; overflow-x: auto; border: 1px solid #dce7e4; border-radius: 14px; }
 .work-table { width: 100%; table-layout: fixed; border-collapse: collapse; background: #fff; text-align: left; }
 .work-table th { box-sizing: border-box; padding: 15px 14px; background: #123a5a; color: #fff; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-align: center; text-transform: uppercase; }
@@ -170,6 +174,7 @@
 	.division-grid { grid-template-columns: 1fr; }
 	.task-list-header { flex-direction: column; }
 	.task-list-actions { justify-items: start; }
+	.report-actions { justify-content: flex-start; }
 	.selected-division { text-align: left; }
 	.work-table { min-width: 640px; }
 	.work-table-wrap { margin-top: 20px; }

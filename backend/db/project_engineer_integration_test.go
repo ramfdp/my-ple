@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"os"
 	"testing"
+	"time"
 
 	"my-ple-backend/model"
 
@@ -42,11 +43,27 @@ func TestProjectEngineerReportPostgres(t *testing.T) {
 	if err != nil || created.Role != input.Role || created.Work != input.Work {
 		t.Fatalf("create = %#v, %v", created, err)
 	}
+	if _, err := conn.Exec(`UPDATE reports SET completed_at = $2 WHERE id = $1`, created.ID, time.Now().AddDate(0, 0, -8)); err != nil {
+		t.Fatal(err)
+	}
+	weekStart, _ := model.ReportingWeek(time.Now())
+	if err := database.CleanupExpiredReports(context.Background(), weekStart); err != nil {
+		t.Fatal(err)
+	}
+	var expired int
+	if err := conn.QueryRow(`SELECT COUNT(*) FROM reports WHERE id = $1`, created.ID).Scan(&expired); err != nil || expired != 0 {
+		t.Fatalf("expired reports = %d, %v", expired, err)
+	}
+	created, err = database.CreateReport(context.Background(), user.ID, input)
+	if err != nil {
+		t.Fatal(err)
+	}
 	updated, err := database.UpdateReport(context.Background(), created.ID, user.ID, model.WeeklyReportUpdateInput{PrimaryDivision: input.PrimaryDivision, WorkDivision: "Non-MK supervisi", Role: "PE", Work: "MPS PIT", Description: "updated"})
 	if err != nil || updated.Role != "PE" || updated.Work != "MPS PIT" || updated.Description != "updated" {
 		t.Fatalf("update = %#v, %v", updated, err)
 	}
-	reports, err := database.ListReports(context.Background(), "Project Engineer")
+	start, next := model.ReportingWeek(time.Now())
+	reports, err := database.ListReports(context.Background(), "Project Engineer", start, next)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -43,7 +43,6 @@
 		<label>Role{#if division === 'Project Engineer'}<select bind:value={role}>{#each Object.keys(projectEngineer) as item}<option value={item}>{item}</option>{/each}</select>{:else}<input value="Not configured" readonly />{/if}</label>
 		<label>Job Category{#if division === 'Project Engineer'}<select bind:value={category}>{#each Object.keys(projectEngineer[role]) as item}<option value={item}>{item}</option>{/each}</select>{:else}<select bind:value={category}>{#each categories[division] as item}<option value={item}>{item}</option>{/each}</select>{/if}</label>
 		<label>Job{#if division === 'Project Engineer'}<select bind:value={job} required><option value="" disabled>Select job</option>{#each projectEngineer[role][category] ?? [] as item}<option value={item}>{item}</option>{/each}</select>{:else}<input value="Not configured" readonly />{/if}</label>
-		<label>Nomor laporan<input value="Dibuat saat disimpan" readonly /><small>Nomor dibuat oleh database agar tidak tumpang tindih.</small></label>
 		<label>Uraian pekerjaan yang dilakukan<textarea bind:value={description} rows="5" required maxlength="500"></textarea></label>
 		{#if error}<p class="demo-note">{error}</p>{/if}<button class="report-submit" type="submit" disabled={submitting}>{submitting ? 'Menyimpan…' : 'Simpan laporan'}</button>
 	</form>
