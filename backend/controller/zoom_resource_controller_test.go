@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -9,6 +10,12 @@ import (
 	"my-ple-backend/middleware"
 	"my-ple-backend/model"
 )
+
+type controllerSessionStore struct{ role string }
+
+func (s controllerSessionStore) FindSessionUser(context.Context, string) (model.User, time.Time, error) {
+	return model.User{ID: "user", RoleName: s.role, IsActive: true}, time.Now().Add(time.Hour), nil
+}
 
 func TestZoomResourceEditRoles(t *testing.T) {
 	for _, role := range []string{"Admin", "Management"} {
@@ -24,12 +31,10 @@ func TestZoomResourceEditRoles(t *testing.T) {
 }
 
 func TestZoomResourceUpdateRejectsHRRequest(t *testing.T) {
-	secret := "test-secret"
 	ctrl := NewZoomResourceController(nil)
-	handler := middleware.RequireAuth(secret, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { ctrl.Update(w, r, 1) }))
-	token := middleware.SignToken(model.Claims{ID: "user", RoleName: "HR", ExpiresAt: time.Now().Add(time.Hour).UnixMilli()}, secret)
+	handler := middleware.RequireAuth(controllerSessionStore{role: "HR"}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { ctrl.Update(w, r, 1) }))
 	request := httptest.NewRequest(http.MethodPut, "/zoom-resources/1", nil)
-	request.Header.Set("Authorization", "Bearer "+token)
+	request.AddCookie(&http.Cookie{Name: middleware.SessionCookie, Value: "test"})
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusForbidden {

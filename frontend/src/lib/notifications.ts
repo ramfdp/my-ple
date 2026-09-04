@@ -50,7 +50,7 @@ export function startNotifications() {
 		if (stopped) return;
 		const url = new URL('/ws/notifications', apiUrl);
 		url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-		socket = new WebSocket(url, `auth.${current.token}`);
+		socket = new WebSocket(url);
 		socket.onopen = () => { retry = 1000; void refresh(true).catch(() => {}); };
 		socket.onmessage = ({ data }) => {
 			try {

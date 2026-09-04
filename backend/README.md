@@ -7,8 +7,8 @@ copy .env.example .env
 go run .
 ```
 
-Endpoint: `GET /health`, `POST /auth/register`, `POST /auth/login`, `GET /me`, `GET /dashboard`, `GET /reports?primaryDivision=...`, dan `POST /reports`.
+Endpoint publik: `GET /health` dan `POST /auth/login`. Endpoint lain memerlukan cookie sesi HttpOnly yang dibuat saat login.
 
 `POST /reports` menetapkan nomor laporan di database. Nomor diurutkan terpisah untuk setiap kombinasi divisi utama dan divisi pekerjaan; request yang lebih dulu tersimpan mendapat nomor lebih kecil.
 
-Selain health, endpoint memerlukan `DATABASE_URL`. Endpoint beridentitas memakai `Authorization: Bearer <token>`.
+Selain health, endpoint memerlukan `DATABASE_URL`. Durasi sesi diatur dengan `SESSION_TTL` (default `8h`). Gunakan `APP_ENV=production` atau `COOKIE_SECURE=true` pada HTTPS; localhost HTTP tetap memakai cookie non-Secure.

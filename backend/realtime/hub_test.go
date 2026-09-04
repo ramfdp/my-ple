@@ -1,6 +1,7 @@
 package realtime
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -12,16 +13,26 @@ import (
 	"my-ple-backend/model"
 )
 
+type socketSessionStore struct{}
+
+func (socketSessionStore) FindSessionUser(_ context.Context, token string) (model.User, time.Time, error) {
+	for _, id := range []string{"actor", "recipient"} {
+		if token == middleware.HashToken(id) {
+			return model.User{ID: id, IsActive: true}, time.Now().Add(time.Minute), nil
+		}
+	}
+	return model.User{}, time.Time{}, context.Canceled
+}
+
 func TestHubAuthenticatesSupportsMultipleConnectionsAndExcludesActor(t *testing.T) {
-	const secret = "test-secret"
 	var hub *Hub
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { hub.ServeHTTP(secret, w, r) }))
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { hub.ServeHTTP(socketSessionStore{}, w, r) }))
 	defer server.Close()
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
 	dial := func(userID string) *websocket.Conn {
-		token := middleware.SignToken(model.Claims{ID: userID, ExpiresAt: time.Now().Add(time.Minute).UnixMilli()}, secret)
-		dialer := websocket.Dialer{Subprotocols: []string{"auth." + token}}
-		conn, _, err := dialer.Dial(wsURL, http.Header{"Origin": []string{server.URL}})
+		dialer := websocket.Dialer{}
+		header := http.Header{"Origin": []string{server.URL}, "Cookie": []string{"my_ple_session=" + userID}}
+		conn, _, err := dialer.Dial(wsURL, header)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -50,7 +61,7 @@ func TestHubRejectsUnauthenticatedConnection(t *testing.T) {
 	hub := NewHub("http://example.test")
 	r := httptest.NewRequest(http.MethodGet, "/ws/notifications", nil)
 	w := httptest.NewRecorder()
-	hub.ServeHTTP("secret", w, r)
+	hub.ServeHTTP(nil, w, r)
 	if w.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d", w.Code)
 	}

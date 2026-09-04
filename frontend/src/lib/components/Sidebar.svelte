@@ -1,15 +1,20 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { api, session, setAuthenticated } from '$lib/api';
 
 	// ponytail: native Svelte reactivity for mobile drawer without external drawer lib
 	let mobileOpen = $state(false);
 	let canManageEmployees = $state(false);
 	onMount(() => {
-		const saved = localStorage.getItem('session');
-		const role = saved ? JSON.parse(saved).user?.role?.toLowerCase() : '';
+		const role = session()?.user.role?.toLowerCase() ?? '';
 		canManageEmployees = ['admin', 'management', 'hr'].includes(role);
 	});
+	async function logout(event: MouseEvent) {
+		event.preventDefault();
+		try { await api('/auth/logout', { method: 'POST' }); } finally { setAuthenticated(null); await goto('/'); }
+	}
 
 	const navItems = [
 		{ name: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
@@ -144,7 +149,7 @@
 
 	<!-- Footer / Logout -->
 	<div class="sidebar-footer">
-		<a href="/" class="logout-button">
+		<a href="/" class="logout-button" onclick={logout}>
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 				<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
 				<polyline points="16 17 21 12 16 7" />

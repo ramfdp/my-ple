@@ -2,12 +2,12 @@ package middleware
 
 import (
 	"context"
-	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
-	"strings"
 	"time"
 
 	"my-ple-backend/model"
@@ -15,9 +15,15 @@ import (
 
 type claimsKey struct{}
 
-func RequireAuth(secret string, next http.Handler) http.Handler {
+const SessionCookie = "my_ple_session"
+
+type SessionStore interface {
+	FindSessionUser(context.Context, string) (model.User, time.Time, error)
+}
+
+func RequireAuth(store SessionStore, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		current, ok := Authenticated(r, secret)
+		current, _, ok := Authenticated(r, store)
 		if !ok {
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			w.WriteHeader(http.StatusUnauthorized)
@@ -29,42 +35,32 @@ func RequireAuth(secret string, next http.Handler) http.Handler {
 }
 
 func GetClaims(ctx context.Context) (model.Claims, bool) {
-	val := ctx.Value(claimsKey{})
-	if val == nil {
-		return model.Claims{}, false
-	}
-	c, ok := val.(model.Claims)
+	c, ok := ctx.Value(claimsKey{}).(model.Claims)
 	return c, ok
 }
 
-func SignToken(payload model.Claims, secret string) string {
-	body, _ := json.Marshal(payload)
-	encoded := base64.RawURLEncoding.EncodeToString(body)
-	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write([]byte(encoded))
-	return encoded + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+func Authenticated(r *http.Request, store SessionStore) (model.Claims, time.Time, bool) {
+	cookie, err := r.Cookie(SessionCookie)
+	if err != nil || cookie.Value == "" || store == nil {
+		return model.Claims{}, time.Time{}, false
+	}
+	u, expires, err := store.FindSessionUser(r.Context(), HashToken(cookie.Value))
+	if err != nil || !u.IsActive || !expires.After(time.Now()) {
+		return model.Claims{}, time.Time{}, false
+	}
+	return model.Claims{ID: u.ID, Name: u.Name, Email: u.Email, Username: u.Username, RoleID: u.RoleID, RoleName: u.RoleName, ExpiresAt: expires.UnixMilli()}, expires, true
 }
 
-func Authenticated(r *http.Request, secret string) (model.Claims, bool) {
-	return AuthenticateToken(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "), secret)
+func NewSessionToken() (string, string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", "", err
+	}
+	token := base64.RawURLEncoding.EncodeToString(b)
+	return token, HashToken(token), nil
 }
 
-func AuthenticateToken(token, secret string) (model.Claims, bool) {
-	parts := strings.Split(token, ".")
-	if len(parts) != 2 {
-		return model.Claims{}, false
-	}
-	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write([]byte(parts[0]))
-	expected := mac.Sum(nil)
-	actual, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil || !hmac.Equal(expected, actual) {
-		return model.Claims{}, false
-	}
-	body, err := base64.RawURLEncoding.DecodeString(parts[0])
-	var result model.Claims
-	if err != nil || json.Unmarshal(body, &result) != nil || result.ExpiresAt <= time.Now().UnixMilli() {
-		return model.Claims{}, false
-	}
-	return result, true
+func HashToken(token string) string {
+	hash := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(hash[:])
 }

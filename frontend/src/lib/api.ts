@@ -1,3 +1,5 @@
+import { get, writable } from 'svelte/store';
+
 export const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 export interface User {
@@ -27,30 +29,31 @@ export interface Notification {
 	booking?: { id: string; zoomName: string; startAt: string; endAt: string };
 }
 
-export function session(): { token: string; user: User } | null {
-	if (typeof window === 'undefined') return null;
-	const value = localStorage.getItem('session');
-	return value ? JSON.parse(value) : null;
+export const currentUser = writable<User | null>(null);
+export function session(): { user: User } | null { const user = get(currentUser); return user ? { user } : null; }
+export function setAuthenticated(user: User | null) { currentUser.set(user); }
+
+async function checked(response: Response, fallback: string) {
+	if (response.status === 401) {
+		setAuthenticated(null);
+		if (typeof window !== 'undefined' && location.pathname !== '/') location.assign('/');
+	}
+	if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || fallback);
+	return response;
 }
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
-	const current = session();
-	const response = await fetch(`${apiUrl}${path}`, { ...options, headers: { 'Content-Type': 'application/json', ...(current ? { Authorization: `Bearer ${current.token}` } : {}), ...options.headers } });
-	if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || 'Request failed.');
+	const response = await checked(await fetch(`${apiUrl}${path}`, { ...options, credentials: 'include', headers: { 'Content-Type': 'application/json', ...options.headers } }), 'Request failed.');
 	return response.status === 204 ? undefined as T : response.json();
 }
 
 export async function upload<T>(path: string, body: FormData): Promise<T> {
-	const current = session();
-	const response = await fetch(`${apiUrl}${path}`, { method: 'POST', body, headers: current ? { Authorization: `Bearer ${current.token}` } : {} });
-	if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || 'Upload failed.');
+	const response = await checked(await fetch(`${apiUrl}${path}`, { method: 'POST', body, credentials: 'include' }), 'Upload failed.');
 	return response.json();
 }
 
 export async function download(path: string): Promise<{ blob: Blob; filename: string }> {
-	const current = session();
-	const response = await fetch(`${apiUrl}${path}`, { headers: current ? { Authorization: `Bearer ${current.token}` } : {} });
-	if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || 'Download failed.');
+	const response = await checked(await fetch(`${apiUrl}${path}`, { credentials: 'include' }), 'Download failed.');
 	const filename = response.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] ?? 'Weekly_Report.pdf';
 	return { blob: await response.blob(), filename };
 }

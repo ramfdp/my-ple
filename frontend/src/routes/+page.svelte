@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { api } from '$lib/api';
+	import { api, setAuthenticated, type User } from '$lib/api';
 	let error = $state('');
 	async function login(event: SubmitEvent) {
 		event.preventDefault(); error = '';
 		const data = new FormData(event.currentTarget as HTMLFormElement);
-		try { const result = await api<{ token: string; user: object }>('/auth/login', { method: 'POST', body: JSON.stringify({ username: data.get('username'), password: data.get('password') }) }); localStorage.setItem('session', JSON.stringify(result)); goto('/dashboard'); } catch (e) { error = e instanceof Error ? e.message : 'Login failed.'; }
+		try { const result = await api<{ user: User }>('/auth/login', { method: 'POST', body: JSON.stringify({ username: data.get('username'), password: data.get('password') }) }); localStorage.removeItem('session'); setAuthenticated(result.user); goto('/dashboard'); } catch (e) { error = e instanceof Error ? e.message : 'Login failed.'; }
 	}
 </script>
 

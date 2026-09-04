@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
+	import { api, setAuthenticated, type User } from '$lib/api';
 	import favicon from '$lib/assets/favicon.svg';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import { startNotifications } from '$lib/notifications';
@@ -11,9 +14,21 @@
 
 	let { children } = $props();
 	let showSidebar = $derived(page.url.pathname !== '/');
+	let auth = $state<'loading' | 'authenticated' | 'unauthenticated'>('loading');
+	onMount(async () => {
+		localStorage.removeItem('session');
+		try {
+			const { user } = await api<{ user: User }>('/auth/me');
+			setAuthenticated(user); auth = 'authenticated';
+			if (page.url.pathname === '/') await goto('/dashboard');
+		} catch {
+			setAuthenticated(null); auth = 'unauthenticated';
+			if (page.url.pathname !== '/') await goto('/');
+		}
+	});
 	$effect(() => {
 		page.url.pathname;
-		if (!showSidebar) return;
+		if (!showSidebar || auth !== 'authenticated') return;
 		return startNotifications();
 	});
 </script>
@@ -22,12 +37,12 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-{#if showSidebar}
+{#if showSidebar && auth === 'authenticated'}
 	<div class="feature-shell">
 		<Sidebar />
 		<div class="feature-content">{@render children()}</div>
 	</div>
-{:else}
+{:else if !showSidebar}
 	{@render children()}
 {/if}
 

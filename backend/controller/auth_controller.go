@@ -38,15 +38,14 @@ func ownsAvatar(id, path string) bool {
 }
 
 type AuthController struct {
-	DB     *db.Database
-	Secret string
+	DB           *db.Database
+	SessionTTL   time.Duration
+	SecureCookie bool
+	OnLogout     func(string)
 }
 
-func NewAuthController(database *db.Database, secret string) *AuthController {
-	return &AuthController{
-		DB:     database,
-		Secret: secret,
-	}
+func NewAuthController(database *db.Database, sessionTTL time.Duration, secureCookie bool) *AuthController {
+	return &AuthController{DB: database, SessionTTL: sessionTTL, SecureCookie: secureCookie}
 }
 
 func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
@@ -144,23 +143,29 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 		identifier = strings.TrimSpace(input.Email)
 	}
 	u, err := c.DB.FindUser(r.Context(), identifier)
-	if err != nil || bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(input.Password)) != nil {
+	if err != nil || !u.IsActive || bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(input.Password)) != nil {
 		WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Username/email atau password salah."})
 		return
 	}
-	profile := model.Claims{
-		ID:        u.ID,
-		Name:      u.Name,
-		Email:     u.Email,
-		Username:  u.Username,
-		RoleID:    u.RoleID,
-		RoleName:  u.RoleName,
-		ExpiresAt: time.Now().Add(8 * time.Hour).UnixMilli(),
+	token, tokenHash, err := middleware.NewSessionToken()
+	if err != nil || c.DB.CreateSession(r.Context(), u.ID, tokenHash, time.Now().Add(c.SessionTTL)) != nil {
+		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Terjadi kesalahan pada server."})
+		return
 	}
-	WriteJSON(w, http.StatusOK, map[string]any{
-		"token": middleware.SignToken(profile, c.Secret),
-		"user":  model.PublicUser(u),
-	})
+	http.SetCookie(w, &http.Cookie{Name: middleware.SessionCookie, Value: token, Path: "/", HttpOnly: true, Secure: c.SecureCookie, SameSite: http.SameSiteLaxMode})
+	WriteJSON(w, http.StatusOK, map[string]any{"user": model.PublicUser(u)})
+}
+
+func (c *AuthController) Logout(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie(middleware.SessionCookie)
+	if err == nil {
+		_ = c.DB.RevokeSession(r.Context(), middleware.HashToken(cookie.Value))
+		if current, ok := middleware.GetClaims(r.Context()); ok && c.OnLogout != nil {
+			c.OnLogout(current.ID)
+		}
+	}
+	http.SetCookie(w, &http.Cookie{Name: middleware.SessionCookie, Path: "/", HttpOnly: true, Secure: c.SecureCookie, SameSite: http.SameSiteLaxMode, MaxAge: -1})
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (c *AuthController) Profile(w http.ResponseWriter, r *http.Request, userID string) {

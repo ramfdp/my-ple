@@ -20,18 +20,31 @@ import (
 )
 
 func newHandler(database *db.Database, secret, corsOrigin string) http.Handler {
-	authCtrl := controller.NewAuthController(database, secret)
+	_ = secret // retained in the constructor signature for existing callers
+	sessionTTL, err := time.ParseDuration(envOr("SESSION_TTL", "8h"))
+	if err != nil || sessionTTL <= 0 {
+		sessionTTL = 8 * time.Hour
+	}
+	secureCookie := strings.EqualFold(os.Getenv("COOKIE_SECURE"), "true") || strings.EqualFold(os.Getenv("APP_ENV"), "production")
+	authCtrl := controller.NewAuthController(database, sessionTTL, secureCookie)
 	hub := realtime.NewHub(corsOrigin)
+	authCtrl.OnLogout = hub.CloseUser
 	notifications := &notification.Service{DB: database, Hub: hub}
-	protected := middleware.RequireAuth(secret, protectedHandler(database, authCtrl, notifications))
+	protected := middleware.RequireAuth(database, protectedHandler(database, authCtrl, notifications))
 	uploads := http.StripPrefix("/uploads/", http.FileServer(http.Dir(envOr("UPLOAD_DIR", "upload"))))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Vary", "Origin")
 		w.Header().Set("Access-Control-Allow-Origin", corsOrigin)
-		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Header.Get("Origin") != "" && r.Header.Get("Origin") != corsOrigin {
+			controller.WriteJSON(w, http.StatusForbidden, map[string]string{"error": "Origin tidak diizinkan."})
 			return
 		}
 		if r.Method == http.MethodGet && r.URL.Path == "/health" {
@@ -47,7 +60,7 @@ func newHandler(database *db.Database, secret, corsOrigin string) http.Handler {
 			return
 		}
 		if r.Method == http.MethodGet && r.URL.Path == "/ws/notifications" {
-			hub.ServeHTTP(secret, w, r)
+			hub.ServeHTTP(database, w, r)
 			return
 		}
 		if database == nil {
@@ -56,12 +69,6 @@ func newHandler(database *db.Database, secret, corsOrigin string) http.Handler {
 		}
 
 		switch {
-		case r.Method == http.MethodGet && r.URL.Path == "/roles":
-			authCtrl.Roles(w, r)
-			return
-		case r.Method == http.MethodPost && r.URL.Path == "/auth/register":
-			authCtrl.Register(w, r)
-			return
 		case r.Method == http.MethodPost && r.URL.Path == "/auth/login":
 			authCtrl.Login(w, r)
 			return
@@ -86,8 +93,12 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 			controller.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Autentikasi diperlukan."})
 			return
 		}
-		if r.Method == http.MethodGet && r.URL.Path == "/me" {
+		if r.Method == http.MethodGet && (r.URL.Path == "/me" || r.URL.Path == "/auth/me" || r.URL.Path == "/api/auth/me") {
 			authCtrl.Profile(w, r, current.ID)
+			return
+		}
+		if r.Method == http.MethodPost && (r.URL.Path == "/auth/logout" || r.URL.Path == "/api/auth/logout") {
+			authCtrl.Logout(w, r)
 			return
 		}
 		if (r.Method == http.MethodGet) && r.URL.Path == "/profile" {
@@ -103,6 +114,10 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 			return
 		}
 		if strings.EqualFold(current.RoleName, "Admin") || strings.EqualFold(current.RoleName, "Management") || strings.EqualFold(current.RoleName, "HR") {
+			if r.Method == http.MethodGet && r.URL.Path == "/roles" {
+				authCtrl.Roles(w, r)
+				return
+			}
 			if r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/users/") && strings.HasSuffix(r.URL.Path, "/avatar") {
 				authCtrl.UploadAvatar(w, r, strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/users/"), "/avatar"))
 				return
@@ -136,6 +151,10 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 					return
 				}
 			}
+		}
+		if r.URL.Path == "/roles" || r.URL.Path == "/users" || strings.HasPrefix(r.URL.Path, "/users/") {
+			controller.WriteJSON(w, http.StatusForbidden, map[string]string{"error": "Akses ditolak."})
+			return
 		}
 		if r.Method == http.MethodGet && r.URL.Path == "/dashboard" {
 			name := current.Name
@@ -251,7 +270,7 @@ func main() {
 		} else {
 			fmt.Println("Database schema auto-migrated successfully.")
 		}
-		stopCleanup := startNotificationCleanup(database)
+		stopCleanup := startCleanup(database)
 		defer stopCleanup()
 		defer conn.Close()
 	}
@@ -269,7 +288,7 @@ func main() {
 	}
 }
 
-func startNotificationCleanup(database *db.Database) func() {
+func startCleanup(database *db.Database) func() {
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		ticker := time.NewTicker(time.Hour)
@@ -277,6 +296,9 @@ func startNotificationCleanup(database *db.Database) func() {
 		for {
 			select {
 			case <-ticker.C:
+				if _, err := database.DeleteExpiredSessions(ctx); err != nil {
+					fmt.Printf("Warning: session cleanup error: %v\n", err)
+				}
 				if deleted, err := database.DeleteExpiredNotifications(ctx); err != nil {
 					fmt.Printf("Warning: notification cleanup error: %v\n", err)
 				} else if deleted > 0 {

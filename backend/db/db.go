@@ -72,6 +72,31 @@ func (db *Database) FindUserByID(ctx context.Context, id string) (model.User, er
 	return u, err
 }
 
+func (db *Database) CreateSession(ctx context.Context, userID, tokenHash string, expiresAt time.Time) error {
+	_, err := db.Conn.ExecContext(ctx, `INSERT INTO sessions (id, user_id, token_hash, expires_at) VALUES ($1, $2, $3, $4)`, NewID(), userID, tokenHash, expiresAt)
+	return err
+}
+
+func (db *Database) FindSessionUser(ctx context.Context, tokenHash string) (model.User, time.Time, error) {
+	var u model.User
+	var expires time.Time
+	err := db.Conn.QueryRowContext(ctx, `UPDATE sessions s SET last_activity_at=NOW() FROM users u JOIN roles r ON u.role_id=r.id WHERE s.token_hash=$1 AND s.user_id=u.id AND s.revoked_at IS NULL AND s.expires_at>NOW() AND u.is_active RETURNING u.id,u.name,u.email,u.role_id,r.name,u.username,u.password_hash,u.job_title,u.salary,u.residence,u.phone_number,u.employment_status,u.avatar_url,u.is_active,u.created_at,u.updated_at,s.expires_at`, tokenHash).Scan(&u.ID, &u.Name, &u.Email, &u.RoleID, &u.RoleName, &u.Username, &u.PasswordHash, &u.JobTitle, &u.Salary, &u.Residence, &u.PhoneNumber, &u.EmploymentStatus, &u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt, &expires)
+	return u, expires, err
+}
+
+func (db *Database) RevokeSession(ctx context.Context, tokenHash string) error {
+	_, err := db.Conn.ExecContext(ctx, `UPDATE sessions SET revoked_at=NOW() WHERE token_hash=$1 AND revoked_at IS NULL`, tokenHash)
+	return err
+}
+
+func (db *Database) DeleteExpiredSessions(ctx context.Context) (int64, error) {
+	result, err := db.Conn.ExecContext(ctx, `DELETE FROM sessions WHERE expires_at<=NOW() OR revoked_at<NOW()-INTERVAL '24 hours'`)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 func (db *Database) ListUsers(ctx context.Context) ([]model.User, error) {
 	rows, err := db.Conn.QueryContext(ctx, `
 		SELECT u.id, u.name, u.email, u.role_id, r.name, u.username, u.password_hash,

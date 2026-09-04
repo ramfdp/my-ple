@@ -41,6 +41,19 @@ CREATE INDEX IF NOT EXISTS idx_users_role_id ON users (role_id);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
 
+CREATE TABLE IF NOT EXISTS sessions (
+  id UUID PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash CHAR(64) NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  last_activity_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  revoked_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS sessions_by_user ON sessions (user_id);
+CREATE INDEX IF NOT EXISTS sessions_by_expiry ON sessions (expires_at);
+
 -- 4. Safe column migration for existing database instances
 ALTER TABLE users ADD COLUMN IF NOT EXISTS job_title VARCHAR(100) NOT NULL DEFAULT '';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS salary BIGINT NOT NULL DEFAULT 0;

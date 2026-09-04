@@ -3,7 +3,6 @@ package realtime
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -23,30 +22,37 @@ func NewHub(allowedOrigin string) *Hub {
 	return &Hub{connections: make(map[string]map[*websocket.Conn]struct{}), allowedOrigin: allowedOrigin}
 }
 
-func (h *Hub) ServeHTTP(secret string, w http.ResponseWriter, r *http.Request) {
-	protocol := r.Header.Get("Sec-WebSocket-Protocol")
-	if !strings.HasPrefix(protocol, "auth.") {
-		http.Error(w, "Autentikasi diperlukan.", http.StatusUnauthorized)
-		return
-	}
-	claims, ok := middleware.AuthenticateToken(strings.TrimPrefix(protocol, "auth."), secret)
+func (h *Hub) ServeHTTP(database middleware.SessionStore, w http.ResponseWriter, r *http.Request) {
+	claims, expiresAt, ok := middleware.Authenticated(r, database)
 	if !ok {
 		http.Error(w, "Autentikasi diperlukan.", http.StatusUnauthorized)
 		return
 	}
-	upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return r.Header.Get("Origin") == h.allowedOrigin }, Subprotocols: []string{protocol}}
+	upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return r.Header.Get("Origin") == h.allowedOrigin }}
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}
 	h.add(claims.ID, conn)
-	expires := time.AfterFunc(time.Until(time.UnixMilli(claims.ExpiresAt)), func() { _ = conn.Close() })
+	expires := time.AfterFunc(time.Until(expiresAt), func() { _ = conn.Close() })
 	defer expires.Stop()
 	defer func() { h.remove(claims.ID, conn); _ = conn.Close() }()
 	for {
 		if _, _, err := conn.ReadMessage(); err != nil {
 			return
 		}
+	}
+}
+
+func (h *Hub) CloseUser(userID string) {
+	h.mu.RLock()
+	connections := make([]*websocket.Conn, 0, len(h.connections[userID]))
+	for conn := range h.connections[userID] {
+		connections = append(connections, conn)
+	}
+	h.mu.RUnlock()
+	for _, conn := range connections {
+		_ = conn.Close()
 	}
 }
 
