@@ -12,16 +12,20 @@ import (
 	"my-ple-backend/model"
 )
 
-func TestProfileUpdateRejectsProtectedFields(t *testing.T) {
+func TestProfileUpdateAllowsEveryAuthenticatedRoleAndRejectsProtectedFields(t *testing.T) {
 	const secret = "test-secret"
-	request := httptest.NewRequest(http.MethodPatch, "/profile", bytes.NewBufferString(`{"phoneNumber":"081234567890","roleId":1}`))
-	request.Header.Set("Authorization", "Bearer "+middleware.SignToken(model.Claims{ID: "fb98c49a-8ab7-474b-711d-7f3e2ae3a34f", ExpiresAt: time.Now().Add(time.Minute).UnixMilli()}, secret))
-	response := httptest.NewRecorder()
+	for _, role := range []string{"Employee", "Admin", "Management", "HR", "Other"} {
+		t.Run(role, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPatch, "/profile", bytes.NewBufferString(`{"phoneNumber":"081234567890","roleId":1}`))
+			request.Header.Set("Authorization", "Bearer "+middleware.SignToken(model.Claims{ID: "fb98c49a-8ab7-474b-711d-7f3e2ae3a34f", RoleName: role, ExpiresAt: time.Now().Add(time.Minute).UnixMilli()}, secret))
+			response := httptest.NewRecorder()
 
-	middleware.RequireAuth(secret, protectedHandler(nil, controller.NewAuthController(nil, secret))).ServeHTTP(response, request)
+			middleware.RequireAuth(secret, protectedHandler(nil, controller.NewAuthController(nil, secret))).ServeHTTP(response, request)
 
-	if response.Code != http.StatusBadRequest {
-		t.Fatalf("PATCH /profile with protected field status = %d, want %d; body=%s", response.Code, http.StatusBadRequest, response.Body.String())
+			if response.Code != http.StatusBadRequest {
+				t.Fatalf("PATCH /profile with protected field status = %d, want %d; body=%s", response.Code, http.StatusBadRequest, response.Body.String())
+			}
+		})
 	}
 }
 
