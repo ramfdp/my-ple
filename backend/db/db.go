@@ -115,19 +115,10 @@ func (db *Database) UpdateUserProfile(ctx context.Context, id string, input mode
 	var u model.User
 	err := db.Conn.QueryRowContext(ctx, `
 		UPDATE users
-		SET name = COALESCE(NULLIF($2, ''), name),
-		    email = COALESCE(NULLIF($3, ''), email),
-		    job_title = COALESCE(NULLIF($4, ''), job_title),
-		    salary = CASE WHEN $5 > 0 THEN $5 ELSE salary END,
-		    residence = COALESCE(NULLIF($6, ''), residence),
-		    phone_number = COALESCE(NULLIF($7, ''), phone_number),
-		    employment_status = COALESCE(NULLIF($8, ''), employment_status),
-		    avatar_url = COALESCE(NULLIF($9, ''), avatar_url),
-		    role_id = CASE WHEN $10 > 0 THEN $10 ELSE role_id END,
-		    updated_at = NOW()
+		SET residence = $2, phone_number = $3, updated_at = NOW()
 		WHERE id = $1
 		RETURNING id, name, email, role_id, username, password_hash, job_title, salary, residence, phone_number, employment_status, avatar_url, is_active, created_at, updated_at`,
-		id, input.Name, input.Email, input.JobTitle, input.Salary, input.Residence, input.PhoneNumber, input.EmploymentStatus, input.AvatarURL, input.RoleID,
+		id, input.Residence, input.PhoneNumber,
 	).Scan(
 		&u.ID, &u.Name, &u.Email, &u.RoleID, &u.Username, &u.PasswordHash,
 		&u.JobTitle, &u.Salary, &u.Residence, &u.PhoneNumber, &u.EmploymentStatus,

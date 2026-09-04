@@ -81,7 +81,11 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 			return
 		}
 		if (r.Method == http.MethodPut || r.Method == http.MethodPost || r.Method == http.MethodPatch) && r.URL.Path == "/profile" {
-			controller.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "Profil hanya dapat diperbarui melalui Manage Employees."})
+			authCtrl.UpdateProfile(w, r, current.ID)
+			return
+		}
+		if r.Method == http.MethodPost && r.URL.Path == "/profile/avatar" {
+			authCtrl.UploadAvatar(w, r, current.ID)
 			return
 		}
 		if strings.EqualFold(current.RoleName, "Admin") || strings.EqualFold(current.RoleName, "Management") || strings.EqualFold(current.RoleName, "HR") {

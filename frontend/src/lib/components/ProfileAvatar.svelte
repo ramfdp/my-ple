@@ -17,6 +17,7 @@
 	} = $props();
 
 	let imageFailed = $state(false);
+	$effect(() => { src; imageFailed = false; });
 </script>
 
 <div

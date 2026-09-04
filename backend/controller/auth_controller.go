@@ -28,6 +28,7 @@ const maxAvatarSize = 1 << 20
 var (
 	usernamePattern  = regexp.MustCompile(`^[a-zA-Z0-9_.-]{3,50}$`)
 	emailPattern     = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
+	phonePattern     = regexp.MustCompile(`^(?:\+62|62|0)8[1-9][0-9]{7,10}$`)
 	userIDPattern    = regexp.MustCompile(`^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$`)
 	employmentStatus = map[string]bool{"Permanent Employee": true, "Contract Employee": true, "Intern": true}
 )
@@ -173,13 +174,14 @@ func (c *AuthController) Profile(w http.ResponseWriter, r *http.Request, userID 
 
 func (c *AuthController) UpdateProfile(w http.ResponseWriter, r *http.Request, userID string) {
 	var input model.UpdateProfileInput
-	if !DecodeJSON(w, r, &input) {
+	if !DecodeStrictJSON(w, r, &input) {
 		return
 	}
-	input.Name = strings.TrimSpace(input.Name)
-	input.Email = strings.TrimSpace(strings.ToLower(input.Email))
-	if input.Email != "" && !emailPattern.MatchString(input.Email) {
-		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Format email tidak valid."})
+	input.Residence = strings.TrimSpace(input.Residence)
+	input.PhoneNumber = strings.TrimSpace(input.PhoneNumber)
+	cleanPhone := strings.NewReplacer(" ", "", "-", "").Replace(input.PhoneNumber)
+	if len(input.Residence) > 255 || len(input.PhoneNumber) > 50 || !phonePattern.MatchString(cleanPhone) {
+		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Nomor telepon atau alamat tidak valid."})
 		return
 	}
 

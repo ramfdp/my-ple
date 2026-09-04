@@ -55,16 +55,8 @@ type Credentials struct {
 }
 
 type UpdateProfileInput struct {
-	Name             string `json:"name"`
-	Email            string `json:"email"`
-	RoleID           int    `json:"roleId,omitempty"`
-	JobTitle         string `json:"jobTitle,omitempty"`
-	Salary           int64  `json:"salary,omitempty"`
-	Residence        string `json:"residence,omitempty"`
-	PhoneNumber      string `json:"phoneNumber,omitempty"`
-	EmploymentStatus string `json:"employmentStatus,omitempty"`
-	AvatarURL        string `json:"avatarUrl,omitempty"`
-	IsActive         *bool  `json:"isActive,omitempty"`
+	Residence   string `json:"residence"`
+	PhoneNumber string `json:"phoneNumber"`
 }
 
 type UpdateUserInput struct {
