@@ -72,7 +72,7 @@ func (c *WeeklyController) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *WeeklyController) Update(w http.ResponseWriter, r *http.Request, id string) {
-	current, ok := middleware.GetClaims(r.Context())
+	_, ok := middleware.GetClaims(r.Context())
 	if !ok {
 		WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Autentikasi diperlukan."})
 		return
@@ -96,7 +96,7 @@ func (c *WeeklyController) Update(w http.ResponseWriter, r *http.Request, id str
 		return
 	}
 	// The repository validates the category against the report's stored primary division.
-	report, err := c.DB.UpdateReport(r.Context(), id, current.ID, input)
+	report, err := c.DB.UpdateReport(r.Context(), id, input)
 	if errors.Is(err, db.ErrInvalidReport) {
 		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Data laporan tidak valid."})
 		return
@@ -114,7 +114,7 @@ func (c *WeeklyController) Update(w http.ResponseWriter, r *http.Request, id str
 }
 
 func (c *WeeklyController) Delete(w http.ResponseWriter, r *http.Request, id string) {
-	current, ok := middleware.GetClaims(r.Context())
+	_, ok := middleware.GetClaims(r.Context())
 	if !ok {
 		WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Autentikasi diperlukan."})
 		return
@@ -123,7 +123,7 @@ func (c *WeeklyController) Delete(w http.ResponseWriter, r *http.Request, id str
 		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Laporan tidak dapat dihapus."})
 		return
 	}
-	err := c.DB.DeleteReport(r.Context(), id, current.ID)
+	err := c.DB.DeleteReport(r.Context(), id)
 	if err == sql.ErrNoRows {
 		WriteJSON(w, http.StatusNotFound, map[string]string{"error": "Laporan tidak ditemukan."})
 		return

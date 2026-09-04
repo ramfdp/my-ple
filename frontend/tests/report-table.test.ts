@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { groupReports } from '../src/lib/utils/report-table.ts';
+import { canModifyReport, groupReports } from '../src/lib/utils/report-table.ts';
 
 const report = (id: string, category: string, role: string, work: string, number: number) => ({
 	id,
@@ -9,6 +9,14 @@ const report = (id: string, category: string, role: string, work: string, number
 	role,
 	work,
 	number
+});
+
+test('allows every authenticated user to modify reports', () => {
+	assert.equal(canModifyReport({ id: 'owner', role: 'Project Engineer' }, 'owner'), true);
+	assert.equal(canModifyReport({ id: 'other', role: 'Project Engineer' }, 'owner'), true);
+	assert.equal(canModifyReport({ id: 'other', role: 'Admin' }, 'owner'), true);
+	assert.equal(canModifyReport({ id: 'other', role: 'Management' }, 'owner'), true);
+	assert.equal(canModifyReport(null, 'owner'), false);
 });
 
 test('groups interleaved projects once and restarts numbering for each project', () => {

@@ -420,7 +420,7 @@ func (db *Database) ListReports(ctx context.Context, primaryDivision string, wee
 	return reports, nil
 }
 
-func (db *Database) UpdateReport(ctx context.Context, id, userID string, input model.WeeklyReportUpdateInput) (model.WeeklyReport, error) {
+func (db *Database) UpdateReport(ctx context.Context, id string, input model.WeeklyReportUpdateInput) (model.WeeklyReport, error) {
 	var result model.WeeklyReport
 	tx, err := db.Conn.BeginTx(ctx, nil)
 	if err != nil {
@@ -428,24 +428,24 @@ func (db *Database) UpdateReport(ctx context.Context, id, userID string, input m
 	}
 	defer tx.Rollback()
 	var primaryDivision, oldWorkDivision string
-	if err := tx.QueryRowContext(ctx, `SELECT primary_division, work_division FROM reports WHERE id = $1 AND user_id = $2 FOR UPDATE`, id, userID).Scan(&primaryDivision, &oldWorkDivision); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT primary_division, work_division FROM reports WHERE id = $1 FOR UPDATE`, id).Scan(&primaryDivision, &oldWorkDivision); err != nil {
 		return result, err
 	}
 	if input.PrimaryDivision != primaryDivision || !model.ValidWeeklyReport(input.PrimaryDivision, input.WorkDivision, input.Role, input.Work, input.Description) {
 		return result, ErrInvalidReport
 	}
-	query := `UPDATE reports SET report_role = $3, work = $4, description = $5 WHERE id = $1 AND user_id = $2 RETURNING id, user_id, primary_division, work_division, number, report_role, work, description, completed_at`
-	args := []any{id, userID, input.Role, input.Work, input.Description}
+	query := `UPDATE reports SET report_role = $2, work = $3, description = $4 WHERE id = $1 RETURNING id, user_id, primary_division, work_division, number, report_role, work, description, completed_at`
+	args := []any{id, input.Role, input.Work, input.Description}
 	if input.WorkDivision != oldWorkDivision {
 		query = `WITH next_number AS (
-			INSERT INTO report_sequences (primary_division, work_division, last_number) VALUES ($3, $4, 1)
+			INSERT INTO report_sequences (primary_division, work_division, last_number) VALUES ($2, $3, 1)
 			ON CONFLICT (primary_division, work_division) DO UPDATE SET last_number = report_sequences.last_number + 1
 			RETURNING last_number
 		)
-		UPDATE reports SET work_division = $4, number = (SELECT last_number FROM next_number), report_role = $5, work = $6, description = $7
-		WHERE id = $1 AND user_id = $2
+		UPDATE reports SET work_division = $3, number = (SELECT last_number FROM next_number), report_role = $4, work = $5, description = $6
+		WHERE id = $1
 		RETURNING id, user_id, primary_division, work_division, number, report_role, work, description, completed_at`
-		args = []any{id, userID, input.PrimaryDivision, input.WorkDivision, input.Role, input.Work, input.Description}
+		args = []any{id, input.PrimaryDivision, input.WorkDivision, input.Role, input.Work, input.Description}
 	}
 	if err := tx.QueryRowContext(ctx, query, args...).Scan(&result.ID, &result.UserID, &result.PrimaryDivision, &result.WorkDivision, &result.Number, &result.Role, &result.Work, &result.Description, &result.CompletedAt); err != nil {
 		return result, err
@@ -456,15 +456,19 @@ func (db *Database) UpdateReport(ctx context.Context, id, userID string, input m
 	return result, nil
 }
 
-func (db *Database) DeleteReport(ctx context.Context, id, userID string) error {
-	result, err := db.Conn.ExecContext(ctx, `DELETE FROM reports WHERE id = $1 AND user_id = $2`, id, userID)
+func (db *Database) DeleteReport(ctx context.Context, id string) error {
+	tx, err := db.Conn.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	if count, _ := result.RowsAffected(); count == 0 {
-		return sql.ErrNoRows
+	defer tx.Rollback()
+	if err := tx.QueryRowContext(ctx, `SELECT id FROM reports WHERE id = $1 FOR UPDATE`, id).Scan(&id); err != nil {
+		return err
 	}
-	return nil
+	if _, err := tx.ExecContext(ctx, `DELETE FROM reports WHERE id = $1`, id); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func UniqueViolation(err error) bool {

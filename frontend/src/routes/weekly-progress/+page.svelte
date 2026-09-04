@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
-	import { api, download, session, type Report, type ReportingPeriod } from '$lib/api';
-	import { groupReports } from '$lib/utils/report-table';
+	import { api, currentUser, download, session, type Report, type ReportingPeriod } from '$lib/api';
+	import { canModifyReport, groupReports } from '$lib/utils/report-table';
 
 	const divisions = ['Project Engineer', 'AI Dev', 'Keuangan', 'Business Development', 'HR', 'PMO'];
 	const workDivisions: Record<string, string[]> = {
@@ -127,7 +127,7 @@
 										<td colspan="3" class="task-work-title">{row.work}</td>
 									</tr>
 								{:else}
-									<tr><td class="task-number">{row.displayNumber}</td><td class="task-description">{row.report.description}</td><td class="task-actions">{#if session()?.user.id === row.report.userId}<div class="report-row-actions"><button class="edit-report" type="button" onclick={() => { editing = row.report; editWorkDivision = row.report.workDivision; editRole = row.report.role; editProjectWork = row.report.work; editDescription = row.report.description; }}>Edit</button><button class="delete-report" type="button" onclick={() => (deleting = row.report)}>Hapus</button></div>{:else}<span class="no-actions">—</span>{/if}</td></tr>
+									<tr><td class="task-number">{row.displayNumber}</td><td class="task-description">{row.report.description}</td><td class="task-actions">{#if canModifyReport($currentUser, row.report.userId)}<div class="report-row-actions"><button class="edit-report" type="button" onclick={() => { editing = row.report; editWorkDivision = row.report.workDivision; editRole = row.report.role; editProjectWork = row.report.work; editDescription = row.report.description; }}>Edit</button><button class="delete-report" type="button" onclick={() => (deleting = row.report)}>Hapus</button></div>{:else}<span class="no-actions">—</span>{/if}</td></tr>
 								{/if}
 							{/each}{/if}
 						</tbody>

@@ -58,7 +58,7 @@ func TestProjectEngineerReportPostgres(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	updated, err := database.UpdateReport(context.Background(), created.ID, user.ID, model.WeeklyReportUpdateInput{PrimaryDivision: input.PrimaryDivision, WorkDivision: "Non-MK supervisi", Role: "PE", Work: "MPS PIT", Description: "updated"})
+	updated, err := database.UpdateReport(context.Background(), created.ID, model.WeeklyReportUpdateInput{PrimaryDivision: input.PrimaryDivision, WorkDivision: "Non-MK supervisi", Role: "PE", Work: "MPS PIT", Description: "updated"})
 	if err != nil || updated.Role != "PE" || updated.Work != "MPS PIT" || updated.Description != "updated" {
 		t.Fatalf("update = %#v, %v", updated, err)
 	}
@@ -73,6 +73,27 @@ func TestProjectEngineerReportPostgres(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("updated role and work were not loaded")
+	}
+	other := model.User{ID: NewID(), Name: "Other Report Test", Email: NewID() + "@example.test", Username: "other-" + NewID()[:8], RoleID: role.ID, PasswordHash: "test", EmploymentStatus: "Permanent Employee", IsActive: true}
+	if _, err := database.CreateUser(context.Background(), other); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = conn.Exec(`DELETE FROM reports WHERE user_id = $1`, other.ID)
+		_, _ = conn.Exec(`DELETE FROM users WHERE id = $1`, other.ID)
+	})
+	if _, err := database.UpdateReport(context.Background(), created.ID, model.WeeklyReportUpdateInput{PrimaryDivision: input.PrimaryDivision, WorkDivision: "Non-MK supervisi", Role: "PE", Work: "MPS PIT", Description: "any user"}); err != nil {
+		t.Fatalf("authenticated user update: %v", err)
+	}
+	owned, err := database.CreateReport(context.Background(), other.ID, input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := database.DeleteReport(context.Background(), owned.ID); err != nil {
+		t.Fatalf("authenticated user delete: %v", err)
+	}
+	if err := database.DeleteReport(context.Background(), created.ID); err != nil {
+		t.Fatalf("authenticated user delete: %v", err)
 	}
 	if err := database.DeleteUser(context.Background(), user.ID); err != nil {
 		t.Fatalf("delete user with reports: %v", err)

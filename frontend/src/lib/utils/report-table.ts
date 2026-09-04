@@ -11,6 +11,8 @@ export type TableReport<T extends GroupableReport> =
 	| { type: 'work'; work: string; category?: string; role?: string; categoryRowSpan?: number; roleRowSpan?: number }
 	| { type: 'report'; report: T; displayNumber: number };
 
+export const canModifyReport = (user: { id: string; role: string } | null | undefined, _ownerID: string) => !!user;
+
 const projectEngineerCategoryOrder = ['MK supervisi', 'Non-MK supervisi', 'QA'];
 
 const canonicalQA = (value: string) => value === 'QA 1' || value === 'QA 2' ? 'QA' : value;
