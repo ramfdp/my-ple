@@ -1,4 +1,4 @@
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+export const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 export interface User {
 	id: string; name: string; email: string; username: string; roleId: number; role: string;
@@ -21,6 +21,11 @@ export interface ZoomResource {
   hostKey: string; id: number; name: string; code: string; description: string; meetingUrl: string; meetingId: string; createdAt: string; updatedAt: string 
 }
 export interface ZoomResourceInput { description: string; meetingUrl: string; meetingId: string; hostKey: string }
+export interface Notification {
+	id: string; type: 'zoom_booking_created'; actor: { id: string; name: string };
+	entityType: string; entityId: string; createdAt: string; readAt: string | null;
+	booking?: { id: string; zoomName: string; startAt: string; endAt: string };
+}
 
 export function session(): { token: string; user: User } | null {
 	if (typeof window === 'undefined') return null;

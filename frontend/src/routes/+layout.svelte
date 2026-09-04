@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import favicon from '$lib/assets/favicon.svg';
 	import Sidebar from '$lib/components/Sidebar.svelte';
+	import { startNotifications } from '$lib/notifications';
 	import '$lib/styles/base.css';
 	import '$lib/styles/login.css';
 	import '$lib/styles/dashboard.css';
@@ -10,6 +11,11 @@
 
 	let { children } = $props();
 	let showSidebar = $derived(page.url.pathname !== '/');
+	$effect(() => {
+		page.url.pathname;
+		if (!showSidebar) return;
+		return startNotifications();
+	});
 </script>
 
 <svelte:head>

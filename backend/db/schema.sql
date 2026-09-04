@@ -127,6 +127,29 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+-- 9. Reusable notification events and sparse per-user read/dismiss state.
+CREATE TABLE IF NOT EXISTS notifications (
+  id UUID PRIMARY KEY,
+  type VARCHAR(100) NOT NULL,
+  actor_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  entity_type VARCHAR(100) NOT NULL,
+  entity_id UUID NOT NULL,
+  data JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS notification_user_states (
+  notification_id UUID NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  read_at TIMESTAMPTZ,
+  dismissed_at TIMESTAMPTZ,
+  PRIMARY KEY (notification_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS notifications_by_created_at ON notifications (created_at DESC);
+CREATE INDEX IF NOT EXISTS notifications_by_actor ON notifications (actor_user_id);
+CREATE INDEX IF NOT EXISTS notification_states_by_user ON notification_user_states (user_id, notification_id);
+
 DROP INDEX IF EXISTS zoom_bookings_by_time;
 CREATE INDEX IF NOT EXISTS zoom_bookings_by_time ON zoom_bookings (zoom_resource_id, start_at, end_at);
 CREATE INDEX IF NOT EXISTS zoom_bookings_by_user ON zoom_bookings (user_id);

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api, type User } from '$lib/api';
+	import NotificationBell from '$lib/components/NotificationBell.svelte';
 
 	let userName = $state('Nama Pengguna');
 	onMount(async () => { userName = (await api<{ user: User }>('/me')).user.name; });
@@ -18,10 +19,7 @@
 			<h1>Halo, <span>{userName}</span> <span aria-hidden="true">👋</span></h1>
 			<p class="dashboard-subtitle">Pilih layanan untuk melanjutkan pekerjaan hari ini.</p>
 		</div>
-		<button class="notification-button" type="button" aria-label="Notifikasi">
-			<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>
-			<span></span>
-		</button>
+		<NotificationBell />
 	</header>
 
 	<section class="dashboard-menu" aria-labelledby="menu-title">

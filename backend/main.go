@@ -8,17 +8,22 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"my-ple-backend/controller"
 	"my-ple-backend/db"
 	"my-ple-backend/middleware"
+	"my-ple-backend/notification"
+	"my-ple-backend/realtime"
 )
 
 func newHandler(database *db.Database, secret, corsOrigin string) http.Handler {
 	authCtrl := controller.NewAuthController(database, secret)
-	protected := middleware.RequireAuth(secret, protectedHandler(database, authCtrl))
+	hub := realtime.NewHub(corsOrigin)
+	notifications := &notification.Service{DB: database, Hub: hub}
+	protected := middleware.RequireAuth(secret, protectedHandler(database, authCtrl, notifications))
 	uploads := http.StripPrefix("/uploads/", http.FileServer(http.Dir(envOr("UPLOAD_DIR", "upload"))))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -39,6 +44,10 @@ func newHandler(database *db.Database, secret, corsOrigin string) http.Handler {
 		}
 		if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/uploads/") {
 			uploads.ServeHTTP(w, r)
+			return
+		}
+		if r.Method == http.MethodGet && r.URL.Path == "/ws/notifications" {
+			hub.ServeHTTP(secret, w, r)
 			return
 		}
 		if database == nil {
@@ -62,10 +71,15 @@ func newHandler(database *db.Database, secret, corsOrigin string) http.Handler {
 }
 
 // ponytail: unified protected routing for reports and employee profile
-func protectedHandler(database *db.Database, authCtrl *controller.AuthController) http.Handler {
+func protectedHandler(database *db.Database, authCtrl *controller.AuthController, services ...*notification.Service) http.Handler {
 	weeklyCtrl := controller.NewWeeklyController(database)
-	zoomCtrl := controller.NewZoomBookingController(database)
+	var notificationService *notification.Service
+	if len(services) > 0 {
+		notificationService = services[0]
+	}
+	zoomCtrl := controller.NewZoomBookingController(database, notificationService)
 	zoomResourceCtrl := controller.NewZoomResourceController(database)
+	notificationCtrl := &controller.NotificationController{DB: database}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		current, ok := middleware.GetClaims(r.Context())
 		if !ok {
@@ -137,6 +151,22 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 					{"id": "zoom-booking", "name": "Booking Zoom"},
 				},
 			})
+			return
+		}
+		if r.Method == http.MethodGet && r.URL.Path == "/notifications" {
+			notificationCtrl.List(w, r)
+			return
+		}
+		if r.Method == http.MethodGet && r.URL.Path == "/notifications/unread-count" {
+			notificationCtrl.UnreadCount(w, r)
+			return
+		}
+		if r.Method == http.MethodPatch && r.URL.Path == "/notifications/read-all" {
+			notificationCtrl.MarkAllRead(w, r)
+			return
+		}
+		if r.Method == http.MethodPatch && strings.HasPrefix(r.URL.Path, "/notifications/") {
+			notificationCtrl.Update(w, r)
 			return
 		}
 		if r.URL.Path == "/zoom-bookings" {
@@ -221,6 +251,8 @@ func main() {
 		} else {
 			fmt.Println("Database schema auto-migrated successfully.")
 		}
+		stopCleanup := startNotificationCleanup(database)
+		defer stopCleanup()
 		defer conn.Close()
 	}
 	port := os.Getenv("PORT")
@@ -235,6 +267,27 @@ func main() {
 	if err := http.ListenAndServe(":"+port, newHandler(database, secret, envOr("FRONTEND_ORIGIN", "http://localhost:5173"))); err != nil {
 		panic(err)
 	}
+}
+
+func startNotificationCleanup(database *db.Database) func() {
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		ticker := time.NewTicker(time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				if deleted, err := database.DeleteExpiredNotifications(ctx); err != nil {
+					fmt.Printf("Warning: notification cleanup error: %v\n", err)
+				} else if deleted > 0 {
+					fmt.Printf("Deleted %d expired notifications.\n", deleted)
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	return cancel
 }
 
 func envOr(key, fallback string) string {

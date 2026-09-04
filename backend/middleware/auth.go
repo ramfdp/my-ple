@@ -46,7 +46,11 @@ func SignToken(payload model.Claims, secret string) string {
 }
 
 func Authenticated(r *http.Request, secret string) (model.Claims, bool) {
-	parts := strings.Split(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "), ".")
+	return AuthenticateToken(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "), secret)
+}
+
+func AuthenticateToken(token, secret string) (model.Claims, bool) {
+	parts := strings.Split(token, ".")
 	if len(parts) != 2 {
 		return model.Claims{}, false
 	}

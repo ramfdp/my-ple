@@ -11,12 +11,20 @@ import (
 	"my-ple-backend/db"
 	"my-ple-backend/middleware"
 	"my-ple-backend/model"
+	"my-ple-backend/notification"
 )
 
-type ZoomBookingController struct{ DB *db.Database }
+type ZoomBookingController struct {
+	DB            *db.Database
+	Notifications *notification.Service
+}
 
-func NewZoomBookingController(database *db.Database) *ZoomBookingController {
-	return &ZoomBookingController{DB: database}
+func NewZoomBookingController(database *db.Database, notifications ...*notification.Service) *ZoomBookingController {
+	c := &ZoomBookingController{DB: database, Notifications: &notification.Service{DB: database}}
+	if len(notifications) > 0 && notifications[0] != nil {
+		c.Notifications = notifications[0]
+	}
+	return c
 }
 
 func cleanZoomBooking(input *model.ZoomBookingInput) bool {
@@ -35,7 +43,7 @@ func (c *ZoomBookingController) Create(w http.ResponseWriter, r *http.Request) {
 		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Judul, waktu, atau URL meeting tidak valid."})
 		return
 	}
-	booking, err := c.DB.CreateZoomBooking(r.Context(), current.ID, input)
+	booking, err := c.Notifications.CreateZoomBooking(r.Context(), current.ID, input)
 	if errors.Is(err, db.ErrZoomBookingConflict) {
 		WriteJSON(w, http.StatusConflict, map[string]string{"error": "Waktu tersebut sudah digunakan oleh booking Zoom lain."})
 		return
