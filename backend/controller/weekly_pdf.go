@@ -62,6 +62,7 @@ func weeklyPDFDocument(division string, period model.ReportingPeriod, reports []
 	const left, roleWidth, categoryWidth, numberWidth, reportWidth = 15.0, 20.0, 42.0, 14.0, 104.0
 	pdf.SetMargins(left, 15, left)
 	pdf.SetAutoPageBreak(false, 15)
+	sectionLabel := "Weekly Report"
 	pdf.SetHeaderFunc(func() {
 		pdf.SetAlpha(0.08, "Normal")
 		pdf.SetTextColor(18, 58, 90)
@@ -76,7 +77,7 @@ func weeklyPDFDocument(division string, period model.ReportingPeriod, reports []
 		pdf.SetFont("Helvetica", "", 8)
 		pdf.SetTextColor(100, 116, 139)
 		pdf.CellFormat(90, 5, "Weekly Report", "", 0, "L", false, 0, "")
-		pdf.CellFormat(90, 5, "Weekly Report", "", 1, "R", false, 0, "")
+		pdf.CellFormat(90, 5, sectionLabel, "", 1, "R", false, 0, "")
 		pdf.Ln(6)
 		pdf.SetTextColor(16, 42, 67)
 		pdf.SetFont("Helvetica", "B", 17)
@@ -93,7 +94,6 @@ func weeklyPDFDocument(division string, period model.ReportingPeriod, reports []
 		pdf.CellFormat(reportWidth, 9, "Laporan Pekerjaan", "1", 1, "C", true, 0, "")
 		pdf.SetTextColor(41, 70, 93)
 	})
-	pdf.AddPage()
 	for index := range reports {
 		model.NormalizeWeeklyReport(&reports[index])
 	}
@@ -105,93 +105,116 @@ func weeklyPDFDocument(division string, period model.ReportingPeriod, reports []
 		}
 		return height
 	}
-	for roleStart := 0; roleStart < len(reports); {
-		roleEnd := roleStart + 1
-		for roleEnd < len(reports) && reports[roleEnd].Role == reports[roleStart].Role {
-			roleEnd++
-		}
-		role, roleSegmentStart, showRole := reports[roleStart].Role, pdf.GetY(), true
-		finishRoleSegment := func() {
-			endY, height := pdf.GetY(), pdf.GetY()-roleSegmentStart
-			if height <= 0 {
-				return
+	renderReports := func(reports []model.WeeklyReport) {
+		pdf.AddPage()
+		for roleStart := 0; roleStart < len(reports); {
+			roleEnd := roleStart + 1
+			for roleEnd < len(reports) && reports[roleEnd].Role == reports[roleStart].Role {
+				roleEnd++
 			}
-			pdf.Rect(left, roleSegmentStart, roleWidth, height, "D")
-			if showRole {
-				lines := pdf.SplitLines([]byte(text(role)), roleWidth-4)
-				pdf.SetXY(left+2, roleSegmentStart+(height-float64(len(lines))*5)/2)
-				pdf.SetFont("Helvetica", "", 9)
-				pdf.MultiCell(roleWidth-4, 5, text(role), "", "C", false)
-				showRole = false
-			}
-			pdf.SetXY(left, endY)
-		}
-		for categoryStart := roleStart; categoryStart < roleEnd; {
-			categoryEnd := categoryStart + 1
-			for categoryEnd < roleEnd && reports[categoryEnd].WorkDivision == reports[categoryStart].WorkDivision {
-				categoryEnd++
-			}
-			category := reports[categoryStart].WorkDivision
-			categorySegmentStart, showCategory := pdf.GetY(), true
-			finishCategorySegment := func() {
-				endY, height := pdf.GetY(), pdf.GetY()-categorySegmentStart
+			role, roleSegmentStart, showRole := reports[roleStart].Role, pdf.GetY(), true
+			finishRoleSegment := func() {
+				endY, height := pdf.GetY(), pdf.GetY()-roleSegmentStart
 				if height <= 0 {
 					return
 				}
-				pdf.Rect(left+roleWidth, categorySegmentStart, categoryWidth, height, "D")
-				if showCategory {
-					lines := pdf.SplitLines([]byte(text(category)), categoryWidth-4)
-					pdf.SetXY(left+roleWidth+2, categorySegmentStart+(height-float64(len(lines))*5)/2)
+				pdf.Rect(left, roleSegmentStart, roleWidth, height, "D")
+				if showRole {
+					lines := pdf.SplitLines([]byte(text(role)), roleWidth-4)
+					pdf.SetXY(left+2, roleSegmentStart+(height-float64(len(lines))*5)/2)
 					pdf.SetFont("Helvetica", "", 9)
-					pdf.MultiCell(categoryWidth-4, 5, text(category), "", "C", false)
-					showCategory = false
+					pdf.MultiCell(roleWidth-4, 5, text(role), "", "C", false)
+					showRole = false
 				}
 				pdf.SetXY(left, endY)
 			}
-			newPage := func() {
-				finishCategorySegment()
-				finishRoleSegment()
-				pdf.AddPage()
-				roleSegmentStart, categorySegmentStart = pdf.GetY(), pdf.GetY()
-			}
-			group, number := "", 0
-			for index := categoryStart; index < categoryEnd; index++ {
-				report := reports[index]
-				key := report.PrimaryDivision + "\x00" + report.WorkDivision + "\x00" + report.Role + "\x00" + report.Work
-				if key != group {
-					group, number = key, 0
-					headerHeight := float64(len(pdf.SplitLines([]byte(text(report.Work)), numberWidth+reportWidth-4)))*5 + 4
-					if pdf.GetY()+headerHeight+itemHeight(report.Description) > 282 {
+			for categoryStart := roleStart; categoryStart < roleEnd; {
+				categoryEnd := categoryStart + 1
+				for categoryEnd < roleEnd && reports[categoryEnd].WorkDivision == reports[categoryStart].WorkDivision {
+					categoryEnd++
+				}
+				category := reports[categoryStart].WorkDivision
+				categorySegmentStart, showCategory := pdf.GetY(), true
+				finishCategorySegment := func() {
+					endY, height := pdf.GetY(), pdf.GetY()-categorySegmentStart
+					if height <= 0 {
+						return
+					}
+					pdf.Rect(left+roleWidth, categorySegmentStart, categoryWidth, height, "D")
+					if showCategory {
+						lines := pdf.SplitLines([]byte(text(category)), categoryWidth-4)
+						pdf.SetXY(left+roleWidth+2, categorySegmentStart+(height-float64(len(lines))*5)/2)
+						pdf.SetFont("Helvetica", "", 9)
+						pdf.MultiCell(categoryWidth-4, 5, text(category), "", "C", false)
+						showCategory = false
+					}
+					pdf.SetXY(left, endY)
+				}
+				newPage := func() {
+					finishCategorySegment()
+					finishRoleSegment()
+					pdf.AddPage()
+					roleSegmentStart, categorySegmentStart = pdf.GetY(), pdf.GetY()
+				}
+				group, number := "", 0
+				for index := categoryStart; index < categoryEnd; index++ {
+					report := reports[index]
+					key := report.PrimaryDivision + "\x00" + report.WorkDivision + "\x00" + report.Role + "\x00" + report.Work
+					if key != group {
+						group, number = key, 0
+						headerHeight := float64(len(pdf.SplitLines([]byte(text(report.Work)), numberWidth+reportWidth-4)))*5 + 4
+						if pdf.GetY()+headerHeight+itemHeight(report.Description) > 282 {
+							newPage()
+						}
+						x, y := left+roleWidth+categoryWidth, pdf.GetY()
+						pdf.SetFillColor(223, 242, 235)
+						pdf.SetFont("Helvetica", "B", 9)
+						pdf.Rect(x, y, numberWidth+reportWidth, headerHeight, "DF")
+						pdf.SetXY(x+2, y+2)
+						pdf.MultiCell(numberWidth+reportWidth-4, 5, text(report.Work), "", "L", false)
+						pdf.SetXY(left, y+headerHeight)
+					}
+					number++
+					height := itemHeight(report.Description)
+					if pdf.GetY()+height > 282 {
 						newPage()
 					}
 					x, y := left+roleWidth+categoryWidth, pdf.GetY()
-					pdf.SetFillColor(223, 242, 235)
-					pdf.SetFont("Helvetica", "B", 9)
-					pdf.Rect(x, y, numberWidth+reportWidth, headerHeight, "DF")
-					pdf.SetXY(x+2, y+2)
-					pdf.MultiCell(numberWidth+reportWidth-4, 5, text(report.Work), "", "L", false)
-					pdf.SetXY(left, y+headerHeight)
+					pdf.SetFont("Helvetica", "", 9)
+					pdf.SetXY(x, y)
+					pdf.CellFormat(numberWidth, height, fmt.Sprint(number), "1", 0, "C", false, 0, "")
+					pdf.SetXY(x+numberWidth, y)
+					pdf.Rect(x+numberWidth, y, reportWidth, height, "D")
+					pdf.SetXY(x+numberWidth+2, y+2)
+					pdf.MultiCell(reportWidth-4, 5, text(report.Description), "", "L", false)
+					pdf.SetXY(left, y+height)
 				}
-				number++
-				height := itemHeight(report.Description)
-				if pdf.GetY()+height > 282 {
-					newPage()
-				}
-				x, y := left+roleWidth+categoryWidth, pdf.GetY()
-				pdf.SetFont("Helvetica", "", 9)
-				pdf.SetXY(x, y)
-				pdf.CellFormat(numberWidth, height, fmt.Sprint(number), "1", 0, "C", false, 0, "")
-				pdf.SetXY(x+numberWidth, y)
-				pdf.Rect(x+numberWidth, y, reportWidth, height, "D")
-				pdf.SetXY(x+numberWidth+2, y+2)
-				pdf.MultiCell(reportWidth-4, 5, text(report.Description), "", "L", false)
-				pdf.SetXY(left, y+height)
+				finishCategorySegment()
+				categoryStart = categoryEnd
 			}
-			finishCategorySegment()
-			categoryStart = categoryEnd
+			finishRoleSegment()
+			roleStart = roleEnd
 		}
-		finishRoleSegment()
-		roleStart = roleEnd
+	}
+	if division == "Project Engineer" {
+		peQA, cihpk := make([]model.WeeklyReport, 0, len(reports)), make([]model.WeeklyReport, 0, len(reports))
+		for _, report := range reports {
+			if report.Role == "CIHPK" {
+				cihpk = append(cihpk, report)
+			} else {
+				peQA = append(peQA, report)
+			}
+		}
+		if len(peQA) > 0 {
+			sectionLabel = "PE & QA"
+			renderReports(peQA)
+		}
+		if len(cihpk) > 0 {
+			sectionLabel = "CIHPK"
+			renderReports(cihpk)
+		}
+	} else {
+		renderReports(reports)
 	}
 
 	var output bytes.Buffer

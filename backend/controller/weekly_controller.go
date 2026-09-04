@@ -20,6 +20,7 @@ type WeeklyController struct {
 }
 
 func validReportInput(input model.WeeklyReportInput) bool {
+	input.Role, input.WorkDivision = model.NormalizeWeeklyRoleCategory(input.Role, input.WorkDivision)
 	return model.ValidWeeklyReport(input.PrimaryDivision, input.WorkDivision, input.Role, input.Work, input.Description)
 }
 

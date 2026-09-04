@@ -62,11 +62,13 @@ func TestWeeklyPDFUsesDivisionTitleAndMergedRoleAndCategoryCells(t *testing.T) {
 			t.Fatalf("category %q rendered %d times", category, got)
 		}
 	}
-	if bytes.Contains(data, []byte("QA 1")) || bytes.Contains(data, []byte("QA 2")) || bytes.Count(data, []byte("(QA)Tj")) != 2 {
-		t.Fatal("legacy QA role/category values were not merged into canonical QA")
+	for _, category := range []string{"QA1", "QA2"} {
+		if got := bytes.Count(data, []byte("("+category+")Tj")); got != 1 {
+			t.Fatalf("category %q rendered %d times", category, got)
+		}
 	}
-	for _, role := range []string{"PE", "CIHPK"} {
-		if got := bytes.Count(data, []byte("("+role+")Tj")); got != 1 {
+	for role, want := range map[string]int{"PE": 1, "QA": 1, "CIHPK": 2} {
+		if got := bytes.Count(data, []byte("("+role+")Tj")); got != want {
 			t.Fatalf("role %q rendered %d times", role, got)
 		}
 	}
@@ -82,5 +84,32 @@ func TestWeeklyPDFUsesDivisionTitleAndMergedRoleAndCategoryCells(t *testing.T) {
 	}
 	if got := bytes.Count(data, []byte("(1)Tj")); got != 7 {
 		t.Fatalf("project starts numbered 1 = %d, want 7", got)
+	}
+}
+
+func TestWeeklyPDFSeparatesPEQAAndCIHPKSections(t *testing.T) {
+	start, next := model.ReportingWeek(time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC))
+	period := model.ReportingPeriod{Start: start, End: next.AddDate(0, 0, -1), Label: model.IndonesianWeekLabel(start, next)}
+	reports := []model.WeeklyReport{
+		{PrimaryDivision: "Project Engineer", WorkDivision: "MK supervisi", Role: "PE", Work: "Project PE", Description: "PE work"},
+		{PrimaryDivision: "Project Engineer", WorkDivision: "QA1", Role: "QA", Work: "Internal", Description: "QA1 work"},
+		{PrimaryDivision: "Project Engineer", WorkDivision: "QA2", Role: "QA", Work: "Project Management Office", Description: "QA2 work"},
+		{PrimaryDivision: "Project Engineer", WorkDivision: "JAKG", Role: "CIHPK", Work: "Project CIHPK", Description: "CIHPK work"},
+	}
+
+	data, err := weeklyPDFDocument("Project Engineer", period, reports, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pages := bytes.Count(data, []byte("/Type /Page\n")); pages != 2 {
+		t.Fatalf("pages = %d, want 2", pages)
+	}
+	for label, count := range map[string]int{"PE & QA": 1, "CIHPK": 2, "CONFIDENTIAL": 2} {
+		if got := bytes.Count(data, []byte("("+label+")Tj")); got != count {
+			t.Fatalf("%q rendered %d times, want %d", label, got, count)
+		}
+	}
+	if got := bytes.Count(data, []byte(period.Label)); got != 2 {
+		t.Fatalf("date range rendered %d times, want 2", got)
 	}
 }

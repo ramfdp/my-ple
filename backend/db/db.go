@@ -397,7 +397,7 @@ func (db *Database) ListReports(ctx context.Context, primaryDivision string, wee
 		return nil, err
 	}
 	roleRank := map[string]int{"PE": 1, "QA": 2, "CIHPK": 3}
-	categoryRank := map[string]int{"MK supervisi": 1, "Non-MK supervisi": 2, "QA": 3, "JAKG": 4, "Manggarai Hydrant": 5, "Jember": 6}
+	categoryRank := map[string]int{"MK supervisi": 1, "Non-MK supervisi": 2, "QA1": 3, "QA2": 4, "JAKG": 5, "Manggarai Hydrant": 6, "Jember": 7}
 	sort.SliceStable(reports, func(i, j int) bool {
 		a, b := reports[i], reports[j]
 		if roleRank[a.Role] != roleRank[b.Role] {
