@@ -1,9 +1,21 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
 
 :root {
+	--his-green: #00c468;
+	--his-red: #ff2d31;
+	--his-primary: #007a41;
+	--his-primary-dark: #005c31;
+	--his-primary-soft: #e8f8ef;
+	--his-danger: #c52327;
+	--his-danger-soft: #fff0f0;
+	--his-danger-border: #ffc9ca;
+	--his-text: #171717;
+	--his-muted: #595959;
+	--his-border: #dedede;
+	--his-surface: #f7f9f7;
 	font-family: 'DM Sans', system-ui, sans-serif;
-	color: #17142d;
-	background: #f7f6fb;
+	color: var(--his-text);
+	background: var(--his-surface);
 	font-synthesis: none;
 }
 
@@ -15,6 +27,15 @@ body {
 	min-width: 320px;
 	min-height: 100vh;
 	margin: 0;
+}
+
+:focus-visible {
+	outline: 2px solid var(--his-primary);
+	outline-offset: 3px;
+}
+
+input, select, textarea {
+	accent-color: var(--his-primary);
 }
 
 .sveltekit-body {

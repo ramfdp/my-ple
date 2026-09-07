@@ -12,16 +12,16 @@
 
 	const statusStyles: Record<string, { bg: string; text: string; border: string; dot: string }> = {
 		'Permanent Employee': {
-			bg: '#ecfdf5',
-			text: '#047857',
-			border: '#a7f3d0',
-			dot: '#10b981'
+			bg: 'var(--his-primary-soft)',
+			text: 'var(--his-primary)',
+			border: 'var(--his-primary-soft)',
+			dot: 'var(--his-primary)'
 		},
 		'Contract Employee': {
-			bg: '#eff6ff',
-			text: '#1d4ed8',
-			border: '#bfdbfe',
-			dot: '#3b82f6'
+			bg: 'var(--his-primary-soft)',
+			text: 'var(--his-primary)',
+			border: 'var(--his-primary-soft)',
+			dot: 'var(--his-primary)'
 		},
 		'Probation': {
 			bg: '#fffbeb',
@@ -30,37 +30,37 @@
 			dot: '#f59e0b'
 		},
 		'Intern': {
-			bg: '#faf5ff',
-			text: '#6b21a8',
-			border: '#e9d5ff',
-			dot: '#a855f7'
+			bg: 'var(--his-danger-soft)',
+			text: 'var(--his-danger)',
+			border: 'var(--his-danger-border)',
+			dot: 'var(--his-danger)'
 		},
 		'Freelancer': {
-			bg: '#ecfeff',
-			text: '#0e7490',
-			border: '#a5f3fc',
-			dot: '#06b6d4'
+			bg: 'var(--his-primary-soft)',
+			text: 'var(--his-primary)',
+			border: 'var(--his-primary-soft)',
+			dot: 'var(--his-primary)'
 		},
 		'Inactive': {
-			bg: '#fef2f2',
-			text: '#b91c1c',
-			border: '#fecaca',
-			dot: '#ef4444'
+			bg: 'var(--his-danger-soft)',
+			text: 'var(--his-danger)',
+			border: 'var(--his-danger-border)',
+			dot: 'var(--his-danger)'
 		},
 		'Active Employee': {
-			bg: '#f0fdf4',
-			text: '#15803d',
-			border: '#bbf7d0',
-			dot: '#22c55e'
+			bg: 'var(--his-primary-soft)',
+			text: 'var(--his-primary)',
+			border: 'var(--his-primary-soft)',
+			dot: 'var(--his-primary)'
 		}
 	};
 
 	let currentStyle = $derived(
 		statusStyles[status] ?? {
-			bg: '#f8fafc',
-			text: '#475569',
-			border: '#e2e8f0',
-			dot: '#94a3b8'
+			bg: 'var(--his-surface)',
+			text: 'var(--his-muted)',
+			border: 'var(--his-border)',
+			dot: '#737373'
 		}
 	);
 </script>

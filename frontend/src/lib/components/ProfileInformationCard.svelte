@@ -102,7 +102,7 @@
 	.info-card {
 		background: #ffffff;
 		border-radius: 16px;
-		border: 1px solid #e2e8f0;
+		border: 1px solid var(--his-border);
 		padding: 24px;
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
 		margin-top: 24px;
@@ -114,7 +114,7 @@
 		justify-content: space-between;
 		padding-bottom: 20px;
 		margin-bottom: 20px;
-		border-bottom: 1px solid #f1f5f9;
+		border-bottom: 1px solid var(--his-surface);
 		gap: 16px;
 	}
 
@@ -127,14 +127,14 @@
 	.card-title {
 		font-size: 1.1875rem;
 		font-weight: 700;
-		color: #0f172a;
+		color: var(--his-text);
 		letter-spacing: -0.02em;
 		margin: 0;
 	}
 
 	.card-subtitle {
 		font-size: 0.8125rem;
-		color: #64748b;
+		color: var(--his-muted);
 	}
 
 	.edit-action-button {
@@ -144,24 +144,24 @@
 		padding: 8px 14px;
 		border-radius: 10px;
 		background: #ffffff;
-		border: 1px solid #e2e8f0;
-		color: #334155;
+		border: 1px solid var(--his-border);
+		color: var(--his-muted);
 		font-size: 0.84375rem;
 		font-weight: 600;
 		transition: all 0.15s ease;
 	}
 
 	.edit-action-button:hover {
-		background: #f8fafc;
-		border-color: #cbd5e1;
-		color: #0f172a;
+		background: var(--his-surface);
+		border-color: var(--his-border);
+		color: var(--his-text);
 		transform: translateY(-1px);
 	}
 
 	.edit-action-button svg {
 		width: 14px;
 		height: 14px;
-		color: #64748b;
+		color: var(--his-muted);
 	}
 
 	.info-grid {

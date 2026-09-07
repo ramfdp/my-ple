@@ -8,9 +8,9 @@
 </script>
 
 <svelte:head>
-	<title>Redirecting to My Profile... | my-ple</title>
+	<title>Redirecting to My Profile... | my HIS</title>
 </svelte:head>
 
-<div style="padding: 40px; text-align: center; color: #64748b;">
+<div style="padding: 40px; text-align: center; color: var(--his-muted);">
 	<p>Mengalihkan ke halaman My Profile...</p>
 </div>

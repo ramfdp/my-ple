@@ -38,7 +38,7 @@
 	}
 </script>
 
-<svelte:head><title>Manage Employees | my-ple</title></svelte:head>
+<svelte:head><title>Manage Employees | my HIS</title></svelte:head>
 <main class="page">
 	{#if !loading && !allowed}
 		<h1>Access denied</h1><p>Manage Employees is only available to Admin, Management, and HR.</p>
@@ -59,5 +59,5 @@
 </main>
 
 <style>
-	.page { padding: 32px; color: #0f172a; } header { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:24px } h1,h2,p{margin:0} header p{color:#64748b;margin-top:4px}.table-wrap{overflow:auto;border:1px solid #e2e8f0;border-radius:12px}table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:10px;white-space:nowrap;border-bottom:1px solid #e2e8f0;text-align:left}th{background:#f8fafc}.actions{display:flex;gap:6px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:18px 0}label{display:grid;gap:5px;font-weight:600;font-size:14px}input,select{padding:9px;border:1px solid #cbd5e1;border-radius:7px;font:inherit}.check{display:flex;align-items:center;gap:8px}button{border:0;border-radius:7px;background:#0f766e;color:white;padding:9px 13px;font-weight:600;cursor:pointer}.secondary{background:#e2e8f0;color:#334155}.danger{background:#dc2626}.form-actions{display:flex;gap:8px}.error{color:#b91c1c;margin:12px 0}@media(max-width:800px){.page{padding:20px}.grid{grid-template-columns:1fr}header{align-items:flex-start;flex-direction:column}}
+	.page { padding: 32px; color: var(--his-text); } header { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:24px } h1,h2,p{margin:0} header p{color:var(--his-muted);margin-top:4px}.table-wrap{overflow:auto;border:1px solid var(--his-border);border-radius:12px}table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:10px;white-space:nowrap;border-bottom:1px solid var(--his-border);text-align:left}th{background:var(--his-surface)}.actions{display:flex;gap:6px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:18px 0}label{display:grid;gap:5px;font-weight:600;font-size:14px}input,select{padding:9px;border:1px solid var(--his-border);border-radius:7px;font:inherit}.check{display:flex;align-items:center;gap:8px}button{border:0;border-radius:7px;background:var(--his-primary);color:white;padding:9px 13px;font-weight:600;cursor:pointer}.secondary{background:var(--his-border);color:var(--his-muted)}.danger{background:var(--his-danger)}.form-actions{display:flex;gap:8px}.error{color:var(--his-danger);margin:12px 0}@media(max-width:800px){.page{padding:20px}.grid{grid-template-columns:1fr}header{align-items:flex-start;flex-direction:column}}
 </style>

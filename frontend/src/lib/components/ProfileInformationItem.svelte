@@ -98,13 +98,13 @@
 		padding: 12px 14px;
 		border-radius: 12px;
 		background: #ffffff;
-		border: 1px solid #f1f5f9;
+		border: 1px solid var(--his-surface);
 		transition: all 0.18s ease;
 	}
 
 	.info-item:hover {
-		border-color: #e2e8f0;
-		background: #fbfdff;
+		border-color: var(--his-border);
+		background: var(--his-surface);
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
 	}
 
@@ -112,9 +112,9 @@
 		width: 38px;
 		height: 38px;
 		border-radius: 10px;
-		background: #f0fdfa;
-		border: 1px solid #ccfbf1;
-		color: #0f766e;
+		background: var(--his-primary-soft);
+		border: 1px solid var(--his-primary-soft);
+		color: var(--his-primary);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -144,7 +144,7 @@
 	.info-label {
 		font-size: 0.8125rem;
 		font-weight: 500;
-		color: #64748b;
+		color: var(--his-muted);
 		letter-spacing: -0.01em;
 	}
 
@@ -154,8 +154,8 @@
 		gap: 3px;
 		font-size: 0.6875rem;
 		font-weight: 600;
-		color: #94a3b8;
-		background: #f1f5f9;
+		color: #737373;
+		background: var(--his-surface);
 		padding: 2px 6px;
 		border-radius: 4px;
 		line-height: 1;
@@ -169,7 +169,7 @@
 	.info-value {
 		font-size: 0.9375rem;
 		font-weight: 600;
-		color: #0f172a;
+		color: var(--his-text);
 		letter-spacing: -0.015em;
 		word-break: break-word;
 	}

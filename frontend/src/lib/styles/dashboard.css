@@ -1,6 +1,6 @@
 .dashboard-page {
 	padding: clamp(32px, 6vw, 80px);
-	color: #102a43;
+	color: var(--his-text);
 }
 
 .dashboard-header,
@@ -20,7 +20,7 @@
 
 .dashboard-kicker {
 	margin: 0 0 10px;
-	color: #0c6656;
+	color: var(--his-primary);
 	font-size: 0.7rem;
 	font-weight: 700;
 	letter-spacing: 0.14em;
@@ -41,12 +41,12 @@
 }
 
 .dashboard-header h1 span:first-child {
-	color: #0c6656;
+	color: var(--his-primary);
 }
 
 .dashboard-subtitle {
 	margin: 18px 0 0;
-	color: #64748b;
+	color: var(--his-muted);
 	font-size: 1rem;
 }
 
@@ -57,11 +57,11 @@
 	height: 48px;
 	flex: 0 0 auto;
 	place-items: center;
-	border: 1px solid #dbe5e3;
+	border: 1px solid var(--his-border);
 	border-radius: 14px;
 	background: #fff;
-	color: #102a43;
-	box-shadow: 0 8px 24px rgb(16 42 67 / 7%);
+	color: var(--his-text);
+	box-shadow: 0 8px 24px rgb(23 23 23 / 7%);
 }
 
 .notification-button svg,
@@ -83,7 +83,7 @@
 	padding: 0 5px;
 	border: 2px solid #fff;
 	border-radius: 10px;
-	background: #791f31;
+	background: var(--his-danger);
 	color: #fff;
 	font-size: 0.68rem;
 	font-weight: 700;
@@ -92,15 +92,15 @@
 }
 
 .notification-wrap { position: relative; }
-.notification-panel { position: absolute; z-index: 20; top: 58px; right: 0; width: min(380px, calc(100vw - 32px)); max-height: 480px; overflow: auto; border: 1px solid #dbe5e3; border-radius: 14px; background: #fff; box-shadow: 0 18px 44px rgb(16 42 67 / 18%); }
-.notification-panel header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px; border-bottom: 1px solid #edf2f1; }
-.notification-panel header button, .notification-dismiss { border: 0; background: transparent; color: #0c6656; cursor: pointer; font: inherit; font-size: .78rem; }
+.notification-panel { position: absolute; z-index: 20; top: 58px; right: 0; width: min(380px, calc(100vw - 32px)); max-height: 480px; overflow: auto; border: 1px solid var(--his-border); border-radius: 14px; background: #fff; box-shadow: 0 18px 44px rgb(23 23 23 / 18%); }
+.notification-panel header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px; border-bottom: 1px solid var(--his-border); }
+.notification-panel header button, .notification-dismiss { border: 0; background: transparent; color: var(--his-primary); cursor: pointer; font: inherit; font-size: .78rem; }
 .notification-panel ul { margin: 0; padding: 0; list-style: none; }
-.notification-panel li { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid #edf2f1; }
-.notification-panel li.unread { background: #f1faf7; }
-.notification-content { display: grid; flex: 1; gap: 4px; padding: 0; border: 0; background: transparent; color: #102a43; cursor: pointer; text-align: left; }
-.notification-content span, .notification-content small { color: #64748b; font-size: .78rem; }
-.notification-empty { margin: 0; padding: 24px 16px; color: #64748b; text-align: center; }
+.notification-panel li { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--his-border); }
+.notification-panel li.unread { background: var(--his-primary-soft); }
+.notification-content { display: grid; flex: 1; gap: 4px; padding: 0; border: 0; background: transparent; color: var(--his-text); cursor: pointer; text-align: left; }
+.notification-content span, .notification-content small { color: var(--his-muted); font-size: .78rem; }
+.notification-empty { margin: 0; padding: 24px 16px; color: var(--his-muted); text-align: center; }
 
 .dashboard-menu {
 	animation: dashboard-reveal 700ms 80ms cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -120,7 +120,7 @@
 
 .menu-heading > p {
 	margin: 0;
-	color: #778697;
+	color: var(--his-muted);
 	font-size: 0.88rem;
 }
 
@@ -134,18 +134,18 @@
 	display: block;
 	min-height: 245px;
 	padding: 24px;
-	border: 1px solid #e1e9e7;
+	border: 1px solid var(--his-border);
 	border-radius: 20px;
 	background: #fff;
 	color: inherit;
 	text-decoration: none;
-	box-shadow: 0 12px 30px rgb(16 42 67 / [PERCENT_D475E5C1]);
+	box-shadow: 0 12px 30px rgb(23 23 23 / [PERCENT_D475E5C1]);
 	transition: transform 180ms ease, box-shadow 180ms ease;
 }
 
 .menu-card:hover {
 	transform: translateY(-4px);
-	box-shadow: 0 18px 38px rgb(16 42 67 / 10%);
+	box-shadow: 0 18px 38px rgb(23 23 23 / 10%);
 }
 
 .menu-icon {
@@ -156,10 +156,10 @@
 	border-radius: 14px;
 }
 
-.attendance-card .menu-icon { background: #e1f3ed; color: #0c6656; }
-.progress-card .menu-icon { background: #e5eef5; color: #123a5a; }
-.overtime-card .menu-icon { background: #f6e6e9; color: #791f31; }
-.zoom-card .menu-icon { background: #e7f0ed; color: #176a50; }
+.attendance-card .menu-icon { background: var(--his-primary-soft); color: var(--his-primary); }
+.progress-card .menu-icon { background: var(--his-primary-soft); color: var(--his-primary); }
+.overtime-card .menu-icon { background: var(--his-danger-soft); color: var(--his-danger); }
+.zoom-card .menu-icon { background: var(--his-primary-soft); color: var(--his-primary); }
 
 .menu-card h3 {
 	margin-top: 52px;
@@ -168,7 +168,7 @@
 
 .menu-card p {
 	margin: 10px 0 0;
-	color: #708090;
+	color: var(--his-muted);
 	font-size: 0.86rem;
 	line-height: 1.55;
 }

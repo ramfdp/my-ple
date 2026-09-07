@@ -82,7 +82,7 @@
 	});
 </script>
 
-<svelte:head><title>Booking Zoom | my-ple</title><meta name="description" content="Jadwalkan dan kelola meeting Zoom." /></svelte:head>
+<svelte:head><title>Booking Zoom | my HIS</title><meta name="description" content="Jadwalkan dan kelola meeting Zoom." /></svelte:head>
 <main class="booking-page"><div class="booking-shell">
 	<a class="booking-back" href="/dashboard">← Kembali ke dashboard</a>
 	<header class="booking-header"><div><p class="zoom-kicker">BOOKING ZOOM</p><h1>Booking Zoom</h1><p>Jadwalkan dan kelola meeting Zoom Anda.</p></div><button class="zoom-primary" type="button" onclick={() => { editing = null; formOpen = true; }}>+ Buat Booking</button></header>

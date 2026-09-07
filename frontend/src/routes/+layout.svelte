@@ -2,8 +2,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { api, setAuthenticated, type User } from '$lib/api';
-	import favicon from '$lib/assets/favicon.svg';
+	import { api, currentUser, setAuthenticated, type User } from '$lib/api';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import { startNotifications } from '$lib/notifications';
 	import '$lib/styles/base.css';
@@ -14,16 +13,19 @@
 
 	let { children } = $props();
 	let showSidebar = $derived(page.url.pathname !== '/');
-	let auth = $state<'loading' | 'authenticated' | 'unauthenticated'>('loading');
+	let initializing = $state(true);
+	let auth = $derived(initializing ? 'loading' : $currentUser ? 'authenticated' : 'unauthenticated');
 	onMount(async () => {
 		localStorage.removeItem('session');
 		try {
 			const { user } = await api<{ user: User }>('/auth/me');
-			setAuthenticated(user); auth = 'authenticated';
+			setAuthenticated(user);
 			if (page.url.pathname === '/') await goto('/dashboard');
 		} catch {
-			setAuthenticated(null); auth = 'unauthenticated';
+			setAuthenticated(null);
 			if (page.url.pathname !== '/') await goto('/');
+		} finally {
+			initializing = false;
 		}
 	});
 	$effect(() => {
@@ -34,10 +36,12 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
+	<link rel="icon" type="image/webp" href="/harmoni%20insan%20phooto.webp" />
 </svelte:head>
 
-{#if showSidebar && auth === 'authenticated'}
+{#if auth === 'loading'}
+	<p role="status" aria-live="polite">Memeriksa sesi…</p>
+{:else if showSidebar && auth === 'authenticated'}
 	<div class="feature-shell">
 		<Sidebar />
 		<div class="feature-content">{@render children()}</div>

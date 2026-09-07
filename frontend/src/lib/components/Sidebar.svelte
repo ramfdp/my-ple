@@ -58,8 +58,8 @@
 		{/if}
 	</button>
 	<div class="mobile-brand">
-		<img src="/Logo_PLE-removebg-preview-300x233.png" alt="Company Logo" class="mobile-logo-img" />
-		<span class="brand-text">my-ple</span>
+		<img src="/harmoni%20insan%20phooto.webp" alt="my HIS" class="mobile-logo-img" />
+		<span class="brand-text">my HIS</span>
 	</div>
 </div>
 
@@ -74,10 +74,10 @@
 	<div class="sidebar-header">
 		<a href="/dashboard" class="logo-link" onclick={() => (mobileOpen = false)}>
 			<div class="logo-circle">
-				<img src="/Logo_PLE-removebg-preview-300x233.png" alt="PLE Logo" class="sidebar-logo" />
+				<img src="/harmoni%20insan%20phooto.webp" alt="my HIS" class="sidebar-logo" />
 			</div>
 			<div class="brand-details">
-				<span class="brand-title">my-ple</span>
+				<span class="brand-title">my HIS</span>
 			</div>
 		</a>
 	</div>
@@ -168,7 +168,7 @@
 		width: 250px;
 		height: 100dvh;
 		background: #ffffff;
-		border-right: 1px solid #e2e8f0;
+		border-right: 1px solid var(--his-border);
 		display: flex;
 		flex-direction: column;
 		flex-shrink: 0;
@@ -178,7 +178,7 @@
 
 	.sidebar-header {
 		padding: 24px 20px 20px;
-		border-bottom: 1px solid #f1f5f9;
+		border-bottom: 1px solid var(--his-surface);
 	}
 
 	.logo-link {
@@ -193,8 +193,8 @@
 		width: 42px;
 		height: 42px;
 		border-radius: 10px;
-		background: #f0fdfa;
-		border: 1px solid #ccfbf1;
+		background: var(--his-primary-soft);
+		border: 1px solid var(--his-primary-soft);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -218,7 +218,7 @@
 		font-family: 'Plus Jakarta Sans', sans-serif;
 		font-size: 1.125rem;
 		font-weight: 800;
-		color: #0f172a;
+		color: var(--his-text);
 		letter-spacing: -0.03em;
 		line-height: 1.2;
 	}
@@ -226,7 +226,7 @@
 	.brand-badge {
 		font-size: 0.6875rem;
 		font-weight: 600;
-		color: #0f766e;
+		color: var(--his-primary);
 		letter-spacing: 0.02em;
 		text-transform: uppercase;
 	}
@@ -246,7 +246,7 @@
 		gap: 12px;
 		padding: 10px 14px;
 		border-radius: 10px;
-		color: #475569;
+		color: var(--his-muted);
 		text-decoration: none;
 		font-size: 0.875rem;
 		font-weight: 600;
@@ -254,14 +254,14 @@
 	}
 
 	.nav-item:hover {
-		background: #f8fafc;
-		color: #0f172a;
+		background: var(--his-surface);
+		color: var(--his-text);
 	}
 
 	.nav-item.active {
-		background: #14b8a6;
+		background: var(--his-primary);
 		color: #ffffff;
-		box-shadow: 0 2px 8px rgba(20, 184, 166, 0.28);
+		box-shadow: 0 2px 8px rgba(0, 122, 65, 0.28);
 	}
 
 	.nav-icon {
@@ -284,7 +284,7 @@
 
 	.sidebar-footer {
 		padding: 16px 12px;
-		border-top: 1px solid #f1f5f9;
+		border-top: 1px solid var(--his-surface);
 	}
 
 	.logout-button {
@@ -293,7 +293,7 @@
 		gap: 10px;
 		padding: 10px 14px;
 		border-radius: 10px;
-		color: #e11d48;
+		color: var(--his-danger);
 		text-decoration: none;
 		font-size: 0.875rem;
 		font-weight: 600;
@@ -301,7 +301,7 @@
 	}
 
 	.logout-button:hover {
-		background: #fff1f2;
+		background: var(--his-danger-soft);
 	}
 
 	.logout-button svg {
@@ -329,7 +329,7 @@
 			height: 56px;
 			padding: 0 16px;
 			background: #ffffff;
-			border-bottom: 1px solid #e2e8f0;
+		border-bottom: 1px solid var(--his-green);
 			z-index: 35;
 		}
 
@@ -337,9 +337,9 @@
 			width: 38px;
 			height: 38px;
 			border-radius: 8px;
-			border: 1px solid #e2e8f0;
+			border: 1px solid var(--his-border);
 			background: #ffffff;
-			color: #334155;
+			color: var(--his-muted);
 			display: flex;
 			align-items: center;
 			justify-content: center;
@@ -379,7 +379,7 @@
 			display: block;
 			position: fixed;
 			inset: 0;
-			background: rgba(15, 23, 42, 0.4);
+			background: rgba(23, 23, 23, 0.4);
 			backdrop-filter: blur(2px);
 			z-index: 39;
 		}

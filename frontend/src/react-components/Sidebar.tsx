@@ -51,11 +51,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
         <div className="flex items-center gap-2">
           <img
-            src="/Logo_PLE-removebg-preview-300x233.png"
-            alt="Logo"
+            src="/harmoni%20insan%20phooto.webp"
+            alt="my HIS"
             className="w-7 h-7 object-contain"
           />
-          <span className="font-bold text-slate-900 tracking-tight">my-ple</span>
+          <span className="font-bold text-slate-900 tracking-tight">my HIS</span>
         </div>
       </div>
 
@@ -77,13 +77,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="p-5 border-b border-slate-100 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center p-1">
             <img
-              src="/Logo_PLE-removebg-preview-300x233.png"
-              alt="PLE Logo"
+              src="/harmoni%20insan%20phooto.webp"
+              alt="my HIS"
               className="w-full h-full object-contain"
             />
           </div>
           <div>
-            <h1 className="font-bold text-slate-900 text-base leading-tight">my-ple</h1>
+            <h1 className="font-bold text-slate-900 text-base leading-tight">my HIS</h1>
             <span className="text-[11px] font-semibold text-teal-700 tracking-wide uppercase">
               HR Workspace
             </span>

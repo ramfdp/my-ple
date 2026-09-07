@@ -66,7 +66,7 @@
 		border-radius: 9999px;
 		border-style: solid;
 		border-color: #ffffff;
-		background: #f1f5f9;
+		background: var(--his-surface);
 		box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
 		flex-shrink: 0;
 	}
@@ -86,8 +86,8 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: linear-gradient(135deg, #ccfbf1, #99f6e4);
-		color: #0f766e;
+		background: linear-gradient(135deg, var(--his-primary-soft), var(--his-primary-soft));
+		color: var(--his-primary);
 	}
 
 	.avatar-fallback svg {
@@ -102,7 +102,7 @@
 		width: 32px;
 		height: 32px;
 		border-radius: 9999px;
-		background: #14b8a6;
+		background: var(--his-primary);
 		color: #ffffff;
 		border: 2px solid #ffffff;
 		display: flex;
@@ -113,7 +113,7 @@
 	}
 
 	.avatar-edit-badge:hover {
-		background: #0f766e;
+		background: var(--his-primary);
 		transform: scale(1.08);
 	}
 

@@ -34,7 +34,7 @@
 	}
 </script>
 
-<svelte:head><title>Input Laporan | my-ple</title><meta name="description" content="Input laporan pekerjaan mingguan." /></svelte:head>
+<svelte:head><title>Input Laporan | my HIS</title><meta name="description" content="Input laporan pekerjaan mingguan." /></svelte:head>
 <main class="weekly-progress-page"><div class="weekly-progress-shell report-shell">
 	<a class="back-link" href="/weekly-progress">← Kembali ke weekly progress</a>
 	<header class="weekly-header"><p class="weekly-kicker">WEEKLY PROGRESS</p><h1>Input laporan pekerjaan.</h1><p>Isi pekerjaan yang sudah dilakukan agar tampil pada daftar progres.</p></header>

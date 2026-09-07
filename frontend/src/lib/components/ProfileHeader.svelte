@@ -92,15 +92,15 @@
 	.profile-header-card {
 		background: #ffffff;
 		border-radius: 16px;
-		border: 1px solid #e2e8f0;
+		border: 1px solid var(--his-border);
 		overflow: hidden;
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
 	}
 
-	/* ponytail: standard CSS linear-gradient matching reference #99F6E4 -> #D1FAE5 -> #ECFCCB */
+	/* ponytail: standard CSS linear-gradient matching reference var(--his-primary-soft) -> var(--his-primary-soft) -> var(--his-primary-soft) */
 	.banner-gradient {
 		height: 145px;
-		background: linear-gradient(90deg, #99f6e4 0%, #d1fae5 50%, #ecfccb 100%);
+		background: linear-gradient(90deg, var(--his-primary-soft) 0%, var(--his-primary-soft) 50%, var(--his-primary-soft) 100%);
 		position: relative;
 		display: flex;
 		justify-content: flex-end;
@@ -111,7 +111,7 @@
 	.banner-pattern {
 		position: absolute;
 		inset: 0;
-		background-image: radial-gradient(rgba(15, 118, 110, 0.08) 1px, transparent 1px);
+		background-image: radial-gradient(rgba(0, 122, 65, 0.08) 1px, transparent 1px);
 		background-size: 16px 16px;
 		pointer-events: none;
 	}
@@ -133,7 +133,7 @@
 	.role-label {
 		font-size: 0.6875rem;
 		font-weight: 700;
-		color: #0f766e;
+		color: var(--his-primary);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
 	}
@@ -143,16 +143,16 @@
 		background: transparent;
 		font-size: 0.75rem;
 		font-weight: 600;
-		color: #475569;
+		color: var(--his-muted);
 		padding: 4px 10px;
 		border-radius: 9999px;
 		transition: all 0.15s ease;
 	}
 
 	.role-selector-pill button.active {
-		background: #0f766e;
+		background: var(--his-primary);
 		color: #ffffff;
-		box-shadow: 0 1px 4px rgba(15, 118, 110, 0.25);
+		box-shadow: 0 1px 4px rgba(0, 122, 65, 0.25);
 	}
 
 	.profile-header-content {
@@ -195,7 +195,7 @@
 	.employee-name {
 		font-size: 1.625rem;
 		font-weight: 800;
-		color: #0f172a;
+		color: var(--his-text);
 		letter-spacing: -0.03em;
 		margin: 0;
 		line-height: 1.2;
@@ -207,23 +207,23 @@
 		align-items: center;
 		gap: 8px;
 		font-size: 0.9375rem;
-		color: #64748b;
+		color: var(--his-muted);
 		font-weight: 500;
 		flex-wrap: wrap;
 	}
 
 	.job-title {
-		color: #334155;
+		color: var(--his-muted);
 		font-weight: 600;
 	}
 
 	.meta-separator {
-		color: #cbd5e1;
+		color: var(--his-border);
 	}
 
 	.division-title {
-		color: #0f766e;
-		background: #f0fdfa;
+		color: var(--his-primary);
+		background: var(--his-primary-soft);
 		padding: 2px 8px;
 		border-radius: 6px;
 		font-size: 0.8125rem;
@@ -240,8 +240,8 @@
 		align-items: center;
 		gap: 8px;
 		background: #ffffff;
-		color: #1e293b;
-		border: 1px solid #cbd5e1;
+		color: var(--his-text);
+		border: 1px solid var(--his-border);
 		padding: 10px 18px;
 		border-radius: 10px;
 		font-size: 0.875rem;
@@ -251,9 +251,9 @@
 	}
 
 	.edit-profile-btn:hover {
-		background: #f8fafc;
-		border-color: #94a3b8;
-		color: #0f172a;
+		background: var(--his-surface);
+		border-color: #737373;
+		color: var(--his-text);
 		transform: translateY(-1px);
 		box-shadow: 0 3px 8px rgba(0, 0, 0, 0.05);
 	}
@@ -261,7 +261,7 @@
 	.edit-profile-btn svg {
 		width: 16px;
 		height: 16px;
-		color: #0f766e;
+		color: var(--his-primary);
 	}
 
 	@media (max-width: 768px) {

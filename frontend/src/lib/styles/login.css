@@ -28,7 +28,7 @@
 
 .eyebrow {
 	margin: 0 0 12px;
-	color: #0c6656;
+	color: var(--his-primary);
 	font-size: 0.7rem;
 	font-weight: 700;
 	letter-spacing: 0.14em;
@@ -43,14 +43,14 @@
 }
 
 .login-heading h1 {
-	color: #102a43;
+	color: var(--his-text);
 	font-size: clamp(2rem, 3vw, 2.7rem);
 	line-height: 1.1;
 }
 
 .login-heading > p:last-child {
 	margin: 14px 0 0;
-	color: #607080;
+	color: var(--his-muted);
 	font-size: 0.95rem;
 }
 
@@ -61,7 +61,7 @@
 
 .login-form label {
 	margin-top: 10px;
-	color: #17324d;
+	color: var(--his-text);
 	font-size: 0.8rem;
 	font-weight: 700;
 }
@@ -69,22 +69,22 @@
 .login-form input {
 	width: 100%;
 	min-height: 50px;
-	border: 1px solid #d9e1e8;
+	border: 1px solid var(--his-border);
 	border-radius: 14px;
 	outline: none;
 	padding: 0 16px;
 	background: #fff;
-	color: #102a43;
+	color: var(--his-text);
 	transition: border-color 180ms ease, box-shadow 180ms ease;
 }
 
 .login-form input::placeholder {
-	color: #9aa8b5;
+	color: #737373;
 }
 
 .login-form input:focus {
-	border-color: #0c6656;
-	box-shadow: 0 0 0 4px rgb(12 102 86 / 13%);
+	border-color: var(--his-primary);
+	box-shadow: 0 0 0 4px rgb(0 122 65 / 13%);
 }
 
 .login-form button {
@@ -96,8 +96,8 @@
 	margin-top: 22px;
 	border: 0;
 	border-radius: 14px;
-	background: linear-gradient(100deg, #0c6656, #126f60);
-	box-shadow: 0 12px 24px rgb(12 102 86 / 24%);
+	background: var(--his-primary);
+	box-shadow: 0 12px 24px rgb(0 122 65 / 24%);
 	color: #fff;
 	font-weight: 700;
 	transition: transform 180ms ease, box-shadow 180ms ease;
@@ -105,7 +105,7 @@
 
 .login-form button:hover {
 	transform: translateY(-2px);
-	box-shadow: 0 16px 28px rgb(12 102 86 / 30%);
+	box-shadow: 0 16px 28px rgb(0 122 65 / 30%);
 }
 
 .login-form button:active {
@@ -114,7 +114,7 @@
 
 .form-note {
 	margin: 22px 0 0;
-	color: #8794a0;
+	color: var(--his-muted);
 	font-size: 0.75rem;
 	line-height: 1.5;
 }
@@ -126,7 +126,7 @@
 	isolation: isolate;
 	padding: 64px;
 	overflow: hidden;
-	background: radial-gradient(circle at 72% 20%, rgb(121 31 49 / 60%) 0, transparent 29%), linear-gradient(135deg, #102a43, #0c4f49);
+	background: radial-gradient(circle at 72% 20%, rgb(255 45 49 / 60%) 0, transparent 29%), linear-gradient(135deg, var(--his-text), var(--his-primary-dark));
 	color: #fff;
 }
 
@@ -135,7 +135,7 @@
 	inset: 0;
 	z-index: 0;
 	opacity: 0.26;
-	background-image: linear-gradient(90deg, transparent 49%, #791f31 50%), linear-gradient(transparent 49%, #791f31 50%);
+	background-image: linear-gradient(90deg, transparent 49%, var(--his-red) 50%), linear-gradient(transparent 49%, var(--his-red) 50%);
 	background-size: 104px 104px;
 	mask-image: linear-gradient(to bottom, #000, transparent 72%);
 }
@@ -148,7 +148,7 @@
 }
 
 .showcase-content .eyebrow {
-	color: #c7e1d7;
+	color: var(--his-primary-soft);
 }
 
 .showcase-content h2 {

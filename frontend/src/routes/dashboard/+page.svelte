@@ -1,15 +1,13 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { api, type User } from '$lib/api';
+	import { currentUser } from '$lib/api';
 	import NotificationBell from '$lib/components/NotificationBell.svelte';
 
-	let userName = $state('Nama Pengguna');
-	onMount(async () => { userName = (await api<{ user: User }>('/me')).user.name; });
+	let userName = $derived($currentUser?.name ?? 'Nama Pengguna');
 </script>
 
 <svelte:head>
-	<title>Dashboard | my-ple</title>
-	<meta name="description" content="Dashboard kerja my-ple." />
+	<title>Dashboard | my HIS</title>
+	<meta name="description" content="Dashboard kerja my HIS." />
 </svelte:head>
 
 <main class="dashboard-page">

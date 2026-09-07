@@ -98,7 +98,7 @@
 </script>
 
 <svelte:head>
-	<title>Weekly Progress | my-ple</title>
+	<title>Weekly Progress | my HIS</title>
 	<meta name="description" content="Pilih divisi dan lihat daftar pekerjaan mingguan." />
 </svelte:head>
 
