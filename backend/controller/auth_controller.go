@@ -344,6 +344,10 @@ func (c *AuthController) UploadAvatar(w http.ResponseWriter, r *http.Request, id
 
 func (c *AuthController) DeleteUser(w http.ResponseWriter, r *http.Request, id string) {
 	if err := c.DB.DeleteUser(r.Context(), id); err != nil {
+		if err == db.ErrUserHasReports {
+			WriteJSON(w, http.StatusConflict, map[string]string{"error": "Pengguna memiliki laporan aktif. Nonaktifkan akun atau tunggu arsip dan reset mingguan sebelum menghapus."})
+			return
+		}
 		if err != sql.ErrNoRows {
 			log.Printf("delete user %s: %v", id, err)
 			WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Gagal menghapus pengguna."})

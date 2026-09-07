@@ -18,7 +18,6 @@
 	let error = $state('');
 	let period = $state<ReportingPeriod | null>(null);
 	let exporting = $state(false);
-	let rolloverTimer: ReturnType<typeof setTimeout> | undefined;
 	let editing = $state<Report | null>(null);
 	let deleting = $state<Report | null>(null);
 	let editWorkDivision = $state('');
@@ -36,8 +35,6 @@
 			const response = await api<{ reports: Report[] | null; period: ReportingPeriod }>(`/reports?primaryDivision=${encodeURIComponent(divisions[index])}`);
 			reports = response.reports ?? [];
 			period = response.period;
-			clearTimeout(rolloverTimer);
-			rolloverTimer = setTimeout(() => void selectDivision(index), new Date(response.period.end).getTime() + 86_400_000 - Date.now() + 1_000);
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Laporan tidak dapat dimuat.';
 		} finally {
@@ -93,7 +90,6 @@
 		const requested = new URLSearchParams(location.search).get('division');
 		const index = divisions.indexOf(requested ?? '');
 		if (index >= 0) void selectDivision(index);
-		return () => clearTimeout(rolloverTimer);
 	});
 </script>
 
@@ -102,19 +98,23 @@
 	<meta name="description" content="Pilih divisi dan lihat daftar pekerjaan mingguan." />
 </svelte:head>
 
+<svelte:window onfocus={() => { if (selectedDivision !== null) void selectDivision(selectedDivision); }} />
+
 <main class="weekly-progress-page">
 	<div class="weekly-progress-shell">
 		<a class="back-link" href="/dashboard">← Kembali ke dashboard</a>
 		<header class="weekly-header"><p class="weekly-kicker">WEEKLY PROGRESS</p><h1>Progres kerja per divisi.</h1><p>Pilih divisi terlebih dahulu untuk melihat daftar pekerjaan minggu ini.</p></header>
 		<section class="division-selection" aria-labelledby="division-title">
+			<a class="report-button" href="/weekly-progress/history">Weekly Report History</a>
 			<h2 id="division-title">Pilih divisi</h2><p>Daftar ini menentukan pekerjaan yang akan ditampilkan.</p>
 			<div class="division-grid">{#each divisions as division, index}<button class:selected={selectedDivision === index} class="division-button" type="button" aria-pressed={selectedDivision === index} onclick={() => void selectDivision(index)}>{division}<span aria-hidden="true">→</span></button>{/each}</div>
 		</section>
 		{#if selectedDivision !== null}
 			<section class="task-list" aria-labelledby="task-title">
-				<div class="task-list-header"><div><h2 id="task-title">Pekerjaan yang sudah dilakukan</h2><p>Daftar pekerjaan pada minggu berjalan.</p>{#if period}<p class="report-period">Periode: {period.label}</p>{/if}</div><div class="task-list-actions"><p class="selected-division">{divisions[selectedDivision]}</p><div class="report-actions"><button class="report-button export-button" type="button" disabled={reports.length === 0 || exporting || loading} onclick={() => void exportPDF()}>{exporting ? 'Mengekspor…' : 'Export PDF'}</button><a class="report-button" href={`/weekly-progress/new?division=${encodeURIComponent(divisions[selectedDivision])}`}>+ Input laporan</a></div></div></div>
+				{#if period?.readOnly}<p role="status" class="report-period">{period.status === 'finalized' ? 'Finalized' : 'Periode ditutup — arsip diproses'} — hanya baca. Laporan tetap tersedia selama Senin. Reset mulai Selasa 00:00 WIB setelah arsip dan PDF berhasil disimpan.</p>{/if}
+				<div class="task-list-header"><div><h2 id="task-title">Pekerjaan yang sudah dilakukan</h2><p>Daftar pekerjaan pada minggu berjalan.</p>{#if period}<p class="report-period">Periode: {period.label}</p>{/if}</div><div class="task-list-actions"><p class="selected-division">{divisions[selectedDivision]}</p><div class="report-actions"><button class="report-button export-button" type="button" disabled={reports.length === 0 || exporting || loading} onclick={() => void exportPDF()}>{exporting ? 'Mengekspor…' : 'Export PDF'}</button>{#if !period?.readOnly}<a class="report-button" href={`/weekly-progress/new?division=${encodeURIComponent(divisions[selectedDivision])}`}>+ Input laporan</a>{/if}</div></div></div>
 				<div class="work-table-wrap">
-					<table class="work-table">
+					<table class="work-table current-report-table">
 						<thead><tr><th scope="col">Role</th><th scope="col">Kategori</th><th scope="col">No.</th><th scope="col">Pekerjaan yang dilakukan</th><th scope="col">Aksi</th></tr></thead>
 						<tbody>
 							{#if loading}<tr><td colspan="5">Memuat laporan…</td></tr>
@@ -127,7 +127,7 @@
 										<td colspan="3" class="task-work-title">{row.work}</td>
 									</tr>
 								{:else}
-									<tr><td class="task-number">{row.displayNumber}</td><td class="task-description">{row.report.description}</td><td class="task-actions">{#if canModifyReport($currentUser, row.report.userId)}<div class="report-row-actions"><button class="edit-report" type="button" onclick={() => { editing = row.report; editWorkDivision = row.report.workDivision; editRole = row.report.role; editProjectWork = row.report.work; editDescription = row.report.description; }}>Edit</button><button class="delete-report" type="button" onclick={() => (deleting = row.report)}>Hapus</button></div>{:else}<span class="no-actions">—</span>{/if}</td></tr>
+									<tr><td class="task-number">{row.displayNumber}</td><td class="task-description">{row.report.description}</td><td class="task-actions">{#if !period?.readOnly && canModifyReport($currentUser, row.report.userId)}<div class="report-row-actions"><button class="edit-report" type="button" onclick={() => { editing = row.report; editWorkDivision = row.report.workDivision; editRole = row.report.role; editProjectWork = row.report.work; editDescription = row.report.description; }}>Edit</button><button class="delete-report" type="button" onclick={() => (deleting = row.report)}>Hapus</button></div>{:else}<span class="no-actions">—</span>{/if}</td></tr>
 								{/if}
 							{/each}{/if}
 						</tbody>
@@ -163,7 +163,7 @@
 		<button class="report-modal-backdrop" type="button" aria-label="Batal hapus laporan" onclick={() => (deleting = null)}></button>
 		<div class="report-delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-report-title" transition:fly={{ y: 18, duration: 220, opacity: 0 }}>
 			<h2 id="delete-report-title">Hapus laporan?</h2><p>Make sure Anda ingin menghapus laporan ini. Tindakan ini tidak dapat dibatalkan.</p>
-			<div class="delete-modal-actions"><button class="delete-confirm" type="button" onclick={() => void deleteReport()}>Hapus laporan</button><button class="drawer-cancel" type="button" onclick={() => (deleting = null)}>Batal</button></div>
+			<div class="delete-modal-actions"><button class="delete-report-confirm" type="button" onclick={() => void deleteReport()}>Hapus laporan</button><button class="drawer-cancel" type="button" onclick={() => (deleting = null)}>Batal</button></div>
 		</div>
 	</div>
 {/if}

@@ -28,12 +28,8 @@ func NewWeeklyController(database *db.Database) *WeeklyController {
 	return &WeeklyController{DB: database, Now: time.Now}
 }
 
-func (c *WeeklyController) currentPeriod(ctx context.Context) (model.ReportingPeriod, error) {
-	start, next := model.ReportingWeek(c.Now())
-	if err := c.DB.CleanupExpiredReports(ctx, start); err != nil {
-		return model.ReportingPeriod{}, err
-	}
-	return model.ReportingPeriod{Start: start, End: next.AddDate(0, 0, -1), Label: model.IndonesianWeekLabel(start, next)}, nil
+func (c *WeeklyController) currentPeriod(ctx context.Context, division string) (model.ReportingPeriod, error) {
+	return c.DB.WorkingPeriod(ctx, division, c.Now())
 }
 
 func (c *WeeklyController) Create(w http.ResponseWriter, r *http.Request) {
@@ -57,12 +53,11 @@ func (c *WeeklyController) Create(w http.ResponseWriter, r *http.Request) {
 		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Data laporan tidak valid."})
 		return
 	}
-	if _, err := c.currentPeriod(r.Context()); err != nil {
-		log.Printf("cleanup reports: %v", err)
-		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Laporan tidak dapat disimpan."})
+	report, err := c.DB.CreateReport(r.Context(), current.ID, input)
+	if errors.Is(err, db.ErrReportClosed) {
+		WriteJSON(w, http.StatusConflict, map[string]string{"error": "Periode laporan ditutup. Input baru dibuka Selasa 00:00 WIB."})
 		return
 	}
-	report, err := c.DB.CreateReport(r.Context(), current.ID, input)
 	if err != nil {
 		log.Printf("create report: %v", err)
 		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Laporan tidak dapat disimpan."})
@@ -75,10 +70,6 @@ func (c *WeeklyController) Update(w http.ResponseWriter, r *http.Request, id str
 	_, ok := middleware.GetClaims(r.Context())
 	if !ok {
 		WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Autentikasi diperlukan."})
-		return
-	}
-	if _, err := c.currentPeriod(r.Context()); err != nil {
-		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Laporan tidak dapat diperbarui."})
 		return
 	}
 	var input model.WeeklyReportUpdateInput
@@ -97,6 +88,10 @@ func (c *WeeklyController) Update(w http.ResponseWriter, r *http.Request, id str
 	}
 	// The repository validates the category against the report's stored primary division.
 	report, err := c.DB.UpdateReport(r.Context(), id, input)
+	if errors.Is(err, db.ErrReportClosed) {
+		WriteJSON(w, http.StatusConflict, map[string]string{"error": "Laporan periode yang sudah ditutup hanya dapat dibaca."})
+		return
+	}
 	if errors.Is(err, db.ErrInvalidReport) {
 		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Data laporan tidak valid."})
 		return
@@ -119,11 +114,11 @@ func (c *WeeklyController) Delete(w http.ResponseWriter, r *http.Request, id str
 		WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Autentikasi diperlukan."})
 		return
 	}
-	if _, err := c.currentPeriod(r.Context()); err != nil {
-		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Laporan tidak dapat dihapus."})
+	err := c.DB.DeleteReport(r.Context(), id)
+	if errors.Is(err, db.ErrReportClosed) {
+		WriteJSON(w, http.StatusConflict, map[string]string{"error": "Laporan periode yang sudah ditutup hanya dapat dibaca."})
 		return
 	}
-	err := c.DB.DeleteReport(r.Context(), id)
 	if err == sql.ErrNoRows {
 		WriteJSON(w, http.StatusNotFound, map[string]string{"error": "Laporan tidak ditemukan."})
 		return
@@ -142,13 +137,13 @@ func (c *WeeklyController) List(w http.ResponseWriter, r *http.Request) {
 		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Divisi utama wajib diisi."})
 		return
 	}
-	period, err := c.currentPeriod(r.Context())
+	period, err := c.currentPeriod(r.Context(), division)
 	if err != nil {
-		log.Printf("cleanup reports: %v", err)
+		log.Printf("load working report period: %v", err)
 		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Laporan tidak dapat dimuat."})
 		return
 	}
-	reports, err := c.DB.ListReports(r.Context(), division, period.Start, period.End.AddDate(0, 0, 1))
+	reports, err := c.DB.PeriodReports(r.Context(), division, period)
 	if err != nil {
 		log.Printf("list reports: %v", err)
 		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Laporan tidak dapat dimuat."})

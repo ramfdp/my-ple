@@ -12,7 +12,12 @@ export interface Report {
 	id: string; userId: string; primaryDivision: string; workDivision: string;
 	role: string; work: string; number: number; description: string; completedAt: string;
 }
-export interface ReportingPeriod { start: string; end: string; label: string }
+export interface ReportingPeriod { start: string; end: string; label: string; readOnly: boolean; status?: 'active' | 'pending' | 'failed' | 'finalized' }
+export interface WeeklyArchive {
+	id: string; division: string; weekStart: string; weekEnd: string; status: 'pending' | 'finalized' | 'failed';
+	finalizedAt: string | null; pdfGeneratedAt: string | null; filename: string;
+	items?: (Report & { employeeName: string; employeeRole: string })[];
+}
 export interface ReportInput { primaryDivision: string; workDivision: string; role: string; work: string; description: string }
 export interface ZoomBooking {
 	id: string; userId: string; createdBy: string; title: string; description: string; zoomResource: ZoomResource;

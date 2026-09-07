@@ -89,7 +89,7 @@
 	<div class="booking-workspace"><section class="schedule-card" aria-labelledby="week-title">
 		<div class="schedule-toolbar"><button type="button" class="week-button" onclick={() => void moveWeek(-7)} aria-label="Minggu sebelumnya">←</button><div><p>JADWAL MINGGUAN</p><h2 id="week-title">{weekLabel}</h2></div><div class="week-actions"><button type="button" class="today-button" onclick={() => { weekStart = startOfWeek(new Date()); void loadBookings(); }}>Hari ini</button><button type="button" class="week-button" onclick={() => void moveWeek(7)} aria-label="Minggu berikutnya">→</button></div></div>
 		{#if loading}<div class="calendar-state" aria-live="polite">Memuat booking…</div>
-		{:else if resources.length}<WeeklyZoomCalendar monday={weekStart} {bookings} {resources} {now} onselect={(booking) => (selected = booking)} />{#if bookings.length === 0}<div class="empty-booking"><strong>Belum ada booking Zoom minggu ini.</strong><button type="button" onclick={() => (formOpen = true)}>Buat booking pertama</button></div>{/if}{/if}
+		{:else if resources.length}{#if bookings.length === 0}<div class="empty-booking"><strong>Belum ada booking Zoom minggu ini.</strong><button type="button" onclick={() => (formOpen = true)}>Buat booking pertama</button></div>{/if}<WeeklyZoomCalendar monday={weekStart} {bookings} {resources} {now} onselect={(booking) => (selected = booking)} />{/if}
 	</section><ZoomInformationPanel {resources} canEdit={canEditResources} onedit={(resource) => (editingResource = resource)} /></div>
 </div></main>
 

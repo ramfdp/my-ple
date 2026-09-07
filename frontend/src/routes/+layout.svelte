@@ -51,7 +51,7 @@
 {/if}
 
 <style>
-	/* ponytail: keep sidebar on side across desktop and mobile, scrolling naturally with page flow */
 	.feature-shell { display: flex; min-height: 100vh; }
 	.feature-content { min-width: 0; flex: 1; }
+	@media (max-width: 868px) { .feature-shell { flex-direction: column; } }
 </style>

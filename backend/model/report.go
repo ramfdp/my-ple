@@ -88,9 +88,11 @@ type WeeklyReport struct {
 	CompletedAt     time.Time `json:"completedAt"`
 }
 type ReportingPeriod struct {
-	Start time.Time `json:"start"`
-	End   time.Time `json:"end"`
-	Label string    `json:"label"`
+	Status   string    `json:"status"`
+	ReadOnly bool      `json:"readOnly"`
+	Start    time.Time `json:"start"`
+	End      time.Time `json:"end"`
+	Label    string    `json:"label"`
 }
 type WeeklyReportUpdateInput struct {
 	PrimaryDivision string `json:"primaryDivision"`

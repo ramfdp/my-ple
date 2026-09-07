@@ -23,6 +23,8 @@ func TestProjectEngineerReportPostgres(t *testing.T) {
 	}
 	defer conn.Close()
 	database := NewDatabase(conn)
+	startOfWeek, _ := model.ReportingWeek(time.Now())
+	database.Now = func() time.Time { return startOfWeek.AddDate(0, 0, 1) }
 	if err := database.Migrate(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -51,8 +53,15 @@ func TestProjectEngineerReportPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	var expired int
-	if err := conn.QueryRow(`SELECT COUNT(*) FROM reports WHERE id = $1`, created.ID).Scan(&expired); err != nil || expired != 0 {
-		t.Fatalf("expired reports = %d, %v", expired, err)
+	if err := conn.QueryRow(`SELECT COUNT(*) FROM reports WHERE id = $1`, created.ID).Scan(&expired); err != nil || expired != 1 {
+		t.Fatalf("unarchived reports must be retained: %d, %v", expired, err)
+	}
+	if _, err := database.CreateReport(context.Background(), user.ID, input); err != ErrReportClosed {
+		t.Fatalf("pending archive must block new working cycle: %v", err)
+	}
+	// Remove only this test fixture before testing current-period CRUD.
+	if _, err := conn.Exec(`DELETE FROM reports WHERE id=$1`, created.ID); err != nil {
+		t.Fatal(err)
 	}
 	created, err = database.CreateReport(context.Background(), user.ID, input)
 	if err != nil {
@@ -96,7 +105,7 @@ func TestProjectEngineerReportPostgres(t *testing.T) {
 		t.Fatalf("authenticated user delete: %v", err)
 	}
 	if err := database.DeleteUser(context.Background(), user.ID); err != nil {
-		t.Fatalf("delete user with reports: %v", err)
+		t.Fatalf("delete user after working reports removed: %v", err)
 	}
 	var remaining int
 	if err := conn.QueryRow(`SELECT COUNT(*) FROM reports WHERE user_id = $1`, user.ID).Scan(&remaining); err != nil || remaining != 0 {

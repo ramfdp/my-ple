@@ -18,21 +18,36 @@ import (
 //go:embed schema.sql
 var schemaSQL string
 
+//go:embed weekly_archive.sql
+var weeklyArchiveSQL string
+
 type Database struct {
 	Conn *sql.DB
+	Now  func() time.Time
 }
 
 var ErrInvalidReport = errors.New("invalid report")
+var ErrUserHasReports = errors.New("user has working reports awaiting archival")
 var ErrZoomBookingConflict = errors.New("zoom booking conflict")
 
 func NewDatabase(conn *sql.DB) *Database {
-	return &Database{Conn: conn}
+	return &Database{Conn: conn, Now: time.Now}
 }
 
 // ponytail: auto-migrate standard embedded schema without external migration tooling
 func (db *Database) Migrate(ctx context.Context) error {
-	_, err := db.Conn.ExecContext(ctx, schemaSQL)
-	return err
+	tx, err := db.Conn.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(71260400)`); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, schemaSQL+weeklyArchiveSQL); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // ponytail: single SELECT query covering all core user and profile fields
@@ -199,8 +214,13 @@ func (db *Database) DeleteUser(ctx context.Context, id string) error {
 		return err
 	}
 	defer tx.Rollback()
-	if _, err := tx.ExecContext(ctx, `DELETE FROM reports WHERE user_id = $1`, id); err != nil {
+	// Reports must be archived/reset before their author can be removed.
+	var hasReports bool
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM reports WHERE user_id=$1)`, id).Scan(&hasReports); err != nil {
 		return err
+	}
+	if hasReports {
+		return ErrUserHasReports
 	}
 	result, err := tx.ExecContext(ctx, `DELETE FROM users WHERE id = $1`, id)
 	if err != nil {
@@ -347,18 +367,30 @@ func (db *Database) CreateReport(ctx context.Context, userID string, input model
 		return result, err
 	}
 	defer tx.Rollback()
+	now, err := db.writableReport(ctx, tx, "")
+	if err != nil {
+		return result, err
+	}
+	start, _ := model.ReportingWeek(now)
+	var pendingReset bool
+	if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM reports WHERE primary_division=$1 AND completed_at<$2)`, input.PrimaryDivision, start).Scan(&pendingReset); err != nil {
+		return result, err
+	}
+	if pendingReset {
+		return result, ErrReportClosed
+	}
 	err = tx.QueryRowContext(ctx, `
 		WITH next_number AS (
-			INSERT INTO report_sequences (primary_division, work_division, last_number)
-			VALUES ($1, $2, 1)
-			ON CONFLICT (primary_division, work_division)
+			INSERT INTO report_sequences (primary_division, work_division, week_start, last_number)
+			VALUES ($1, $2, date_trunc('week',$8::timestamptz AT TIME ZONE 'Asia/Jakarta')::date, 1)
+			ON CONFLICT (primary_division, work_division, week_start)
 			DO UPDATE SET last_number = report_sequences.last_number + 1
 			RETURNING last_number
 		)
 		INSERT INTO reports (id, user_id, primary_division, work_division, number, report_role, work, description, completed_at)
-		SELECT $3, $4, $1, $2, last_number, $5, $6, $7, NOW() FROM next_number
+		SELECT $3, $4, $1, $2, last_number, $5, $6, $7, $8 FROM next_number
 		RETURNING id, user_id, primary_division, work_division, number, report_role, work, description, completed_at`,
-		input.PrimaryDivision, input.WorkDivision, NewID(), userID, input.Role, input.Work, input.Description,
+		input.PrimaryDivision, input.WorkDivision, NewID(), userID, input.Role, input.Work, input.Description, now,
 	).Scan(&result.ID, &result.UserID, &result.PrimaryDivision, &result.WorkDivision, &result.Number, &result.Role, &result.Work, &result.Description, &result.CompletedAt)
 	if err != nil {
 		return result, err
@@ -370,8 +402,8 @@ func (db *Database) CreateReport(ctx context.Context, userID string, input model
 }
 
 func (db *Database) CleanupExpiredReports(ctx context.Context, weekStart time.Time) error {
-	_, err := db.Conn.ExecContext(ctx, `DELETE FROM reports WHERE completed_at < $1`, weekStart)
-	return err
+	// Retained for callers: only the archive worker may reset verified periods.
+	return nil
 }
 
 func (db *Database) ListReports(ctx context.Context, primaryDivision string, weekStart, nextWeekStart time.Time) ([]model.WeeklyReport, error) {
@@ -396,6 +428,12 @@ func (db *Database) ListReports(ctx context.Context, primaryDivision string, wee
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+	SortReports(reports)
+	return reports, nil
+}
+
+// SortReports keeps manual and archived PDFs on the existing grouping order.
+func SortReports(reports []model.WeeklyReport) {
 	roleRank := map[string]int{"PE": 1, "QA": 2, "CIHPK": 3}
 	categoryRank := map[string]int{"MK supervisi": 1, "Non-MK supervisi": 2, "QA1": 3, "QA2": 4, "JAKG": 5, "Manggarai Hydrant": 6, "Jember": 7}
 	sort.SliceStable(reports, func(i, j int) bool {
@@ -417,7 +455,6 @@ func (db *Database) ListReports(ctx context.Context, primaryDivision string, wee
 		}
 		return a.CompletedAt.Before(b.CompletedAt)
 	})
-	return reports, nil
 }
 
 func (db *Database) UpdateReport(ctx context.Context, id string, input model.WeeklyReportUpdateInput) (model.WeeklyReport, error) {
@@ -427,6 +464,9 @@ func (db *Database) UpdateReport(ctx context.Context, id string, input model.Wee
 		return result, err
 	}
 	defer tx.Rollback()
+	if _, err := db.writableReport(ctx, tx, id); err != nil {
+		return result, err
+	}
 	var primaryDivision, oldWorkDivision string
 	if err := tx.QueryRowContext(ctx, `SELECT primary_division, work_division FROM reports WHERE id = $1 FOR UPDATE`, id).Scan(&primaryDivision, &oldWorkDivision); err != nil {
 		return result, err
@@ -438,8 +478,8 @@ func (db *Database) UpdateReport(ctx context.Context, id string, input model.Wee
 	args := []any{id, input.Role, input.Work, input.Description}
 	if input.WorkDivision != oldWorkDivision {
 		query = `WITH next_number AS (
-			INSERT INTO report_sequences (primary_division, work_division, last_number) VALUES ($2, $3, 1)
-			ON CONFLICT (primary_division, work_division) DO UPDATE SET last_number = report_sequences.last_number + 1
+			INSERT INTO report_sequences (primary_division, work_division, week_start, last_number) VALUES ($2, $3, (SELECT report_week FROM reports WHERE id=$1), 1)
+			ON CONFLICT (primary_division, work_division, week_start) DO UPDATE SET last_number = report_sequences.last_number + 1
 			RETURNING last_number
 		)
 		UPDATE reports SET work_division = $3, number = (SELECT last_number FROM next_number), report_role = $4, work = $5, description = $6
@@ -462,6 +502,9 @@ func (db *Database) DeleteReport(ctx context.Context, id string) error {
 		return err
 	}
 	defer tx.Rollback()
+	if _, err := db.writableReport(ctx, tx, id); err != nil {
+		return err
+	}
 	if err := tx.QueryRowContext(ctx, `SELECT id FROM reports WHERE id = $1 FOR UPDATE`, id).Scan(&id); err != nil {
 		return err
 	}

@@ -1,4 +1,5 @@
 /graphify-out
 /.agents
 /.tmp-gocache
+/backend/storage/
 /. tmp-go-cache

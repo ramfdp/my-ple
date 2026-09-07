@@ -162,13 +162,13 @@
 	.details-card h2, .state-card h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.15rem; letter-spacing: -.025em; }
 	.details-card header p, .state-card p { margin: 4px 0 0; color: var(--his-muted); font-size: .84rem; }
 	.edit-button, .modal-actions button { flex: 0 0 auto; padding: 9px 14px; border: 0; border-radius: 9px; color: #fff; background: var(--his-primary); font-weight: 700; cursor: pointer; }
-	.details-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+	.details-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 14px; }
 	.state-card { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 24px; }
 	.error-state { border-color: var(--his-danger-border); }
 	.error-state h2 { color: var(--his-danger); }
 	.state-card button { flex: 0 0 auto; padding: 9px 14px; border: 0; border-radius: 9px; color: #fff; background: var(--his-primary); font-weight: 700; }
 	.modal-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 18px; background: rgb(23 23 23 / .5); }
-	.edit-modal { width: min(100%, 520px); padding: 24px; border-radius: 18px; background: #fff; box-shadow: 0 20px 50px rgb(23 23 23 / .2); }
+	.edit-modal { min-width: 0; width: min(100%, 520px); max-height: calc(100dvh - 36px); overflow: auto; padding: 24px; border-radius: 18px; background: #fff; box-shadow: 0 20px 50px rgb(23 23 23 / .2); }
 	.edit-modal header { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
 	.edit-modal header p { margin: 4px 0 0; color: var(--his-muted); font-size: .84rem; }
 	.edit-modal .close { border: 0; background: transparent; color: var(--his-muted); font-size: 1.6rem; cursor: pointer; }
@@ -176,7 +176,10 @@
 	.edit-modal input, .edit-modal textarea { box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid var(--his-border); border-radius: 9px; font: inherit; }
 	.edit-modal small { color: var(--his-muted); font-weight: 400; }
 	.edit-error { padding: 10px; border-radius: 8px; color: var(--his-danger); background: var(--his-danger-soft); }
-	.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+	.modal-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+	.edit-modal label, .edit-modal input, .edit-modal textarea { min-width: 0; }
+	.identity, .details-card > header, .state-card { flex-wrap: wrap; }
+	@media (min-width: 641px) { .identity-copy { flex-basis: 180px; } }
 	.modal-actions .cancel { color: var(--his-muted); background: var(--his-border); }
 	.loading-card, .loading-details { animation: pulse 1.5s ease-in-out infinite; }
 	.loading-cover { height: 160px; background: var(--his-surface); }
@@ -191,7 +194,7 @@
 	.loading-details span { height: 76px; }
 	@keyframes profile-reveal { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
 	@keyframes pulse { 50% { opacity: .6; } }
-	@media (max-width: 900px) { .details-grid, .loading-details div { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+	@media (max-width: 900px) { .loading-details div { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 	@media (max-width: 640px) {
 		.profile-page { padding: 24px 18px; }
 		.profile-card, .details-card, .state-card { border-radius: 16px; }

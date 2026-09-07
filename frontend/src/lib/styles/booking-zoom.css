@@ -1,7 +1,7 @@
 .booking-page { padding: clamp(28px, 5vw, 64px); color: var(--his-text); }
 .booking-shell { width: min(100%, 1180px); margin: auto; }
 .booking-back { color: var(--his-primary); font-size: .86rem; font-weight: 700; text-decoration: none; }
-.booking-header { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin: 28px 0 34px; }
+.booking-header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 24px; margin: 28px 0 34px; }
 .booking-header h1 { margin: 5px 0 8px; font: 800 clamp(2rem, 4vw, 3.4rem)/1.05 'Plus Jakarta Sans', sans-serif; letter-spacing: -.05em; }
 .booking-header > div > p:last-child { margin: 0; color: var(--his-muted); }
 .zoom-kicker, .schedule-toolbar p { margin: 0; color: var(--his-primary); font-size: .68rem; font-weight: 800; letter-spacing: .14em; }
@@ -13,10 +13,10 @@
 .zoom-danger { background: var(--his-danger-soft); color: var(--his-danger); border-color: var(--his-danger-border); }
 .booking-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 280px; align-items: start; gap: 18px; }
 .schedule-card { position: relative; align-self: stretch; display: flex; min-width: 0; overflow: hidden; flex-direction: column; border: 1px solid var(--his-border); border-radius: 18px; background: #fff; box-shadow: 0 12px 30px rgb(23 23 23 / 6%); }
-.schedule-toolbar { display: flex; align-items: center; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--his-border); }
+.schedule-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--his-border); }
 .schedule-toolbar h2 { margin: 3px 0 0; font: 700 1.08rem 'Plus Jakarta Sans', sans-serif; }
 .week-actions { display: flex; align-items: center; gap: 9px; margin-left: auto; }
-.week-button { width: 40px; height: 40px; padding: 0; border-color: var(--his-border); background: var(--his-surface); color: var(--his-text); }
+.week-button { flex-shrink: 0; width: 40px; height: 40px; padding: 0; border-color: var(--his-border); background: var(--his-surface); color: var(--his-text); }
 .calendar-scroll { min-height: 0; overflow: auto; flex: 1; }
 .zoom-calendar { display: grid; grid-template-columns: 66px repeat(21, 104px); min-width: 2250px; }
 .calendar-corner, .calendar-day-head { position: sticky; top: 0; z-index: 5; height: 64px; border-bottom: 1px solid var(--his-border); background: var(--his-surface); }
@@ -43,7 +43,7 @@
 .now-line::before { content: ''; position: absolute; width: 7px; height: 7px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--his-danger); }
 .now-line span { position: absolute; top: -19px; left: 4px; color: var(--his-danger); font-size: .6rem; font-weight: 700; }
 .calendar-state { padding: 70px; color: var(--his-muted); text-align: center; }
-.empty-booking { position: absolute; top: 112px; left: 50%; z-index: 4; display: flex; align-items: center; gap: 12px; translate: -50% 0; padding: 12px 16px; border: 1px solid var(--his-border); border-radius: 12px; background: rgb(255 255 255 / 94%); color: var(--his-muted); font-size: .82rem; box-shadow: 0 8px 20px rgb(23 23 23 / 8%); }
+.empty-booking { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 16px; padding: 12px 16px; border: 1px solid var(--his-border); border-radius: 12px; background: rgb(255 255 255 / 94%); color: var(--his-muted); font-size: .82rem; box-shadow: 0 8px 20px rgb(23 23 23 / 8%); }
 .empty-booking button { border: 0; background: transparent; color: var(--his-primary); font-weight: 700; }
 .zoom-modal-layer { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 20px; }
 .zoom-modal-backdrop { position: absolute; inset: 0; border: 0; background: rgb(23 23 23 / 48%); }
@@ -56,7 +56,10 @@
 .zoom-modal label span { color: var(--his-danger); }
 .zoom-modal input, .zoom-modal textarea, .zoom-modal select { width: 100%; border: 1px solid var(--his-border); border-radius: 9px; padding: 10px 11px; background: #fff; color: var(--his-text); font: inherit; }
 .zoom-modal input:focus, .zoom-modal textarea:focus, .zoom-modal select:focus { outline: 3px solid rgb(0 122 65 / 15%); border-color: var(--his-primary); }
-.zoom-form-grid { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 12px; }
+.zoom-form-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(0, 1fr)); gap: 12px; }
+.zoom-modal label, .zoom-modal input, .zoom-modal select, .zoom-modal textarea { min-width: 0; }
+.zoom-modal { overflow-wrap: anywhere; }
+.zoom-modal footer, .delete-confirm div, .zoom-info-heading { flex-wrap: wrap; }
 .zoom-modal footer { display: flex; justify-content: flex-end; gap: 9px; }.zoom-form-error { margin: 0; color: var(--his-danger); font-size: .8rem; }
 .detail-modal dl { display: grid; gap: 16px; margin: 0; padding: 22px 24px; }.detail-modal dl div { display: grid; gap: 4px; }.detail-modal dt { color: var(--his-muted); font-size: .72rem; font-weight: 700; text-transform: uppercase; }.detail-modal dd { margin: 0; color: var(--his-text); }
 .detail-modal > footer { padding: 0 24px 22px; }.status-pill { display: inline-block; border-radius: 99px; padding: 4px 8px; font-size: .65rem; font-weight: 800; text-transform: uppercase; }.status-pill.upcoming { background: var(--his-primary-soft); color: var(--his-primary); }.status-pill.ongoing { background: var(--his-danger-soft); color: var(--his-danger); }.status-pill.completed { background: var(--his-surface); color: var(--his-muted); }

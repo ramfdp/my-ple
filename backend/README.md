@@ -1,5 +1,8 @@
 # my-ple backend (Go)
 
+Weekly archival setup, scheduling, history, SMTP configuration and verification:
+[Weekly archival lifecycle](WEEKLY_ARCHIVAL.md).
+
 ```sh
 go mod download
 copy .env.example .env

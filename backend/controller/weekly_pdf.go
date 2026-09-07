@@ -25,12 +25,12 @@ func (c *WeeklyController) ExportPDF(w http.ResponseWriter, r *http.Request) {
 		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Divisi utama tidak valid."})
 		return
 	}
-	period, err := c.currentPeriod(r.Context())
+	period, err := c.currentPeriod(r.Context(), division)
 	if err != nil {
 		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Laporan tidak dapat diekspor."})
 		return
 	}
-	reports, err := c.DB.ListReports(r.Context(), division, period.Start, period.End.AddDate(0, 0, 1))
+	reports, err := c.DB.PeriodReports(r.Context(), division, period)
 	if err != nil {
 		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Laporan tidak dapat diekspor."})
 		return

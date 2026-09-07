@@ -55,3 +55,17 @@ func TestPDFRouteIsRegisteredBehindAuthentication(t *testing.T) {
 		t.Fatalf("GET /reports.pdf status = %d, want %d; body=%s", response.Code, http.StatusBadRequest, response.Body.String())
 	}
 }
+
+func TestWeeklyHistoryRouteIsRegisteredBehindAuthentication(t *testing.T) {
+	request, store := authenticatedRequest(http.MethodGet, "/reports/history?page=invalid", nil, "Employee")
+	response := httptest.NewRecorder()
+	middleware.RequireAuth(store, protectedHandler(nil, nil)).ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("history route status=%d", response.Code)
+	}
+	response = httptest.NewRecorder()
+	middleware.RequireAuth(testSessionStore{}, protectedHandler(nil, nil)).ServeHTTP(response, request)
+	if response.Code != http.StatusUnauthorized {
+		t.Fatal("unauthenticated history accessible")
+	}
+}

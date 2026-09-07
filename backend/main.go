@@ -37,6 +37,7 @@ func newHandler(database *db.Database, secret, corsOrigin string) http.Handler {
 		w.Header().Add("Vary", "Origin")
 		w.Header().Set("Access-Control-Allow-Origin", corsOrigin)
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Expose-Headers", "Content-Disposition")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		if r.Method == http.MethodOptions {
@@ -222,6 +223,10 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 				}
 			}
 		}
+		if r.Method == http.MethodGet && (r.URL.Path == "/reports/history" || strings.HasPrefix(r.URL.Path, "/reports/history/")) {
+			weeklyCtrl.History(w, r)
+			return
+		}
 		if r.Method == http.MethodPost && r.URL.Path == "/reports" {
 			weeklyCtrl.Create(w, r)
 			return
@@ -266,7 +271,7 @@ func main() {
 		}
 		database = db.NewDatabase(conn)
 		if err := database.Migrate(context.Background()); err != nil {
-			fmt.Printf("Warning: auto-migration error: %v\n", err)
+			panic(fmt.Errorf("database migration failed: %w", err))
 		} else {
 			fmt.Println("Database schema auto-migrated successfully.")
 		}
@@ -291,11 +296,25 @@ func main() {
 func startCleanup(database *db.Database) func() {
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		ticker := time.NewTicker(time.Hour)
-		defer ticker.Stop()
+		timer := time.NewTimer(time.Until(time.Now().Truncate(time.Minute).Add(time.Minute)))
+		defer timer.Stop()
+		weekly := controller.NewWeeklyLifecycle(database)
+		runWeekly := func() {
+			if err := weekly.Run(ctx, time.Now()); err != nil {
+				fmt.Printf("Weekly lifecycle error: %v\n", err)
+			}
+		}
+		runWeekly() // Catch up all completed periods after downtime.
+		lastCleanup := time.Time{}
 		for {
 			select {
-			case <-ticker.C:
+			case <-timer.C:
+				runWeekly()
+				timer.Reset(time.Until(time.Now().Truncate(time.Minute).Add(time.Minute)))
+				if time.Since(lastCleanup) < time.Hour {
+					continue
+				}
+				lastCleanup = time.Now()
 				if _, err := database.DeleteExpiredSessions(ctx); err != nil {
 					fmt.Printf("Warning: session cleanup error: %v\n", err)
 				}
