@@ -9,7 +9,9 @@ func TestNormalizeWeeklyRoleCategory(t *testing.T) {
 			t.Fatalf("%s normalized to role=%q category=%q", legacy, role, category)
 		}
 	}
-	if !ValidWeeklyReport("Project Engineer", "QA1", "QA", "Internal", "selesai") {
-		t.Fatal("canonical QA input is not valid")
+	report := WeeklyReport{Role: "QA 1", WorkDivision: "QA 1", Work: "Internal"}
+	NormalizeWeeklyReport(&report)
+	if report.Role != "QA" || report.WorkDivision != "QA1" || report.Work != "Internal" {
+		t.Fatal(report)
 	}
 }

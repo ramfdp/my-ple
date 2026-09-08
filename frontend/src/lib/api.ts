@@ -8,7 +8,11 @@ export interface User {
 	employmentStatus: string; avatarUrl: string; isActive: boolean; createdAt: string; updatedAt: string;
 }
 export interface Role { id: number; name: string }
+export interface Job { id: number; divisionId: number; roleId: number | null; jobCategoryId: number | null; name: string; description: string; isActive: boolean; sortOrder: number; division: string; role: string; category: string; referenced: boolean }
+export interface JobMaster { id: number; name: string; divisionId?: number; roleId: number | null }
+export interface JobMasters { divisions: JobMaster[]; roles: JobMaster[]; categories: JobMaster[] }
 export interface Report {
+ jobId?: number;
 	id: string; userId: string; primaryDivision: string; workDivision: string;
 	role: string; work: string; number: number; description: string; completedAt: string;
 }
@@ -18,7 +22,7 @@ export interface WeeklyArchive {
 	finalizedAt: string | null; pdfGeneratedAt: string | null; filename: string;
 	items?: (Report & { employeeName: string; employeeRole: string })[];
 }
-export interface ReportInput { primaryDivision: string; workDivision: string; role: string; work: string; description: string }
+export interface ReportInput { jobId?: number; primaryDivision: string; workDivision: string; role: string; work: string; description: string }
 export interface ZoomBooking {
 	id: string; userId: string; createdBy: string; title: string; description: string; zoomResource: ZoomResource;
 	startAt: string; endAt: string; createdAt: string; updatedAt: string;

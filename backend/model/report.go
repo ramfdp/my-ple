@@ -26,21 +26,6 @@ func IndonesianWeekLabel(start, next time.Time) string {
 	return fmt.Sprintf("%d %s - %d %s %d", start.Day(), indonesianMonths[start.Month()-1], end.Day(), indonesianMonths[end.Month()-1], end.Year())
 }
 
-var WeeklyWorkDivisions = map[string]map[string]bool{
-	"Project Engineer":     {"MK supervisi": true, "Non-MK supervisi": true, "QA1": true, "QA2": true, "JAKG": true, "Manggarai Hydrant": true, "Jember": true},
-	"AI Dev":               {"Pengembangan": true, "Pengujian Model": true, "Deployment": true, "Dokumentasi": true},
-	"Keuangan":             {"Pembukuan": true, "Pembayaran": true, "Anggaran": true, "Pelaporan": true},
-	"Business Development": {"Prospek": true, "Proposal": true, "Kemitraan": true, "Tindak Lanjut": true},
-	"HR":                   {"Kehadiran": true, "Rekrutmen": true, "Administrasi": true, "Pengembangan SDM": true},
-	"PMO":                  {"Milestone": true, "Rapat": true, "Risiko": true, "Pelaporan": true},
-}
-
-var ProjectEngineerJobs = map[string]map[string]map[string]bool{
-	"PE":    {"MK supervisi": {"Penataan Kawasan Stasiun Jember": true, "Pengawasan Renovasi Gudang Besar JAKG": true, "Pengawasan Instalasi Hidran BY Manggarai": true}, "Non-MK supervisi": {"MPS PIT": true, "MPS SGR": true, "MPS SGP": true, "SHL JN": true, "SOP Tata Kelola": true, "Studi Daya Beli Gas Bumi": true, "Review FS dan DED Pelabuhan Waipirit": true, "Project Management Office": true, "Reimagine Rumah IPS": true}},
-	"QA":    {"QA1": {"MPS PIT": true, "MPS SGR": true, "MPS SGP": true, "SHL JN": true, "SOP Tata Kelola": true, "Studi Daya Beli Gas Bumi": true, "Review FS dan DED Pelabuhan Waipirit": true, "Project Management Office": true, "Reimagine Rumah IPS": true, "Penataan Kawasan Stasiun Jember": true, "Pengawasan Renovasi Gudang Besar JAKG": true, "Pengawasan Instalasi Hidran BY Manggarai": true, "Internal": true}, "QA2": {"MPS PIT": true, "MPS SGR": true, "MPS SGP": true, "SHL JN": true, "SOP Tata Kelola": true, "Studi Daya Beli Gas Bumi": true, "Review FS dan DED Pelabuhan Waipirit": true, "Project Management Office": true, "Reimagine Rumah IPS": true, "Penataan Kawasan Stasiun Jember": true, "Pengawasan Renovasi Gudang Besar JAKG": true, "Pengawasan Instalasi Hidran BY Manggarai": true, "Internal": true}},
-	"CIHPK": {"JAKG": {"JAKG Supervising Consultant (SPMK Date: March 12, 2026)": true}, "Manggarai Hydrant": {"Supervising Consultant for the Manggarai Balai Yasa Hydrant Installation (SPMK Date: June 8, 2026)": true}, "Jember": {"Jember Station Area Redevelopment": true}},
-}
-
 func NormalizeWeeklyRoleCategory(role, category string) (string, string) {
 	if role == "QA 1" || role == "QA 2" || role == "QA1" || role == "QA2" {
 		role = "QA"
@@ -59,17 +44,8 @@ func NormalizeWeeklyReport(report *WeeklyReport) {
 	report.Role, report.WorkDivision = NormalizeWeeklyRoleCategory(report.Role, report.WorkDivision)
 }
 
-func ValidWeeklyReport(primaryDivision, jobCategory, role, job, description string) bool {
-	if description == "" || len(description) > 500 {
-		return false
-	}
-	if primaryDivision != "Project Engineer" {
-		return WeeklyWorkDivisions[primaryDivision][jobCategory] && role == "" && job == ""
-	}
-	return ProjectEngineerJobs[role][jobCategory][job]
-}
-
 type WeeklyReportInput struct {
+	JobID           *int   `json:"jobId"`
 	PrimaryDivision string `json:"primaryDivision"`
 	WorkDivision    string `json:"workDivision"`
 	Role            string `json:"role"`
@@ -77,6 +53,7 @@ type WeeklyReportInput struct {
 	Description     string `json:"description"`
 }
 type WeeklyReport struct {
+	JobID           *int      `json:"jobId,omitempty"`
 	ID              string    `json:"id"`
 	UserID          string    `json:"userId"`
 	PrimaryDivision string    `json:"primaryDivision"`
@@ -95,6 +72,7 @@ type ReportingPeriod struct {
 	Label    string    `json:"label"`
 }
 type WeeklyReportUpdateInput struct {
+	JobID           *int   `json:"jobId"`
 	PrimaryDivision string `json:"primaryDivision"`
 	WorkDivision    string `json:"workDivision"`
 	Role            string `json:"role"`

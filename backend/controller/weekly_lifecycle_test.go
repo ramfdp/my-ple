@@ -147,7 +147,7 @@ func TestWeeklyLifecyclePostgres(t *testing.T) {
 	if err = database.DeleteReport(ctx, reportID); !errors.Is(err, db.ErrReportClosed) {
 		t.Fatalf("closed delete: %v", err)
 	}
-	input := model.WeeklyReportInput{PrimaryDivision: "Project Engineer", WorkDivision: "MK supervisi", Role: "PE", Work: "Original Project", Description: "New week"}
+	input := model.WeeklyReportInput{PrimaryDivision: "Project Engineer", WorkDivision: "MK supervisi", Role: "PE", Work: "Penataan Kawasan Stasiun Jember", Description: "New week"}
 	if _, err = database.CreateReport(ctx, author, input); !errors.Is(err, db.ErrReportClosed) {
 		t.Fatalf("Monday create allowed: %v", err)
 	}

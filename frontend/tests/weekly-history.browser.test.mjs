@@ -27,6 +27,9 @@ try {
  });
  const archive = { id: 'history-fixture', division: 'Project Engineer', weekStart: '2026-08-30T17:00:00Z', weekEnd: '2026-09-06T17:00:00Z', finalizedAt: '2026-09-06T17:00:00Z', pdfGeneratedAt: '2026-09-06T17:00:00Z', status: 'finalized', filename: 'weekly-report-project-engineer-2026-08-31-to-2026-09-06.pdf' };
  const item = { id: 'snapshot-item', userId: 'test-user', primaryDivision: 'Project Engineer', employeeName: 'Archived Employee', employeeRole: 'Project Engineer', role: 'PE', workDivision: 'MK supervisi', work: 'Archived Project', number: 1, description: 'Archived report text', completedAt: '2026-09-03T00:00:00Z' };
+ const masters = {divisions:[{id:1,name:'Project Engineer'},{id:2,name:'AI Dev'}],roles:[{id:1,divisionId:1,name:'PE',roleId:null},{id:2,divisionId:1,name:'QA',roleId:null}],categories:[{id:1,divisionId:1,roleId:1,name:'MK supervisi'},{id:2,divisionId:1,roleId:2,name:'QA1'}]};
+ let jobs=[{id:1,divisionId:1,roleId:1,jobCategoryId:1,name:'Archived Project',description:'',isActive:true,sortOrder:0,division:'Project Engineer',role:'PE',category:'MK supervisi',referenced:true}];
+ let jobMode=false;
  const user = { id: 'test-user', name: 'Browser Test', role: 'Management', roleId: 1, username: 'browser', jobTitle: 'Project Engineer', email: 'long.employee.address@example.test', isActive: true, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z', salary: 0, residence: '', phoneNumber: '', avatarUrl: '', employmentStatus: 'Permanent Employee' };
  socket.onmessage = async ({ data }) => {
   const event = JSON.parse(data);
@@ -35,8 +38,19 @@ try {
   if (event.method !== 'Fetch.requestPaused') return;
   const { requestId, request } = event.params, url = new URL(request.url);
   requests.push(url.pathname + url.search);
+  let status=200;
   let payload = {}, contentType = 'application/json', headers = [];
   if (['/auth/me', '/me'].includes(url.pathname)) payload = { user };
+  else if(url.pathname==='/jobs/masters') payload=masters;
+  else if(url.pathname==='/jobs' && request.method==='POST') {
+   const body=JSON.parse(request.postData); const job={...body,id:Math.max(0,...jobs.map(j=>j.id))+1,division:masters.divisions.find(d=>d.id===body.divisionId)?.name ?? '',role:masters.roles.find(r=>r.id===body.roleId)?.name ?? '',category:masters.categories.find(c=>c.id===body.jobCategoryId)?.name ?? '',referenced:false};jobs.push(job);payload={job};
+  }
+  else if(url.pathname==='/jobs') payload={jobs:jobs.filter(j=>(!url.searchParams.has('division_id')||j.divisionId===Number(url.searchParams.get('division_id'))) && (!url.searchParams.has('role_id')||(j.roleId??0)===Number(url.searchParams.get('role_id'))) && (!url.searchParams.has('job_category_id')||(j.jobCategoryId??0)===Number(url.searchParams.get('job_category_id'))) && (url.searchParams.get('active')!=='true'||j.isActive))};
+  else if(url.pathname.startsWith('/jobs/')) {
+   const id=Number(url.pathname.split('/')[2]), job=jobs.find(j=>j.id===id);
+   if(request.method==='DELETE'){if(job.referenced){status=409;payload={error:'Pekerjaan sudah digunakan. Nonaktifkan pekerjaan ini.'};}else jobs=jobs.filter(j=>j.id!==id);}
+   else if(['PATCH','PUT'].includes(request.method)){Object.assign(job,JSON.parse(request.postData));payload={job};}else payload={job};
+  }
   else if (url.pathname === '/users') payload = { users: [user] };
   else if (url.pathname === '/roles') payload = { roles: [{ id: 1, name: 'Management' }] };
   else if (url.pathname === '/zoom-bookings') payload = { bookings: [] };
@@ -44,10 +58,10 @@ try {
   else if (url.pathname === '/reports/history') payload = { archives: url.searchParams.get('page') === '2' ? [] : [archive], hasMore: url.searchParams.get('page') !== '2' };
   else if (url.pathname.endsWith('/pdf') || url.pathname === '/reports.pdf') { payload = '%PDF-1.4\n%%EOF'; contentType = 'application/pdf'; headers = [{ name: 'Content-Disposition', value: `attachment; filename="${archive.filename}"` }]; }
   else if (url.pathname === '/reports/history/history-fixture') payload = { archive: { ...archive, items: [item] } };
-  else if (url.pathname === '/reports') payload = { reports: [item], period: { start: archive.weekStart, end: '2026-09-05T17:00:00Z', label: '31 Agustus - 6 September 2026', readOnly: url.searchParams.get('primaryDivision') !== 'AI Dev' } };
+  else if (url.pathname === '/reports') payload = { reports: [item], period: { start: archive.weekStart, end: '2026-09-05T17:00:00Z', label: '31 Agustus - 6 September 2026', readOnly: !jobMode && url.searchParams.get('primaryDivision') !== 'AI Dev' } };
   else if (url.pathname === '/notifications') payload = { notifications: [] };
   else payload = { unreadCount: 0 };
-  await send('Fetch.fulfillRequest', { requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: contentType }, { name: 'Access-Control-Allow-Origin', value: 'http://127.0.0.1:5190' }, { name: 'Access-Control-Allow-Headers', value: 'Content-Type' }, { name: 'Access-Control-Allow-Methods', value: 'GET, POST, PATCH, OPTIONS' }, { name: 'Access-Control-Allow-Credentials', value: 'true' }, { name: 'Access-Control-Expose-Headers', value: 'Content-Disposition' }, ...headers], body: Buffer.from(typeof payload === 'string' ? payload : JSON.stringify(payload)).toString('base64') });
+  await send('Fetch.fulfillRequest', { requestId, responseCode: status, responseHeaders: [{ name: 'Content-Type', value: contentType }, { name: 'Access-Control-Allow-Origin', value: 'http://127.0.0.1:5190' }, { name: 'Access-Control-Allow-Headers', value: 'Content-Type' }, { name: 'Access-Control-Allow-Methods', value: 'GET, POST, PUT, PATCH, DELETE, OPTIONS' }, { name: 'Access-Control-Allow-Credentials', value: 'true' }, { name: 'Access-Control-Expose-Headers', value: 'Content-Disposition' }, ...headers], body: Buffer.from(typeof payload === 'string' ? payload : JSON.stringify(payload)).toString('base64') });
  };
  await send('Page.enable'); await send('Runtime.enable');
  await send('Fetch.enable', { patterns: [{ urlPattern: '*://localhost:3000/*' }] });
@@ -75,9 +89,12 @@ try {
  await send('Page.navigate', { url: 'http://127.0.0.1:5190/weekly-progress/new' });
  await waitFor("document.body.innerText.includes('Periode ditutup.')");
  assert.equal(await evaluate("document.querySelector('button[type=submit]').disabled"), true);
+ jobMode=true;
+ const {testJobSettings}=await import('./job-settings.browser.mjs');
+ await testJobSettings({send,evaluate,waitFor,click,user,jobs,requests});
  assert.deepEqual(exceptions, [], 'browser runtime exceptions');
  console.log('PASS: history list, date/division filters, pagination, immutable detail, PDF download, Monday read-only, closed input');
-} finally {
+} catch (error) { console.error(error); throw error; } finally {
  socket?.close(); chrome.kill();
  await delay(500);
  await rm(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });

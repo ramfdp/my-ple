@@ -157,14 +157,14 @@ func (db *Database) SnapshotWeek(ctx context.Context, w DueWeek) (model.WeeklyAr
 	if !errors.Is(err, sql.ErrNoRows) {
 		return existing, err
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT r.id,r.user_id,r.primary_division,r.work_division,r.number,r.report_role,r.work,r.description,r.completed_at,u.name,u.role_id,roles.name FROM reports r JOIN users u ON u.id=r.user_id JOIN roles ON roles.id=u.role_id WHERE r.primary_division=$1 AND r.completed_at>=$2 AND r.completed_at<$3 ORDER BY r.report_role,r.work_division,r.work,r.number,r.completed_at,r.id`, w.Division, start, next)
+	rows, err := tx.QueryContext(ctx, `SELECT r.id,r.user_id,r.primary_division,r.work_division,r.number,r.report_role,COALESCE((SELECT name FROM jobs WHERE id=r.job_id),r.work),r.description,r.completed_at,r.job_id,u.name,u.role_id,roles.name FROM reports r JOIN users u ON u.id=r.user_id JOIN roles ON roles.id=u.role_id WHERE r.primary_division=$1 AND r.completed_at>=$2 AND r.completed_at<$3 ORDER BY r.report_role,r.work_division,r.work,r.number,r.completed_at,r.id`, w.Division, start, next)
 	if err != nil {
 		return existing, err
 	}
 	items := []model.ArchiveItem{}
 	for rows.Next() {
 		var item model.ArchiveItem
-		err = rows.Scan(&item.ID, &item.UserID, &item.PrimaryDivision, &item.WorkDivision, &item.Number, &item.Role, &item.Work, &item.Description, &item.CompletedAt, &item.EmployeeName, &item.EmployeeRoleID, &item.EmployeeRole)
+		err = rows.Scan(&item.ID, &item.UserID, &item.PrimaryDivision, &item.WorkDivision, &item.Number, &item.Role, &item.Work, &item.Description, &item.CompletedAt, &item.JobID, &item.EmployeeName, &item.EmployeeRoleID, &item.EmployeeRole)
 		if err != nil {
 			rows.Close()
 			return existing, err
@@ -186,6 +186,9 @@ func (db *Database) SnapshotWeek(ctx context.Context, w DueWeek) (model.WeeklyAr
 	}
 	a, err := scanArchive(tx.QueryRowContext(ctx, `INSERT INTO weekly_report_archives(id,primary_division,week_start,week_end,snapshot) VALUES($1,$2,$3,$4,$5) RETURNING `+archiveColumns, NewID(), w.Division, start, next, snapshot))
 	if err != nil {
+		return a, err
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO weekly_archive_jobs(archive_id,report_id,job_id) SELECT $1,item->>'id',(item->>'jobId')::int FROM jsonb_array_elements($2::jsonb) item WHERE item->>'jobId' IS NOT NULL ON CONFLICT DO NOTHING`, a.ID, snapshot); err != nil {
 		return a, err
 	}
 	return a, tx.Commit()

@@ -23,7 +23,7 @@
 		{ name: 'Leave', href: '/leave', icon: 'clock' },
 		{ name: 'Payroll', href: '/payroll', icon: 'wallet' },
 		{ name: 'Documents', href: '/documents', icon: 'file' },
-		{ name: 'Settings', href: '/settings', icon: 'settings' }
+		{ name: 'Pengaturan Pekerjaan', href: '/settings/jobs', icon: 'settings' }
 	];
 	let visibleNavItems = $derived(canManageEmployees ? [{ name: 'Employees', href: '/employees', icon: 'users' }, ...navItems] : navItems);
 

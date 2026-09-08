@@ -19,7 +19,7 @@ func main() {
 		dbURL = "postgres://postgres:postgres@localhost:5432/my_ple"
 	}
 
-	fmt.Printf("Connecting to database: %s\n", dbURL)
+	fmt.Println("Connecting to configured database...")
 	conn, err := sql.Open("pgx", dbURL)
 	if err != nil {
 		fmt.Printf("Connection error: %v\n", err)

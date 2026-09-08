@@ -2,16 +2,11 @@
 	import { onMount } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { api, currentUser, download, session, type Report, type ReportingPeriod } from '$lib/api';
+	import JobPicker from '$lib/components/JobPicker.svelte';
+	import type { Job } from '$lib/api';
 	import { canModifyReport, groupReports } from '$lib/utils/report-table';
 
 	const divisions = ['Project Engineer', 'AI Dev', 'Keuangan', 'Business Development', 'HR', 'PMO'];
-	const workDivisions: Record<string, string[]> = {
-		'Project Engineer': ['MK supervisi', 'Non-MK supervisi', 'QA1', 'QA2', 'JAKG', 'Manggarai Hydrant', 'Jember'],
-		'AI Dev': ['Pengembangan', 'Pengujian Model', 'Deployment', 'Dokumentasi'], Keuangan: ['Pembukuan', 'Pembayaran', 'Anggaran', 'Pelaporan'],
-		'Business Development': ['Prospek', 'Proposal', 'Kemitraan', 'Tindak Lanjut'], HR: ['Kehadiran', 'Rekrutmen', 'Administrasi', 'Pengembangan SDM'], PMO: ['Milestone', 'Rapat', 'Risiko', 'Pelaporan']
-	};
-	const qaJobs = ['MPS PIT','MPS SGR','MPS SGP','SHL JN','SOP Tata Kelola','Studi Daya Beli Gas Bumi','Review FS dan DED Pelabuhan Waipirit','Project Management Office','Reimagine Rumah IPS','Penataan Kawasan Stasiun Jember','Pengawasan Renovasi Gudang Besar JAKG','Pengawasan Instalasi Hidran BY Manggarai','Internal'];
-	const projectEngineer: Record<string, Record<string, string[]>> = {PE:{'MK supervisi':['Penataan Kawasan Stasiun Jember','Pengawasan Renovasi Gudang Besar JAKG','Pengawasan Instalasi Hidran BY Manggarai'],'Non-MK supervisi':['MPS PIT','MPS SGR','MPS SGP','SHL JN','SOP Tata Kelola','Studi Daya Beli Gas Bumi','Review FS dan DED Pelabuhan Waipirit','Project Management Office','Reimagine Rumah IPS']},QA:{QA1:qaJobs,QA2:qaJobs},CIHPK:{JAKG:['JAKG Supervising Consultant (SPMK Date: March 12, 2026)'],'Manggarai Hydrant':['Supervising Consultant for the Manggarai Balai Yasa Hydrant Installation (SPMK Date: June 8, 2026)'],Jember:['Jember Station Area Redevelopment']}};
 	let selectedDivision = $state<number | null>(null);
 	let reports = $state<Report[]>([]);
 	let loading = $state(false);
@@ -20,9 +15,7 @@
 	let exporting = $state(false);
 	let editing = $state<Report | null>(null);
 	let deleting = $state<Report | null>(null);
-	let editWorkDivision = $state('');
-	let editRole = $state('');
-	let editProjectWork = $state('');
+	let editJob=$state<Job|null>(null), jobsBusy=$state(true), saving=$state(false);
 	let editDescription = $state('');
 	const tableRows = $derived(groupReports(reports));
 
@@ -62,15 +55,16 @@
 	}
 
 	async function saveEdit() {
-		if (!editing) return;
+		if (!editing || !editJob || jobsBusy || saving) return;
+		saving=true;
 		error = '';
 		try {
-			await api<{ report: Report }>(`/reports/${editing.id}`, { method: 'PUT', body: JSON.stringify({ primaryDivision: editing.primaryDivision, workDivision: editWorkDivision, role: editing.primaryDivision === 'Project Engineer' ? editRole : '', work: editing.primaryDivision === 'Project Engineer' ? editProjectWork : '', description: editDescription }) });
+			await api<{ report: Report }>(`/reports/${editing.id}`, { method: 'PUT', body: JSON.stringify({ primaryDivision: editing.primaryDivision, workDivision: editJob.category, role: editJob.role, work: editJob.id ? editJob.name : editing.work, jobId: editJob.id || undefined, description: editDescription }) });
 			editing = null;
 			if (selectedDivision !== null) await selectDivision(selectedDivision);
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Laporan tidak dapat diperbarui.';
-		}
+		} finally { saving=false; }
 	}
 
 	async function deleteReport() {
@@ -127,7 +121,7 @@
 										<td colspan="3" class="task-work-title">{row.work}</td>
 									</tr>
 								{:else}
-									<tr><td class="task-number">{row.displayNumber}</td><td class="task-description">{row.report.description}</td><td class="task-actions">{#if !period?.readOnly && canModifyReport($currentUser, row.report.userId)}<div class="report-row-actions"><button class="edit-report" type="button" onclick={() => { editing = row.report; editWorkDivision = row.report.workDivision; editRole = row.report.role; editProjectWork = row.report.work; editDescription = row.report.description; }}>Edit</button><button class="delete-report" type="button" onclick={() => (deleting = row.report)}>Hapus</button></div>{:else}<span class="no-actions">—</span>{/if}</td></tr>
+									<tr><td class="task-number">{row.displayNumber}</td><td class="task-description">{row.report.description}</td><td class="task-actions">{#if !period?.readOnly && canModifyReport($currentUser, row.report.userId)}<div class="report-row-actions"><button class="edit-report" type="button" onclick={() => { editing = row.report; editDescription = row.report.description; }}>Edit</button><button class="delete-report" type="button" onclick={() => (deleting = row.report)}>Hapus</button></div>{:else}<span class="no-actions">—</span>{/if}</td></tr>
 								{/if}
 							{/each}{/if}
 						</tbody>
@@ -145,15 +139,10 @@
 		<div class="report-drawer" role="dialog" aria-modal="true" aria-labelledby="edit-report-title" transition:fly={{ x: 32, duration: 240, opacity: 0 }}>
 			<div class="report-drawer-header"><h2 id="edit-report-title">Edit laporan</h2><button class="drawer-close" type="button" aria-label="Tutup" onclick={() => (editing = null)}>×</button></div>
 			<form class="report-form report-drawer-form" onsubmit={(event) => { event.preventDefault(); void saveEdit(); }}>
-				{#if editing.primaryDivision === 'Project Engineer'}
-					<label>Role<select bind:value={editRole} onchange={() => { editWorkDivision = Object.keys(projectEngineer[editRole])[0]; editProjectWork = projectEngineer[editRole][editWorkDivision][0] ?? ''; }}>{#each Object.keys(projectEngineer) as item}<option value={item}>{item}</option>{/each}</select></label>
-					<label>Job Category<select bind:value={editWorkDivision} onchange={() => { editProjectWork = projectEngineer[editRole][editWorkDivision][0] ?? ''; }}>{#each Object.keys(projectEngineer[editRole]) as item}<option value={item}>{item}</option>{/each}</select></label>
-					<label>Job<select bind:value={editProjectWork} required>{#each projectEngineer[editRole][editWorkDivision] ?? [] as item}<option value={item}>{item}</option>{/each}</select></label>
-				{:else}
-					<label>Job Category<select bind:value={editWorkDivision}>{#each workDivisions[editing.primaryDivision] as item}<option value={item}>{item}</option>{/each}</select></label>
-				{/if}
+				<JobPicker division={editing.primaryDivision} existing={editing} fixedDivision bind:selected={editJob} bind:busy={jobsBusy} />
 				<label>Uraian pekerjaan yang dilakukan<textarea bind:value={editDescription} rows="5" required maxlength="500"></textarea></label>
-				<div class="drawer-form-actions"><button class="report-submit" type="submit">Simpan perubahan</button><button class="drawer-cancel" type="button" onclick={() => (editing = null)}>Batal</button></div>
+				{#if error}<p role="alert">{error}</p>{/if}
+				<div class="drawer-form-actions"><button class="report-submit" type="submit" disabled={saving || jobsBusy || !editJob}>{saving ? "Menyimpan?" : "Simpan perubahan"}</button><button class="drawer-cancel" type="button" onclick={() => (editing = null)}>Batal</button></div>
 			</form>
 		</div>
 	</div>

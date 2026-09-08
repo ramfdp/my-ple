@@ -46,7 +46,7 @@ func TestProfileUpdateAllowsEveryAuthenticatedRoleAndRejectsProtectedFields(t *t
 }
 
 func TestPDFRouteIsRegisteredBehindAuthentication(t *testing.T) {
-	request, store := authenticatedRequest(http.MethodGet, "/reports.pdf?primaryDivision=invalid", nil, "Employee")
+	request, store := authenticatedRequest(http.MethodGet, "/reports.pdf", nil, "Employee")
 	response := httptest.NewRecorder()
 
 	middleware.RequireAuth(store, protectedHandler(nil, nil)).ServeHTTP(response, request)

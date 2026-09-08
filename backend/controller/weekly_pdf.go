@@ -21,7 +21,16 @@ func (c *WeeklyController) ExportPDF(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	division := strings.TrimSpace(r.URL.Query().Get("primaryDivision"))
-	if _, valid := model.WeeklyWorkDivisions[division]; !valid {
+	if division == "" || len(division) > 100 {
+		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Divisi utama tidak valid."})
+		return
+	}
+	var valid bool
+	if err := c.DB.Conn.QueryRowContext(r.Context(), `SELECT EXISTS(SELECT 1 FROM divisions WHERE name=$1)`, division).Scan(&valid); err != nil {
+		WriteJSON(w, 500, map[string]string{"error": "Divisi tidak dapat dimuat."})
+		return
+	}
+	if !valid {
 		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Divisi utama tidak valid."})
 		return
 	}

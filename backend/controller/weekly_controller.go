@@ -19,11 +19,6 @@ type WeeklyController struct {
 	Now func() time.Time
 }
 
-func validReportInput(input model.WeeklyReportInput) bool {
-	input.Role, input.WorkDivision = model.NormalizeWeeklyRoleCategory(input.Role, input.WorkDivision)
-	return model.ValidWeeklyReport(input.PrimaryDivision, input.WorkDivision, input.Role, input.Work, input.Description)
-}
-
 func NewWeeklyController(database *db.Database) *WeeklyController {
 	return &WeeklyController{DB: database, Now: time.Now}
 }
@@ -49,11 +44,15 @@ func (c *WeeklyController) Create(w http.ResponseWriter, r *http.Request) {
 	input.Role = strings.TrimSpace(input.Role)
 	input.Work = strings.TrimSpace(input.Work)
 	input.Role, input.WorkDivision = model.NormalizeWeeklyRoleCategory(input.Role, input.WorkDivision)
-	if !validReportInput(input) {
+	if input.Description == "" || len(input.Description) > 500 {
 		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Data laporan tidak valid."})
 		return
 	}
 	report, err := c.DB.CreateReport(r.Context(), current.ID, input)
+	if errors.Is(err, db.ErrInvalidReport) {
+		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Pekerjaan tidak aktif atau tidak sesuai divisi, role, dan kategori."})
+		return
+	}
 	if errors.Is(err, db.ErrReportClosed) {
 		WriteJSON(w, http.StatusConflict, map[string]string{"error": "Periode laporan ditutup. Input baru dibuka Selasa 00:00 WIB."})
 		return
@@ -82,7 +81,7 @@ func (c *WeeklyController) Update(w http.ResponseWriter, r *http.Request, id str
 	input.Role = strings.TrimSpace(input.Role)
 	input.Work = strings.TrimSpace(input.Work)
 	input.Role, input.WorkDivision = model.NormalizeWeeklyRoleCategory(input.Role, input.WorkDivision)
-	if !model.ValidWeeklyReport(input.PrimaryDivision, input.WorkDivision, input.Role, input.Work, input.Description) {
+	if input.Description == "" || len(input.Description) > 500 {
 		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Uraian laporan tidak valid."})
 		return
 	}

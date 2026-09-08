@@ -81,6 +81,7 @@ func newHandler(database *db.Database, secret, corsOrigin string) http.Handler {
 // ponytail: unified protected routing for reports and employee profile
 func protectedHandler(database *db.Database, authCtrl *controller.AuthController, services ...*notification.Service) http.Handler {
 	weeklyCtrl := controller.NewWeeklyController(database)
+	jobCtrl := &controller.JobController{DB: database}
 	var notificationService *notification.Service
 	if len(services) > 0 {
 		notificationService = services[0]
@@ -92,6 +93,10 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 		current, ok := middleware.GetClaims(r.Context())
 		if !ok {
 			controller.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Autentikasi diperlukan."})
+			return
+		}
+		if r.URL.Path == "/jobs" || strings.HasPrefix(r.URL.Path, "/jobs/") {
+			jobCtrl.ServeHTTP(w, r)
 			return
 		}
 		if r.Method == http.MethodGet && (r.URL.Path == "/me" || r.URL.Path == "/auth/me" || r.URL.Path == "/api/auth/me") {
