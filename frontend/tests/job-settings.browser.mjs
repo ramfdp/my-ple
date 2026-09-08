@@ -14,7 +14,7 @@ export async function testJobSettings({send,evaluate,waitFor,click,user,jobs,req
  await evaluate("[...document.querySelectorAll('tr')].find(r=>r.textContent.includes('Browser job')).querySelector('button[role=switch]').click()");
  await waitFor("document.querySelector('[role=status]')?.textContent.includes('Nonaktif')");
  assert.ok(await evaluate("document.querySelector('tbody').textContent.includes('Browser job')"),'deactivated row disappeared');
- await select('Role',2); await waitFor("document.body.textContent.includes('Belum ada pekerjaan pada kategori ini.')");
+ await select('Role',0); await waitFor("document.body.textContent.includes('Belum ada pekerjaan pada kategori ini.')");
  await select('Role',1); await waitFor("document.querySelector('tbody')?.textContent.includes('Browser job')");
  await evaluate("[...document.querySelectorAll('tr')].find(r=>r.textContent.includes('Browser job')).querySelector('.edit-report').click()");
  await evaluate("{const input=document.querySelector('.job-form input');input.value='Edited job';input.dispatchEvent(new Event('input',{bubbles:true}));}");
@@ -36,13 +36,35 @@ export async function testJobSettings({send,evaluate,waitFor,click,user,jobs,req
  await click('Hapus pekerjaan');await waitFor("!document.querySelector('dialog[open]') && !document.querySelector('tbody')?.textContent.includes('Edited job')");
  await send('Emulation.setDeviceMetricsOverride',{width:375,height:812,deviceScaleFactor:1,mobile:true});
  assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth'),'mobile page overflow');
- await select('Divisi',1);await waitFor("document.body.textContent.includes('Belum ada pekerjaan pada kategori ini.')");
+ await select('Divisi',1);await waitFor("document.querySelector('tbody')?.textContent.includes('Direct job')");
  await send('Emulation.clearDeviceMetricsOverride');
  for(const role of ['Admin','Management','HR','Project Engineer','Finance','IT','Business Development','PMO']) {
-  user.role=role;await navigate('/settings/jobs');await waitFor("!!document.querySelector('.delete-report')");
+  user.role=role;await navigate('/settings/jobs');await waitFor("!!document.querySelector('tbody .pics')");
   assert.equal(await evaluate("!!document.querySelector('a[href=\"/settings/jobs\"]')"),true,`${role} sidebar`);
-  await click('+ Tambah Pekerjaan');await waitFor("!!document.querySelector('.job-form')");
+  const admin=['Admin','Management'].includes(role);
+  assert.equal(await evaluate("!!document.querySelector('.delete-report')"),admin,`${role} master permission`);
+  assert.equal(await evaluate("!!document.querySelector('button[role=switch]')"),admin,`${role} status permission`);
  }
+ await click('+ Tambah PIC');
+ await waitFor("document.querySelector('.selector')?.textContent.includes('Jarwo (jarwo) +')");
+ await click('Jarwo (jarwo) +');
+ await waitFor("document.querySelector('.chip')?.textContent.includes('Jarwo')");
+ assert.equal(await evaluate("document.querySelector('.selector').textContent.includes('Jarwo (jarwo) +')"),false,'assigned account still selectable');
+ await evaluate("{const input=document.querySelector('.selector input');input.value='bud';input.dispatchEvent(new Event('input',{bubbles:true}));}");
+ await waitFor("document.querySelector('.selector')?.textContent.includes('Budi (budi) +')");
+ await click('Budi (budi) +');await waitFor("document.querySelectorAll('.chip').length===2");
+ await navigate('/weekly-progress?division=Project%20Engineer');
+ await waitFor("document.querySelector('.job-heading')?.textContent.includes('PIC: Jarwo, Budi')");
+ assert.equal(await evaluate("document.querySelectorAll('.job-heading small').length"),1,'PIC repeated per report');
+ await send('Emulation.setDeviceMetricsOverride',{width:375,height:812,deviceScaleFactor:1,mobile:true});
+ assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth'),'PIC report mobile overflow');
+ await navigate('/settings/jobs');await waitFor("document.querySelectorAll('.chip').length===2");
+ assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth'),'PIC settings mobile overflow');
+ await evaluate("document.querySelector('[aria-label=\"Hapus PIC Jarwo\"]').click()");
+ await waitFor("document.querySelectorAll('.chip').length===1");
+ await evaluate("document.querySelector('[aria-label=\"Hapus PIC Budi\"]').click()");
+ await waitFor("document.querySelectorAll('.chip').length===0");
+ await send('Emulation.clearDeviceMetricsOverride');
  user.role='Management';
- console.log('PASS: job settings filters, create, edit, toggle, safe deletion, active dropdowns, inactive history, RBAC UI, mobile layout');
+ console.log('PASS: job settings filters, create, edit, toggle, safe deletion, active dropdowns, inactive history, RBAC UI, multi-PIC add/search/remove, report PIC header, mobile layout');
 }

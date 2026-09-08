@@ -53,6 +53,7 @@ type WeeklyReportInput struct {
 	Description     string `json:"description"`
 }
 type WeeklyReport struct {
+	PICs            JobPICs   `json:"pics,omitempty"`
 	JobID           *int      `json:"jobId,omitempty"`
 	ID              string    `json:"id"`
 	UserID          string    `json:"userId"`

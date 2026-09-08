@@ -50,6 +50,11 @@ func TestWeeklyPDFUsesDivisionTitleAndMergedRoleAndCategoryCells(t *testing.T) {
 		{PrimaryDivision: "Project Engineer", WorkDivision: "Jember", Role: "CIHPK", Work: "Jember Station Area Redevelopment", Description: "cikini ke gondang dia"},
 	}
 
+	// Fixture numbers are supplied by the backend, not synthesized by the PDF.
+	for i, n := range []int{1, 2, 3, 1, 1, 1, 1, 1, 2, 1} {
+		reports[i].Number = n
+	}
+
 	data, err := weeklyPDFDocument("Project Engineer", period, reports, false)
 	if err != nil {
 		t.Fatal(err)
@@ -111,5 +116,27 @@ func TestWeeklyPDFSeparatesPEQAAndCIHPKSections(t *testing.T) {
 	}
 	if got := bytes.Count(data, []byte(period.Label)); got != 2 {
 		t.Fatalf("date range rendered %d times, want 2", got)
+	}
+}
+
+func TestWeeklyPDFUsesStoredNumbersIncludingGaps(t *testing.T) {
+	start, next := model.ReportingWeek(time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC))
+	reports := []model.WeeklyReport{
+		{PrimaryDivision: "Project Engineer", Role: "PE", WorkDivision: "MK supervisi", Work: "Job A", Number: 8, Description: "first"},
+		{PrimaryDivision: "Project Engineer", Role: "PE", WorkDivision: "MK supervisi", Work: "Job A", Number: 10, Description: "after deletion"},
+		{PrimaryDivision: "Project Engineer", Role: "PE", WorkDivision: "MK supervisi", Work: "Job B", Number: 1, Description: "independent"},
+	}
+	data, err := weeklyPDFDocument("Project Engineer", model.ReportingPeriod{Start: start, End: next.AddDate(0, 0, -1)}, reports, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	commands := regexp.MustCompile(`\(([0-9]+)\)Tj`).FindAllSubmatch(data, -1)
+	if len(commands) != 3 {
+		t.Fatalf("number cells: %d", len(commands))
+	}
+	for i, want := range []string{"8", "10", "1"} {
+		if string(commands[i][1]) != want {
+			t.Fatalf("number %d: %s want %s", i, commands[i][1], want)
+		}
 	}
 }

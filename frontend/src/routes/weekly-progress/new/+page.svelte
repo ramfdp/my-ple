@@ -1,11 +1,13 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import JobPicker from '$lib/components/JobPicker.svelte';
-	import { api, type Job, type ReportInput, type ReportingPeriod } from '$lib/api';
+	import ToastNotification from '$lib/components/ToastNotification.svelte';
+	import { api, type Job, type Report, type ReportInput, type ReportingPeriod } from '$lib/api';
 
 	let division=$state('Project Engineer'), selected=$state<Job|null>(null), jobsBusy=$state(true), description=$state(''), error=$state(''), submitting=$state(false);
 	let mounted = $state(false), readOnly = $state(true), checking = $state(true);
+	let descriptionInput: HTMLTextAreaElement;
+	let toast = $state({ visible: false, message: '' });
 	async function checkPeriod(selected: string) {
 		checking = true;
 		try {
@@ -18,10 +20,15 @@
 	onMount(() => { const requested=new URLSearchParams(location.search).get('division'); if(requested)division=requested; mounted=true; });
 	async function saveReport(event: SubmitEvent) {
 		if (checking || readOnly || jobsBusy || !selected || submitting) { event.preventDefault(); return; }
-		event.preventDefault(); error = ''; submitting = true;
-		try { await api<{report:unknown}>('/reports',{method:'POST',body:JSON.stringify({primaryDivision:division,workDivision:selected!.category,role:selected!.role,work:selected!.name,jobId:selected!.id,description:description.trim()} satisfies ReportInput)}); await goto(`/weekly-progress?division=${encodeURIComponent(division)}`); }
+		event.preventDefault(); error = ''; submitting = true; toast.visible = false;
+		let saved = false;
+		try {
+			const { report } = await api<{report:Report}>('/reports',{method:'POST',body:JSON.stringify({primaryDivision:division,workDivision:selected.category,role:selected.role,work:selected.name,jobId:selected.id,description:description.trim()} satisfies ReportInput)});
+			description = ''; saved = true;
+			toast = { visible: true, message: `Laporan No. ${report.number} berhasil ditambahkan.` };
+		}
 		catch (err) { error = err instanceof Error ? err.message : 'Laporan tidak dapat disimpan.'; }
-		finally { submitting = false; }
+		finally { submitting = false; if (saved) { await tick(); descriptionInput?.focus(); } }
 	}
 </script>
 
@@ -33,7 +40,8 @@
 	<form class="report-form" onsubmit={saveReport}>
 		{#if checking}<p role="status">Memeriksa periode laporan…</p>{:else if readOnly}<p role="status">Periode ditutup. Input baru dibuka Selasa 00:00 WIB setelah arsip periode sebelumnya aman. <a href="/weekly-progress/history">Lihat riwayat</a></p>{/if}
 		<JobPicker bind:division bind:selected bind:busy={jobsBusy} />
-		<label>Uraian pekerjaan yang dilakukan<textarea bind:value={description} rows="5" required maxlength="500"></textarea></label>
+		<label>Uraian pekerjaan yang dilakukan<textarea bind:this={descriptionInput} bind:value={description} disabled={submitting} rows="5" required maxlength="500"></textarea></label>
 		{#if error}<p class="demo-note">{error}</p>{/if}<button class="report-submit" type="submit" disabled={submitting || readOnly || checking || jobsBusy || !selected}>{submitting ? 'Menyimpan…' : 'Simpan laporan'}</button>
 	</form>
 </div></main>
+<ToastNotification message={toast.message} visible={toast.visible} onclose={() => (toast.visible = false)} />

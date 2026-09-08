@@ -8,10 +8,12 @@ export interface User {
 	employmentStatus: string; avatarUrl: string; isActive: boolean; createdAt: string; updatedAt: string;
 }
 export interface Role { id: number; name: string }
-export interface Job { id: number; divisionId: number; roleId: number | null; jobCategoryId: number | null; name: string; description: string; isActive: boolean; sortOrder: number; division: string; role: string; category: string; referenced: boolean }
+export interface JobPIC { userId:string; name:string; isActive:boolean; username?:string }
+export interface Job { pics?:JobPIC[]; id: number; divisionId: number; roleId: number | null; jobCategoryId: number | null; name: string; description: string; isActive: boolean; sortOrder: number; division: string; role: string; category: string; referenced: boolean }
 export interface JobMaster { id: number; name: string; divisionId?: number; roleId: number | null }
 export interface JobMasters { divisions: JobMaster[]; roles: JobMaster[]; categories: JobMaster[] }
 export interface Report {
+ pics?:JobPIC[];
  jobId?: number;
 	id: string; userId: string; primaryDivision: string; workDivision: string;
 	role: string; work: string; number: number; description: string; completedAt: string;

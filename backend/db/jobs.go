@@ -8,11 +8,11 @@ import (
 	"strings"
 )
 
-const jobColumns = `id,division_id,role_id,job_category_id,name,description,is_active,sort_order,division_name,role_name,category_name,used_at IS NOT NULL`
+const jobColumns = `id,division_id,role_id,job_category_id,name,description,is_active,sort_order,division_name,role_name,category_name,used_at IS NOT NULL,(SELECT pics FROM job_pic_summary WHERE job_id=job_context.id)`
 
 func scanJob(row interface{ Scan(...any) error }) (model.Job, error) {
 	var j model.Job
-	err := row.Scan(&j.ID, &j.DivisionID, &j.RoleID, &j.JobCategoryID, &j.Name, &j.Description, &j.IsActive, &j.SortOrder, &j.Division, &j.Role, &j.Category, &j.Referenced)
+	err := row.Scan(&j.ID, &j.DivisionID, &j.RoleID, &j.JobCategoryID, &j.Name, &j.Description, &j.IsActive, &j.SortOrder, &j.Division, &j.Role, &j.Category, &j.Referenced, &j.PICs)
 	return j, err
 }
 

@@ -25,6 +25,12 @@ var weeklyArchiveSQL string
 //go:embed jobs.sql
 var jobsSQL string
 
+//go:embed report_numbering.sql
+var reportNumberingSQL string
+
+//go:embed job_pics.sql
+var jobPICsSQL string
+
 type Database struct {
 	Conn *sql.DB
 	Now  func() time.Time
@@ -48,7 +54,10 @@ func (db *Database) Migrate(ctx context.Context) error {
 	if _, err = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(71260400)`); err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, schemaSQL+weeklyArchiveSQL+jobsSQL); err != nil {
+	if _, err = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(71260402)`); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, schemaSQL+weeklyArchiveSQL+jobsSQL+reportNumberingSQL+jobPICsSQL); err != nil {
 		return err
 	}
 	var unmatched int
@@ -374,6 +383,16 @@ func (db *Database) FindRoleByID(ctx context.Context, id int) (model.Role, error
 	return r, err
 }
 
+// Both create and reassignment allocate in PostgreSQL, in the caller's transaction.
+func allocateReportNumber(ctx context.Context, tx *sql.Tx, division, category string, jobID *int, completed time.Time) (int, error) {
+	start, _ := model.ReportingWeek(completed)
+	var number int
+	err := tx.QueryRowContext(ctx, `INSERT INTO report_sequences(primary_division,work_division,week_start,job_id,last_number)
+ VALUES($1,$2,$3,$4,1) ON CONFLICT ON CONSTRAINT report_sequences_job_scope
+ DO UPDATE SET last_number=report_sequences.last_number+1 RETURNING last_number`, division, category, start.Format("2006-01-02"), jobID).Scan(&number)
+	return number, err
+}
+
 func (db *Database) CreateReport(ctx context.Context, userID string, input model.WeeklyReportInput) (model.WeeklyReport, error) {
 	var result model.WeeklyReport
 	tx, err := db.Conn.BeginTx(ctx, nil)
@@ -396,18 +415,14 @@ func (db *Database) CreateReport(ctx context.Context, userID string, input model
 	if pendingReset {
 		return result, ErrReportClosed
 	}
-	err = tx.QueryRowContext(ctx, `
-		WITH next_number AS (
-			INSERT INTO report_sequences (primary_division, work_division, week_start, last_number)
-			VALUES ($1, $2, date_trunc('week',$8::timestamptz AT TIME ZONE 'Asia/Jakarta')::date, 1)
-			ON CONFLICT (primary_division, work_division, week_start)
-			DO UPDATE SET last_number = report_sequences.last_number + 1
-			RETURNING last_number
-		)
-		INSERT INTO reports (id, user_id, primary_division, work_division, number, report_role, work, description, completed_at, job_id)
-		SELECT $3, $4, $1, $2, last_number, $5, $6, $7, $8, $9 FROM next_number
-		RETURNING id, user_id, primary_division, work_division, number, report_role, work, description, completed_at`,
-		input.PrimaryDivision, input.WorkDivision, NewID(), userID, input.Role, input.Work, input.Description, now, input.JobID,
+	number, err := allocateReportNumber(ctx, tx, input.PrimaryDivision, input.WorkDivision, input.JobID, now)
+	if err != nil {
+		return result, err
+	}
+	err = tx.QueryRowContext(ctx, `INSERT INTO reports(id,user_id,primary_division,work_division,number,report_role,work,description,completed_at,job_id)
+ VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+ RETURNING id,user_id,primary_division,work_division,number,report_role,work,description,completed_at`,
+		NewID(), userID, input.PrimaryDivision, input.WorkDivision, number, input.Role, input.Work, input.Description, now, input.JobID,
 	).Scan(&result.ID, &result.UserID, &result.PrimaryDivision, &result.WorkDivision, &result.Number, &result.Role, &result.Work, &result.Description, &result.CompletedAt)
 	if err != nil {
 		return result, err
@@ -426,8 +441,8 @@ func (db *Database) CleanupExpiredReports(ctx context.Context, weekStart time.Ti
 
 func (db *Database) ListReports(ctx context.Context, primaryDivision string, weekStart, nextWeekStart time.Time) ([]model.WeeklyReport, error) {
 	rows, err := db.Conn.QueryContext(ctx, `
-		SELECT id, user_id, primary_division, work_division, number, report_role, COALESCE((SELECT name FROM jobs WHERE id=reports.job_id),work), description, completed_at, job_id
-		FROM reports WHERE primary_division = $1 AND completed_at >= $2 AND completed_at < $3
+		SELECT id, user_id, primary_division, work_division, number, report_role, COALESCE((SELECT name FROM jobs WHERE id=reports.job_id),work), description, completed_at, reports.job_id, p.pics
+		FROM reports LEFT JOIN job_pic_summary p ON p.job_id=reports.job_id WHERE primary_division = $1 AND completed_at >= $2 AND completed_at < $3
 		ORDER BY CASE work_division WHEN 'MK supervisi' THEN 1 WHEN 'Non-MK supervisi' THEN 2 WHEN 'QA 1' THEN 3 WHEN 'QA 2' THEN 4 ELSE 5 END,
 		work_division, report_role, MIN(number) OVER (PARTITION BY primary_division, work_division, report_role, work), number, completed_at, id`, primaryDivision, weekStart, nextWeekStart)
 	if err != nil {
@@ -437,7 +452,7 @@ func (db *Database) ListReports(ctx context.Context, primaryDivision string, wee
 	reports := []model.WeeklyReport{}
 	for rows.Next() {
 		var item model.WeeklyReport
-		if err := rows.Scan(&item.ID, &item.UserID, &item.PrimaryDivision, &item.WorkDivision, &item.Number, &item.Role, &item.Work, &item.Description, &item.CompletedAt, &item.JobID); err != nil {
+		if err := rows.Scan(&item.ID, &item.UserID, &item.PrimaryDivision, &item.WorkDivision, &item.Number, &item.Role, &item.Work, &item.Description, &item.CompletedAt, &item.JobID, &item.PICs); err != nil {
 			return nil, err
 		}
 		model.NormalizeWeeklyReport(&item)
@@ -486,7 +501,7 @@ func (db *Database) UpdateReport(ctx context.Context, id string, input model.Wee
 		return result, err
 	}
 	var old model.WeeklyReport
-	if err := tx.QueryRowContext(ctx, `SELECT primary_division,work_division,report_role,work,job_id FROM reports WHERE id=$1 FOR UPDATE`, id).Scan(&old.PrimaryDivision, &old.WorkDivision, &old.Role, &old.Work, &old.JobID); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT primary_division,work_division,report_role,work,job_id,number,completed_at FROM reports WHERE id=$1 FOR UPDATE`, id).Scan(&old.PrimaryDivision, &old.WorkDivision, &old.Role, &old.Work, &old.JobID, &old.Number, &old.CompletedAt); err != nil {
 		return result, err
 	}
 	model.NormalizeWeeklyReport(&old)
@@ -498,21 +513,17 @@ func (db *Database) UpdateReport(ctx context.Context, id string, input model.Wee
 		return result, err
 	}
 	input.JobID, input.Work, input.Role, input.WorkDivision = resolved.JobID, resolved.Work, resolved.Role, resolved.WorkDivision
-	oldWorkDivision := old.WorkDivision
-	query := `UPDATE reports SET report_role = $2, work = $3, description = $4, job_id=$5 WHERE id = $1 RETURNING id, user_id, primary_division, work_division, number, report_role, work, description, completed_at`
-	args := []any{id, input.Role, input.Work, input.Description, input.JobID}
-	if input.WorkDivision != oldWorkDivision {
-		query = `WITH next_number AS (
-			INSERT INTO report_sequences (primary_division, work_division, week_start, last_number) VALUES ($2, $3, (SELECT report_week FROM reports WHERE id=$1), 1)
-			ON CONFLICT (primary_division, work_division, week_start) DO UPDATE SET last_number = report_sequences.last_number + 1
-			RETURNING last_number
-		)
-		UPDATE reports SET work_division = $3, number = (SELECT last_number FROM next_number), report_role = $4, work = $5, description = $6, job_id=$7
-		WHERE id = $1
-		RETURNING id, user_id, primary_division, work_division, number, report_role, work, description, completed_at`
-		args = []any{id, input.PrimaryDivision, input.WorkDivision, input.Role, input.Work, input.Description, input.JobID}
+	number := old.Number
+	if input.JobID != nil && (old.JobID == nil || *input.JobID != *old.JobID) {
+		number, err = allocateReportNumber(ctx, tx, input.PrimaryDivision, input.WorkDivision, input.JobID, old.CompletedAt)
+		if err != nil {
+			return result, err
+		}
 	}
-	if err := tx.QueryRowContext(ctx, query, args...).Scan(&result.ID, &result.UserID, &result.PrimaryDivision, &result.WorkDivision, &result.Number, &result.Role, &result.Work, &result.Description, &result.CompletedAt); err != nil {
+	if err := tx.QueryRowContext(ctx, `UPDATE reports SET work_division=$2,report_role=$3,work=$4,description=$5,job_id=$6,number=$7 WHERE id=$1
+ RETURNING id,user_id,primary_division,work_division,number,report_role,work,description,completed_at`,
+		id, input.WorkDivision, input.Role, input.Work, input.Description, input.JobID, number,
+	).Scan(&result.ID, &result.UserID, &result.PrimaryDivision, &result.WorkDivision, &result.Number, &result.Role, &result.Work, &result.Description, &result.CompletedAt); err != nil {
 		return result, err
 	}
 	if err := tx.Commit(); err != nil {

@@ -47,10 +47,10 @@ older versions contain the unsafe request-time deletion logic.
 * `weekly_report_email_deliveries`: unique `(archive_id, recipient_email)`, recipient
   user ID/address, status, attempts, last attempt/error and accepted-send timestamp.
 * `reports.report_week`: generated local Monday date, included in number uniqueness.
-* `report_sequences.week_start`: period included in the primary key. On the first
-  migration, legacy counters are reconstructed from retained reports. Subsequent
-  migrations preserve counters. The existing renderer still restarts displayed
-  numbering for each project.
+* `report_sequences.week_start`: period included in the unique job scope. The
+  numbering migration initializes job counters from retained report numbers and
+  never lowers an existing counter. Table/PDF rendering uses stored numbers;
+  see [Weekly Entry](WEEKLY_ENTRY.md). Finalized snapshots and PDF files are unchanged.
 
 The existing application has text divisions, categories and projects rather than
 separate foreign-key tables. Each snapshot therefore stores every `WeeklyReport`

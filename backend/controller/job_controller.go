@@ -26,9 +26,9 @@ func (c *JobController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		var pg *pgconn.PgError
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			status, message = 404, "Pekerjaan tidak ditemukan."
+			status, message = 404, "Pekerjaan, akun, atau penugasan PIC tidak ditemukan."
 		case errors.Is(err, db.ErrInvalidReport):
-			status, message = 400, "Nama, urutan, atau konteks pekerjaan tidak valid."
+			status, message = 400, "Data pekerjaan atau PIC tidak valid. Pilih akun PIC yang aktif."
 		case errors.As(err, &pg):
 			switch pg.Code {
 			case "23505":
@@ -45,6 +45,60 @@ func (c *JobController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			log.Printf("jobs: %v", err)
 		}
 		WriteJSON(w, status, map[string]string{"error": message})
+	}
+	if r.URL.Path == "/jobs/pic-users" && r.Method == http.MethodGet {
+		users, err := c.DB.PICUsers(r.Context(), r.URL.Query().Get("q"))
+		if err != nil {
+			fail(err)
+			return
+		}
+		WriteJSON(w, 200, map[string]any{"users": users})
+		return
+	}
+	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/jobs/"), "/")
+	if len(parts) >= 2 && parts[1] == "pics" {
+		id, err := strconv.Atoi(parts[0])
+		if err != nil || id <= 0 || len(parts) > 3 {
+			fail(sql.ErrNoRows)
+			return
+		}
+		if len(parts) == 2 && r.Method == http.MethodPost {
+			var input struct {
+				UserID string `json:"userId"`
+			}
+			if !DecodeStrictJSON(w, r, &input) {
+				return
+			}
+			if input.UserID == "" {
+				fail(db.ErrInvalidReport)
+				return
+			}
+			if _, err = c.DB.Job(r.Context(), id); err != nil {
+				fail(err)
+				return
+			}
+			err = c.DB.AddJobPIC(r.Context(), id, input.UserID, claims.ID)
+		} else if len(parts) == 3 && r.Method == http.MethodDelete {
+			err = c.DB.RemoveJobPIC(r.Context(), id, parts[2])
+		} else if len(parts) != 2 || r.Method != http.MethodGet {
+			w.WriteHeader(405)
+			return
+		}
+		if err != nil {
+			fail(err)
+			return
+		}
+		job, err := c.DB.Job(r.Context(), id)
+		if err != nil {
+			fail(err)
+			return
+		}
+		WriteJSON(w, 200, map[string]any{"pics": job.PICs})
+		return
+	}
+	if r.Method != http.MethodGet && !strings.EqualFold(claims.RoleName, "Admin") && !strings.EqualFold(claims.RoleName, "Management") {
+		WriteJSON(w, 403, map[string]string{"error": "Hanya Admin dan Management dapat mengelola master pekerjaan."})
+		return
 	}
 	if r.URL.Path == "/jobs/masters" && r.Method == http.MethodGet {
 		result, err := c.DB.JobMasters(r.Context())

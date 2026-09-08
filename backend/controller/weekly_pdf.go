@@ -165,25 +165,55 @@ func weeklyPDFDocument(division string, period model.ReportingPeriod, reports []
 					pdf.AddPage()
 					roleSegmentStart, categorySegmentStart = pdf.GetY(), pdf.GetY()
 				}
-				group, number := "", 0
+				group := ""
 				for index := categoryStart; index < categoryEnd; index++ {
 					report := reports[index]
 					key := report.PrimaryDivision + "\x00" + report.WorkDivision + "\x00" + report.Role + "\x00" + report.Work
 					if key != group {
-						group, number = key, 0
-						headerHeight := float64(len(pdf.SplitLines([]byte(text(report.Work)), numberWidth+reportWidth-4)))*5 + 4
+						group = key
+						heading := report.Work
+						names := []string{}
+						for _, pic := range report.PICs {
+							name := pic.Name
+							if !pic.IsActive {
+								name += " (Nonaktif)"
+							}
+							names = append(names, name)
+						}
+						if len(names) > 0 {
+							heading += "    PIC: " + strings.Join(names, ", ")
+						}
+						pdf.SetFont("Helvetica", "B", 9)
+						lines := pdf.SplitLines([]byte(text(heading)), numberWidth+reportWidth-4)
+						headerHeight := float64(len(lines))*5 + 4
 						if pdf.GetY()+headerHeight+itemHeight(report.Description) > 282 {
 							newPage()
 						}
-						x, y := left+roleWidth+categoryWidth, pdf.GetY()
-						pdf.SetFillColor(223, 242, 235)
-						pdf.SetFont("Helvetica", "B", 9)
-						pdf.Rect(x, y, numberWidth+reportWidth, headerHeight, "DF")
-						pdf.SetXY(x+2, y+2)
-						pdf.MultiCell(numberWidth+reportWidth-4, 5, text(report.Work), "", "L", false)
-						pdf.SetXY(left, y+headerHeight)
+						for len(lines) > 0 {
+							count := int((282 - pdf.GetY() - 4) / 5)
+							if count < 1 {
+								newPage()
+								continue
+							}
+							if count > len(lines) {
+								count = len(lines)
+							}
+							height := float64(count)*5 + 4
+							x, y := left+roleWidth+categoryWidth, pdf.GetY()
+							pdf.SetFillColor(223, 242, 235)
+							pdf.SetFont("Helvetica", "B", 9)
+							pdf.Rect(x, y, numberWidth+reportWidth, height, "DF")
+							for lineIndex, line := range lines[:count] {
+								pdf.SetXY(x+2, y+2+float64(lineIndex)*5)
+								pdf.CellFormat(numberWidth+reportWidth-4, 5, string(line), "", 0, "L", false, 0, "")
+							}
+							pdf.SetXY(left, y+height)
+							lines = lines[count:]
+							if len(lines) > 0 {
+								newPage()
+							}
+						}
 					}
-					number++
 					height := itemHeight(report.Description)
 					if pdf.GetY()+height > 282 {
 						newPage()
@@ -191,7 +221,7 @@ func weeklyPDFDocument(division string, period model.ReportingPeriod, reports []
 					x, y := left+roleWidth+categoryWidth, pdf.GetY()
 					pdf.SetFont("Helvetica", "", 9)
 					pdf.SetXY(x, y)
-					pdf.CellFormat(numberWidth, height, fmt.Sprint(number), "1", 0, "C", false, 0, "")
+					pdf.CellFormat(numberWidth, height, fmt.Sprint(report.Number), "1", 0, "C", false, 0, "")
 					pdf.SetXY(x+numberWidth, y)
 					pdf.Rect(x+numberWidth, y, reportWidth, height, "D")
 					pdf.SetXY(x+numberWidth+2, y+2)

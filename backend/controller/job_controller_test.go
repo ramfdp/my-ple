@@ -21,7 +21,11 @@ func TestJobManagementRBAC(t *testing.T) {
 		request.AddCookie(&http.Cookie{Name: middleware.SessionCookie, Value: "test"})
 		response := httptest.NewRecorder()
 		middleware.RequireAuth(controllerSessionStore{role: role}, &JobController{}).ServeHTTP(response, request)
-		if response.Code != 400 {
+		want := 403
+		if role == "Admin" || role == "Management" {
+			want = 400
+		}
+		if response.Code != want {
 			t.Fatalf("authorized %s must reach input validation: %d", role, response.Code)
 		}
 	}
@@ -264,6 +268,15 @@ func TestJobAPIPostgres(t *testing.T) {
 			call("GET", "/jobs?division_id=invalid", "", 400)
 			call("GET", "/jobs?active=invalid", "", 400)
 			jobs, _ := database.ListJobs(ctx, nil, nil, nil, nil)
+			if role.Name != "Admin" && role.Name != "Management" {
+				path := "/jobs/" + strconv.Itoa(jobs[0].ID)
+				call("GET", path, "", 200)
+				call("POST", "/jobs", `{}`, 403)
+				call("PUT", path, `{}`, 403)
+				call("PATCH", path+"/status", `{"isActive":false}`, 403)
+				call("DELETE", path, "", 403)
+				return
+			}
 			job := jobs[0]
 			job.Name = "API job"
 			job.ID = 0

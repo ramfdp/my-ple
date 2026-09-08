@@ -38,6 +38,7 @@ ALTER TABLE report_sequences ADD COLUMN IF NOT EXISTS week_start DATE NOT NULL
 ALTER TABLE reports ADD COLUMN IF NOT EXISTS report_week DATE GENERATED ALWAYS AS
   (date_trunc('week', completed_at AT TIME ZONE 'Asia/Jakarta')::date) STORED;
 DO $$ BEGIN
+ IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conrelid='report_sequences'::regclass AND conname='report_sequences_job_scope') THEN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='report_sequences'::regclass AND conname='report_sequences_week_pk') THEN
     ALTER TABLE report_sequences DROP CONSTRAINT report_sequences_pkey;
     ALTER TABLE report_sequences ADD CONSTRAINT report_sequences_week_pk PRIMARY KEY(primary_division,work_division,week_start);
@@ -48,11 +49,12 @@ DO $$ BEGIN
     ALTER TABLE reports DROP CONSTRAINT IF EXISTS reports_primary_division_work_division_number_key;
     ALTER TABLE reports ADD CONSTRAINT reports_week_number_key UNIQUE(primary_division,work_division,report_week,number);
   END IF;
-END $$;
 INSERT INTO report_sequences(primary_division,work_division,week_start,last_number)
 SELECT primary_division,work_division,report_week,MAX(number) FROM reports GROUP BY 1,2,3
 ON CONFLICT(primary_division,work_division,week_start) DO UPDATE
 SET last_number=GREATEST(report_sequences.last_number,EXCLUDED.last_number);
+ END IF;
+END $$;
 
 CREATE OR REPLACE FUNCTION protect_weekly_snapshot() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN

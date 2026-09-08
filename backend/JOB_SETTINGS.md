@@ -30,9 +30,8 @@ Total: **61 contextual jobs, 27 categories, 3 reporting roles, 6 divisions**.
 The five divisions without separate job lists retain their categories and gain
 one initial job with the same label per category. Their roles remain nullable.
 Job title in employee profiles is a different concept and is unchanged. No
-implemented task/workspace/assignment tables use this catalog. Sequence keys
-remain division/category/week; no job ID is added to sequencing because that
-would change numbering behavior.
+implemented task/workspace/assignment tables use this catalog. Weekly numbering
+now uses this same `job_id` in `report_sequences`; see [Weekly Entry](WEEKLY_ENTRY.md).
 
 `data_migrations` records the import and backfill separately. Re-running cannot
 reset names/status/order or recreate a seed job that an administrator deleted.
@@ -84,8 +83,9 @@ Routes follow the application's existing unprefixed convention:
 - `PATCH /jobs/:id/status`: `{ "isActive": false }`.
 - `DELETE /jobs/:id`: unused only; a referenced job returns a conflict.
 
-All routes require the existing session. Every authenticated role can create,
-edit, activate/deactivate, and safely delete jobs, including through direct HTTP calls. `/settings/jobs`
+All routes require the existing session. Admin and Management can create,
+edit, activate/deactivate, and safely delete jobs. All authenticated roles can
+manage PIC assignments. `/settings/jobs`
 reuses the sidebar's Settings position. The shared Weekly Progress picker
 fetches active jobs and includes the current stored selection during editing.
 
@@ -111,3 +111,40 @@ mocked HTTP responses. PostgreSQL/controller tests cover the actual write
 boundary, RBAC, constraints, idempotency, backfill, archive links and PDF output.
 The inspected development database had zero working reports and zero archives
 before migration; historical safety was verified with isolated legacy fixtures.
+
+## Multi-PIC assignments
+
+`job_pics.sql` adds `job_pics(job_id,user_id)` with a composite primary key,
+foreign keys, and a reverse user index. Startup applies it transactionally and
+idempotently alongside the other migrations. No existing report rows change.
+
+All authenticated users can view Job Settings and manage PICs:
+- `GET /jobs/pic-users?q=...`: active account search by name/username/email;
+  at most 50 results, with only ID, name, username and active status exposed.
+- `GET /jobs/:id/pics`
+- `POST /jobs/:id/pics` with `{ "userId": "account UUID" }`: incremental,
+  idempotent addition; inactive accounts and unrelated fields are rejected.
+- `DELETE /jobs/:id/pics/:userId`: removes only the association, returns the list.
+
+**Job master mutations require Admin or Management.** PIC permissions never
+allow changing job metadata/status/context. This supersedes the earlier
+all-role master management policy. Both rules are enforced by the backend.
+
+Jobs return `pics: []` or account objects. Reports join the aggregated PIC view
+in the existing query, avoiding per-report requests. Current reports resolve
+live assignments/names/status. Deactivated accounts remain assigned and display
+`(Nonaktif)`, but cannot be newly assigned. The existing hard account deletion
+policy removes live associations only; immutable archives retain their snapshot.
+Unused job deletion cascades its associations; historical job deletion protection
+is unchanged.
+
+Finalization captures PICs in the existing immutable archive JSON, preserving
+archive/PDF reproducibility. Old archives and their PDFs remain unchanged.
+PICs render once in each job header, including in the existing four-column PDF;
+long headers wrap and can continue across pages.
+
+Verification: `go test ./...` with `TEST_DATABASE_URL` runs isolated-schema
+migration, RBAC, concurrent same/different PIC, active-account, deletion and
+snapshot tests. `TestWeeklyPDFPICHeaders` checks long multi-page PIC headers.
+The existing Chrome test runner also checks regular-user PIC controls, search,
+multiple assignments/removal, report headers, and mobile overflow.

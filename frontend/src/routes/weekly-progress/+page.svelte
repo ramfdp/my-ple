@@ -118,7 +118,7 @@
 									<tr class="work-group-row">
 										{#if row.role}<td rowspan={row.roleRowSpan ?? 1} class="task-role">{row.role}</td>{/if}
 										{#if row.category}<td rowspan={row.categoryRowSpan ?? 1} class="task-category">{row.category}</td>{/if}
-										<td colspan="3" class="task-work-title">{row.work}</td>
+										<td colspan="3" class="task-work-title"><div class="job-heading"><span>{row.work}</span>{#if row.pics?.length}<small>PIC: {row.pics.map(pic=>pic.name+(pic.isActive?'':' (Nonaktif)')).join(', ')}</small>{/if}</div></td>
 									</tr>
 								{:else}
 									<tr><td class="task-number">{row.displayNumber}</td><td class="task-description">{row.report.description}</td><td class="task-actions">{#if !period?.readOnly && canModifyReport($currentUser, row.report.userId)}<div class="report-row-actions"><button class="edit-report" type="button" onclick={() => { editing = row.report; editDescription = row.report.description; }}>Edit</button><button class="delete-report" type="button" onclick={() => (deleting = row.report)}>Hapus</button></div>{:else}<span class="no-actions">—</span>{/if}</td></tr>
@@ -156,3 +156,7 @@
 		</div>
 	</div>
 {/if}
+
+<style>
+.job-heading{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;overflow-wrap:anywhere}.job-heading span,.job-heading small{min-width:0;max-width:100%}.job-heading small{font-weight:400}
+</style>

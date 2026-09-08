@@ -19,7 +19,7 @@ test('allows every authenticated user to modify reports', () => {
 	assert.equal(canModifyReport(null, 'owner'), false);
 });
 
-test('groups interleaved projects once and restarts numbering for each project', () => {
+test('groups interleaved projects once and preserves their backend-assigned numbers', () => {
 	const rows = groupReports([
 		report('1', 'MK supervisi', 'PE', 'Project A', 1),
 		report('2', 'MK supervisi', 'PE', 'Project B', 2),
@@ -30,9 +30,9 @@ test('groups interleaved projects once and restarts numbering for each project',
 	assert.deepEqual(rows.map((row) => row.type === 'work'
 		? ['project', row.work]
 		: ['item', row.report.id, row.displayNumber]), [
-		['project', 'Project A'], ['item', '1', 1], ['item', '3', 2],
-		['project', 'Project B'], ['item', '2', 1],
-		['project', 'Project C'], ['item', '4', 1]
+		['project', 'Project A'], ['item', '1', 1], ['item', '3', 3],
+		['project', 'Project B'], ['item', '2', 2],
+		['project', 'Project C'], ['item', '4', 4]
 	]);
 });
 
@@ -70,16 +70,16 @@ test('normalizes legacy QA categories before grouping', () => {
 	assert.deepEqual(rows.filter((row) => row.type === 'work' && row.category === 'QA').map((row) => [row.category, row.role, row.categoryRowSpan]), [['QA', 'QA', 4]]);
 });
 
-test('displays CIHPK category reports from one even when stored numbers are stale', () => {
+test('preserves historical CIHPK numbers without rewriting them', () => {
 	const rows = groupReports([
 		report('5', 'JAKG', 'CIHPK', 'JAKG Supervising Consultant', 5),
 		report('6', 'JAKG', 'CIHPK', 'JAKG Supervising Consultant', 6)
 	]);
 
-	assert.deepEqual(rows.filter((row) => row.type === 'report').map((row) => row.displayNumber), [1, 2]);
+	assert.deepEqual(rows.filter((row) => row.type === 'report').map((row) => row.displayNumber), [5, 6]);
 });
 
-test('restarts visible numbering for every work while keeping its later reports in sequence', () => {
+test('preserves stored numbers while keeping each job grouped', () => {
 	const rows = groupReports([
 		report('4', 'MK supervisi', 'PE', 'Penataan Kawasan Stasiun Jember', 4),
 		report('3', 'MK supervisi', 'PE', 'Pengawasan Renovasi Gudang Besar JAKG', 3),
@@ -88,14 +88,14 @@ test('restarts visible numbering for every work while keeping its later reports 
 		report('5', 'Non-MK supervisi', 'PE', 'Studi Daya Beli Gas Bumi', 1)
 	]);
 
-	assert.deepEqual(rows.filter((row) => row.type === 'report').map((row) => row.displayNumber), [1, 2, 3, 1, 1]);
+	assert.deepEqual(rows.filter((row) => row.type === 'report').map((row) => row.displayNumber), [1, 2, 4, 3, 1]);
 });
 
-test('renumbers a project after deleting an item and appending another', () => {
+test('does not reuse or compress numbers after deletion', () => {
 	const remaining = [
 		report('1', 'MK supervisi', 'PE', 'Project A', 1),
 		report('3', 'MK supervisi', 'PE', 'Project A', 3)
 	];
-	assert.deepEqual(groupReports(remaining).filter((row) => row.type === 'report').map((row) => row.displayNumber), [1, 2]);
-	assert.deepEqual(groupReports([...remaining, report('4', 'MK supervisi', 'PE', 'Project A', 4)]).filter((row) => row.type === 'report').map((row) => row.displayNumber), [1, 2, 3]);
+	assert.deepEqual(groupReports(remaining).filter((row) => row.type === 'report').map((row) => row.displayNumber), [1, 3]);
+	assert.deepEqual(groupReports([...remaining, report('4', 'MK supervisi', 'PE', 'Project A', 4)]).filter((row) => row.type === 'report').map((row) => row.displayNumber), [1, 3, 4]);
 });

@@ -1,4 +1,6 @@
+import type { JobPIC } from '$lib/api';
 export interface GroupableReport {
+ pics?:JobPIC[];
 	primaryDivision: string;
 	workDivision: string;
 	role: string;
@@ -8,7 +10,7 @@ export interface GroupableReport {
 }
 
 export type TableReport<T extends GroupableReport> =
-	| { type: 'work'; work: string; category?: string; role?: string; categoryRowSpan?: number; roleRowSpan?: number }
+	| { type: 'work'; work: string; pics?:JobPIC[]; category?: string; role?: string; categoryRowSpan?: number; roleRowSpan?: number }
 	| { type: 'report'; report: T; displayNumber: number };
 
 export const canModifyReport = (user: { id: string; role: string } | null | undefined, _ownerID: string) => !!user;
@@ -34,7 +36,7 @@ function compareReports(a: GroupableReport, b: GroupableReport, groupOrder: Map<
 	if (roleComparison !== 0) return roleComparison;
 	const workComparison = (groupOrder.get(groupKey(a)) ?? 0) - (groupOrder.get(groupKey(b)) ?? 0) || a.work.localeCompare(b.work, 'id');
 	if (workComparison !== 0) return workComparison;
-	return (a.completedAt ?? '').localeCompare(b.completedAt ?? '') || a.number - b.number;
+	return a.number - b.number || (a.completedAt ?? '').localeCompare(b.completedAt ?? '');
 }
 
 function renderedSpan<T extends GroupableReport>(reports: T[], start: number, sameGroup: (report: T) => boolean) {
@@ -52,20 +54,18 @@ export function groupReports<T extends GroupableReport>(reports: T[]): TableRepo
 	for (const report of normalized) groupOrder.set(groupKey(report), Math.min(groupOrder.get(groupKey(report)) ?? Infinity, report.number));
 	const sortedReports = normalized.sort((a, b) => compareReports(a, b, groupOrder));
 	const rows: TableReport<T>[] = [];
-	const displayedNumbers = new Map<string, number>();
 
 	for (let index = 0; index < sortedReports.length; index += 1) {
 		const report = sortedReports[index];
 		const previous = sortedReports[index - 1];
-		const workKey = groupKey(report);
-		const displayNumber = (displayedNumbers.get(workKey) ?? 0) + 1;
-		displayedNumbers.set(workKey, displayNumber);
+		const displayNumber = report.number;
 		const categoryStart = !previous || report.primaryDivision !== previous.primaryDivision || report.workDivision !== previous.workDivision;
 		const roleStart = categoryStart || report.role !== previous.role;
 		const workStart = roleStart || report.work !== previous.work;
 
 		if (workStart) rows.push({
 			type: 'work',
+            ...(report.pics?.length ? {pics:report.pics} : {}),
 			work: report.work || '—',
 			...(categoryStart ? { category: report.workDivision, categoryRowSpan: renderedSpan(sortedReports, index, (item) => item.primaryDivision === report.primaryDivision && item.workDivision === report.workDivision) } : {}),
 			...(roleStart ? { role: report.role || '—', roleRowSpan: renderedSpan(sortedReports, index, (item) => item.primaryDivision === report.primaryDivision && item.workDivision === report.workDivision && item.role === report.role) } : {})
