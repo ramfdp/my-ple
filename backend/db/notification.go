@@ -21,6 +21,10 @@ func scanNotification(row interface{ Scan(...any) error }) (model.Notification, 
 		n.Workspace = &model.WorkspaceNotification{}
 		err = json.Unmarshal(data, n.Workspace)
 	}
+	if err == nil && n.EntityType == "leave_request" {
+		n.Leave = &model.LeaveNotification{}
+		err = json.Unmarshal(data, n.Leave)
+	}
 	return n, err
 }
 

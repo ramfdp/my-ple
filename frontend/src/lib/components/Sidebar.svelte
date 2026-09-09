@@ -10,9 +10,11 @@
 	let sidebar: HTMLElement;
 	let menuButton: HTMLButtonElement;
 	let canManageEmployees = $state(false);
+ let canReviewLeave = $state(false);
 	onMount(() => {
 		const role = session()?.user.role?.toLowerCase() ?? '';
 		canManageEmployees = ['admin', 'management', 'hr'].includes(role);
+ canReviewLeave = ['admin', 'management'].includes(role);
 		const media = matchMedia('(max-width: 868px)');
 		const resize = () => { isMobile = media.matches; if (!isMobile) mobileOpen = false; };
 		resize();
@@ -48,12 +50,12 @@
 		{ name: 'Team Workspace', href: '/workspace', icon: 'users' },
 		{ name: 'My Profile', href: '/my-profile', icon: 'user' },
 		{ name: 'Attendance', href: '/attendance', icon: 'calendar' },
-		{ name: 'Leave', href: '/leave', icon: 'clock' },
+		{ name: 'Izin & Cuti', href: '/leave', icon: 'clock' },
 		{ name: 'Payroll', href: '/payroll', icon: 'wallet' },
 		{ name: 'Documents', href: '/documents', icon: 'file' },
 		{ name: 'Pengaturan Pekerjaan', href: '/settings/jobs', icon: 'settings' }
 	];
-	let visibleNavItems = $derived(canManageEmployees ? [{ name: 'Employees', href: '/employees', icon: 'users' }, ...navItems] : navItems);
+	let visibleNavItems = $derived([...(canManageEmployees ? [{ name: 'Employees', href: '/employees', icon: 'users' }] : []), ...navItems, ...(canReviewLeave ? [{name:'Persetujuan Izin & Cuti',href:'/leave/approvals',icon:'calendar'}] : [])]);
 
 	function isItemActive(href: string): boolean {
 		if (href === '/workspace') return page.url.pathname === href || page.url.pathname.startsWith(href+'/');

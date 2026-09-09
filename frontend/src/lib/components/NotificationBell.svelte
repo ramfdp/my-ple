@@ -1,4 +1,5 @@
 <script lang="ts">
+	import {labelDate} from '$lib/workspace';
 	import { notifications, dismissNotification, markAllRead, markRead } from '$lib/notifications';
 	let open = $state(false);
 	let panel: HTMLElement;
@@ -31,12 +32,14 @@
 				{#each $notifications.items as item (item.id)}
 					<li class:unread={!item.readAt}>
 						<button class="notification-content" type="button" onclick={() => void markRead(item.id).catch(() => {})}>
-							<strong>{#if item.workspace}{item.actor.name}: {item.workspace.message} — {item.workspace.title}{:else}{item.actor.name} membooking {item.booking?.zoomName ?? 'Zoom'}{/if}</strong>
+							<strong>{#if item.leave}{item.leave.title}: {item.leave.message}{:else if item.workspace}{item.actor.name}: {item.workspace.message} — {item.workspace.title}{:else}{item.actor.name} membooking {item.booking?.zoomName ?? 'Zoom'}{/if}</strong>
+							{#if item.leave}<span>{labelDate(item.leave.startDate)} &ndash; {labelDate(item.leave.endDate)}</span><span class="booking-description">{item.leave.reason}</span>{#if item.leave.reviewerNote}<span class="booking-description">Catatan: {item.leave.reviewerNote}</span>{/if}{/if}
 							{#if item.booking}<span>{date(item.booking.startAt)} · {time(item.booking.startAt)}–{time(item.booking.endAt)}</span>{/if}
 							{#if item.type==='work_item_assigned'&&item.workspace}<span>Project: {item.workspace.projectName??'Tanpa project'}</span><span>{item.workspace.startDate||'Tanpa tanggal'} – {item.workspace.dueDate||'Tanpa deadline'} · {item.workspace.priority}</span>{/if}
 							{#if item.booking?.description}<span class="booking-description">Deskripsi: {item.booking.description}</span>{/if}
 							<small>{relative(item.createdAt)}</small>
 						</button>
+						{#if item.leave}<a href={(item.type==='leave_request_created'?'/leave/approvals':'/leave')+'?request='+encodeURIComponent(item.entityId)}>Lihat Pengajuan &rarr;</a>{/if}
 						{#if item.workspace}<a href={'/workspace/'+item.workspace.workspaceId}>Buka Workspace →</a>{/if}
 						{#if item.booking}<a href="/booking-zoom">Buka Booking Zoom →</a>{/if}
 						<button class="notification-dismiss" type="button" onclick={() => void dismissNotification(item.id).catch(() => {})}>Hapus</button>

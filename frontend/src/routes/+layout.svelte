@@ -30,7 +30,6 @@
 		}
 	});
 	$effect(() => {
-		page.url.pathname;
 		if (!showSidebar || auth !== 'authenticated') return;
 		return startNotifications();
 	});

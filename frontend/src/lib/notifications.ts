@@ -1,3 +1,4 @@
+import {notificationSound} from './notification-sound';
 import { get, writable } from 'svelte/store';
 import { api, apiUrl, session, type Notification } from '$lib/api';
 
@@ -27,25 +28,39 @@ export async function dismissNotification(id: string) {
 	notifications.update((state) => ({ items: state.items.filter((entry) => entry.id !== id), unread: Math.max(0, state.unread - (item && !item.readAt ? 1 : 0)) }));
 }
 
+let seenUser = '';
+const seen = new Set<string>();
+
 export function startNotifications() {
 	notifications.set({items:[],unread:0});
 	const current = session();
 	if (!current) return () => {};
-	let stopped = false;
+	if (seenUser !== current.user.id) { seen.clear(); seenUser = current.user.id; }
+ const sound = notificationSound();
+ let stopped = false, hydrated = false;
 	let socket: WebSocket | undefined;
 	let retry = 1000;
 	let timer: ReturnType<typeof setTimeout>;
-	const refresh = async (merge: boolean) => {
+	let refreshing = Promise.resolve();
+ const refresh = (merge: boolean, live = false) => {
+ const run = async () => {
 		const [feed, count] = await Promise.all([
 			api<{ notifications: Notification[] }>('/notifications'),
 			api<{ count: number }>('/notifications/unread-count')
 		]);
 		if (stopped) return;
-		notifications.update((state) => {
+  const incoming = feed.notifications.some(item => !seen.has(item.id) && !item.readAt);
+  feed.notifications.forEach(item => seen.add(item.id));
+  notifications.update((state) => {
 			const ids = new Set(feed.notifications.map(({ id }) => id));
-			const items = merge ? [...feed.notifications, ...state.items.filter(({ id, type }) => type !== 'workspace_task' && type !== 'work_item_assigned' && !ids.has(id))] : feed.notifications;
+			const items = merge ? [...feed.notifications, ...state.items.filter(({ id, type }) => type !== 'workspace_task' && type !== 'work_item_assigned' && !type.startsWith('leave_request_') && !ids.has(id))] : feed.notifications;
 			return { items, unread: merge ? items.filter(({ readAt }) => !readAt).length : count.count };
 		});
+  if (live && hydrated && incoming) sound.play();
+  hydrated = true;
+ };
+ refreshing = refreshing.catch(() => {}).then(run);
+ return refreshing;
 	};
 	const connect = () => {
 		if (stopped) return;
@@ -54,14 +69,19 @@ export function startNotifications() {
 		socket = new WebSocket(url);
 		socket.onopen = () => { retry = 1000; void refresh(true).catch(() => {}); };
 		socket.onmessage = ({ data }) => {
+   if (stopped) return;
 			try {
 				const message = JSON.parse(data) as { event: string; notification: Notification; workspaceId?:number };
-				if(message.event==='workspace.changed') { window.dispatchEvent(new CustomEvent('workspace.changed',{detail:{workspaceId:message.workspaceId}})); void refresh(false).catch(()=>{}); }
-				if (message.event === 'notification.created' && message.notification.actor.id !== current.user.id) addNotification(message.notification);
+				if(message.event==='workspace.changed') { window.dispatchEvent(new CustomEvent('workspace.changed',{detail:{workspaceId:message.workspaceId}})); void refresh(false,true).catch(()=>{}); }
+				if(message.event==='leave.changed') { window.dispatchEvent(new Event('leave.changed')); void refresh(false,true).catch(()=>{}); }
+    if (message.event === 'notification.created' && message.notification?.id && message.notification.actor?.id && message.notification.actor.id !== current.user.id) {
+     const item = message.notification;
+     if (!seen.has(item.id)) { seen.add(item.id); addNotification(item); if (!item.readAt) sound.play(); }
+    }
 			} catch { /* Ignore malformed server events. */ }
 		};
 		socket.onclose = () => { if (!stopped) { timer = setTimeout(connect, retry); retry = Math.min(retry * 2, 30_000); } };
 	};
 	void refresh(false).then(connect).catch(connect);
-	return () => { stopped = true; clearTimeout(timer); socket?.close(); notifications.set({items:[],unread:0}); };
+	return () => { stopped = true; sound.stop(); clearTimeout(timer); socket?.close(); notifications.set({items:[],unread:0}); };
 }

@@ -19,6 +19,7 @@ type NotificationBooking struct {
 }
 
 type Notification struct {
+	Leave      *LeaveNotification     `json:"leave,omitempty"`
 	Workspace  *WorkspaceNotification `json:"workspace,omitempty"`
 	ID         string                 `json:"id"`
 	Type       string                 `json:"type"`
