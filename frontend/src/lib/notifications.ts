@@ -43,7 +43,7 @@ export function startNotifications() {
 		if (stopped) return;
 		notifications.update((state) => {
 			const ids = new Set(feed.notifications.map(({ id }) => id));
-			const items = merge ? [...feed.notifications, ...state.items.filter(({ id, type }) => type !== 'workspace_task' && !ids.has(id))] : feed.notifications;
+			const items = merge ? [...feed.notifications, ...state.items.filter(({ id, type }) => type !== 'workspace_task' && type !== 'work_item_assigned' && !ids.has(id))] : feed.notifications;
 			return { items, unread: merge ? items.filter(({ readAt }) => !readAt).length : count.count };
 		});
 	};

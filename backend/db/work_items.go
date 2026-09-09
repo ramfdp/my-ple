@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"my-ple-backend/model"
 	"net/url"
@@ -20,6 +21,9 @@ func validWorkURL(value string) bool {
 	return e == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Host != "" && u.User == nil
 }
 func ValidateWorkItem(in *model.WorkItemInput) error {
+	if in.RequestID != "" && !workspaceUUID(in.RequestID) {
+		return ErrWorkspaceInvalid
+	}
 	in.Title = strings.TrimSpace(in.Title)
 	if in.Title == "" || len(in.Title) > 200 || len(in.Description) > 10000 || len(in.RelatedURL) > 2000 || !validWorkURL(in.RelatedURL) {
 		return ErrWorkspaceInvalid
@@ -229,6 +233,21 @@ func (db *Database) SaveWorkItem(ctx context.Context, userID string, division in
 		return empty, err
 	}
 	defer tx.Rollback()
+	if id == "" && in.RequestID != "" {
+		// Serialize retries of this creation only. A reused key returns its original task.
+		if _, err = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, userID+in.RequestID); err != nil {
+			return empty, err
+		}
+		var existing string
+		err = tx.QueryRowContext(ctx, `SELECT id FROM work_items WHERE created_by=$1 AND creation_request_id=$2 AND division_id=$3`, userID, in.RequestID, division).Scan(&existing)
+		if err == nil {
+			_ = tx.Rollback()
+			return db.WorkItem(ctx, userID, existing)
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return empty, err
+		}
+	}
 	if id != "" {
 		var version int
 		err = tx.QueryRowContext(ctx, `SELECT version FROM work_items WHERE id=$1 AND archived_at IS NULL FOR UPDATE`, id).Scan(&version)
@@ -264,7 +283,7 @@ func (db *Database) SaveWorkItem(ctx context.Context, userID string, division in
 	}
 	if id == "" {
 		id = NewID()
-		_, err = tx.ExecContext(ctx, `INSERT INTO work_items(id,division_id,job_id,title,description,related_url,start_date,due_date,status,priority,created_by) VALUES($1,$2,$3,$4,$5,$6,NULLIF($7,'')::date,NULLIF($8,'')::date,$9,$10,$11)`, id, division, in.JobID, in.Title, in.Description, in.RelatedURL, in.StartDate, in.DueDate, in.Status, in.Priority, userID)
+		_, err = tx.ExecContext(ctx, `INSERT INTO work_items(id,division_id,job_id,title,description,related_url,start_date,due_date,status,priority,created_by,creation_request_id) VALUES($1,$2,$3,$4,$5,$6,NULLIF($7,'')::date,NULLIF($8,'')::date,$9,$10,$11,NULLIF($12,'')::uuid)`, id, division, in.JobID, in.Title, in.Description, in.RelatedURL, in.StartDate, in.DueDate, in.Status, in.Priority, userID, in.RequestID)
 	} else {
 		_, err = tx.ExecContext(ctx, `UPDATE work_items SET job_id=$2,title=$3,description=$4,related_url=$5,start_date=NULLIF($6,'')::date,due_date=NULLIF($7,'')::date,status=$8,priority=$9,updated_at=NOW(),version=version+1 WHERE id=$1`, id, in.JobID, in.Title, in.Description, in.RelatedURL, in.StartDate, in.DueDate, in.Status, in.Priority)
 	}
@@ -281,6 +300,7 @@ func (db *Database) SaveWorkItem(ctx context.Context, userID string, division in
 			}
 		}
 	}
+	added := []string{}
 	for _, a := range in.AssigneeIDs {
 		if !slices.Contains(previous, a) {
 			if _, err = tx.ExecContext(ctx, `INSERT INTO work_item_assignees(work_item_id,user_id,assigned_by) VALUES($1,$2,$3)`, id, a, userID); err != nil {
@@ -289,8 +309,10 @@ func (db *Database) SaveWorkItem(ctx context.Context, userID string, division in
 			if err = recordWorkActivity(ctx, tx, id, userID, "ASSIGN", "assignees", nil, a); err != nil {
 				return empty, err
 			}
+			added = append(added, a)
 		}
 	}
+	fieldsChanged := false
 	if old.ID == "" {
 		err = recordWorkActivity(ctx, tx, id, userID, "CREATE", "", nil, in.Title)
 	} else {
@@ -301,6 +323,7 @@ func (db *Database) SaveWorkItem(ctx context.Context, userID string, division in
 			a, _ := json.Marshal(change.old)
 			b, _ := json.Marshal(change.new)
 			if string(a) != string(b) {
+				fieldsChanged = true
 				err = recordWorkActivity(ctx, tx, id, userID, change.action, change.field, change.old, change.new)
 				if err != nil {
 					return empty, err
@@ -311,7 +334,12 @@ func (db *Database) SaveWorkItem(ctx context.Context, userID string, division in
 	if err != nil {
 		return empty, err
 	}
-	if err = workspaceNotification(ctx, tx, id, userID, "Pekerjaan diperbarui"); err != nil {
+	if len(added) > 0 {
+		err = workAssignmentNotification(ctx, tx, id, userID, added)
+	} else if fieldsChanged {
+		err = workspaceNotification(ctx, tx, id, userID, "Pekerjaan diperbarui")
+	}
+	if err != nil {
 		return empty, err
 	}
 	if err = tx.Commit(); err != nil {

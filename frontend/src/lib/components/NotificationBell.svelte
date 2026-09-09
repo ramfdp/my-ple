@@ -33,6 +33,7 @@
 						<button class="notification-content" type="button" onclick={() => void markRead(item.id).catch(() => {})}>
 							<strong>{#if item.workspace}{item.actor.name}: {item.workspace.message} — {item.workspace.title}{:else}{item.actor.name} membooking {item.booking?.zoomName ?? 'Zoom'}{/if}</strong>
 							{#if item.booking}<span>{date(item.booking.startAt)} · {time(item.booking.startAt)}–{time(item.booking.endAt)}</span>{/if}
+							{#if item.type==='work_item_assigned'&&item.workspace}<span>Project: {item.workspace.projectName??'Tanpa project'}</span><span>{item.workspace.startDate||'Tanpa tanggal'} – {item.workspace.dueDate||'Tanpa deadline'} · {item.workspace.priority}</span>{/if}
 							{#if item.booking?.description}<span class="booking-description">Deskripsi: {item.booking.description}</span>{/if}
 							<small>{relative(item.createdAt)}</small>
 						</button>

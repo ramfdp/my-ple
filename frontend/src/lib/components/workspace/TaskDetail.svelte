@@ -1,6 +1,7 @@
 <script lang="ts">
  import {onMount} from 'svelte';
  import {api,currentUser} from '$lib/api';
+ import ProjectCombobox from './ProjectCombobox.svelte';
  import {statuses,priorities,taskInput,type Task,type TaskInput,type Workspace,type WorkspaceJob,type Member,type Comment,type Activity} from '$lib/workspace';
  let {task,workspace,members,jobs,onclose,onsaved}:{task:Task|null;workspace:Workspace;members:Member[];jobs:WorkspaceJob[];onclose:()=>void;onsaved:(task?:Task)=>Promise<void>}=$props();
  let dialog:HTMLDialogElement;
@@ -8,7 +9,7 @@
  let saving=$state(false),error=$state(''),comments=$state<Comment[]>([]),activity=$state<Activity[]>([]),comment=$state(''),confirmArchive=$state(false),loading=$state(false);
  const editable=$derived(!task||task.canEdit);
  async function collaboration(){if(!task)return;loading=true;try{const[c,a]=await Promise.all([api<{comments:Comment[]}>('/work-items/'+task.id+'/comments'),api<{activity:Activity[]}>('/work-items/'+task.id+'/activity')]);comments=c.comments;activity=a.activity}catch(e){error=(e as Error).message}finally{loading=false}}
- onMount(()=>{input=task?taskInput(task):{...input,assigneeIds:members.some(m=>m.id===$currentUser?.id)?[$currentUser!.id]:[]};dialog.showModal();void collaboration()});
+ onMount(()=>{if(!task)input.requestId=crypto.randomUUID();input=task?taskInput(task):{...input,assigneeIds:members.some(m=>m.id===$currentUser?.id)?[$currentUser!.id]:[]};dialog.showModal();void collaboration()});
  async function save(e:SubmitEvent){e.preventDefault();if(saving)return;saving=true;error='';try{const response=await api<{task:Task}>(task?'/work-items/'+task.id:'/workspaces/'+workspace.id+'/tasks',{method:task?'PATCH':'POST',body:JSON.stringify(input)});await onsaved(response.task);onclose()}catch(e){error=(e as Error).message}finally{saving=false}}
  async function archive(){if(!task||saving)return;saving=true;error='';try{await api('/work-items/'+task.id,{method:'DELETE',body:JSON.stringify({version:task.version})});await onsaved();onclose()}catch(e){error=(e as Error).message}finally{saving=false}}
  async function sendComment(e:SubmitEvent){e.preventDefault();if(!task||saving)return;saving=true;error='';try{await api('/work-items/'+task.id+'/comments',{method:'POST',body:JSON.stringify({content:comment})});comment='';await collaboration();await onsaved()}catch(e){error=(e as Error).message}finally{saving=false}}
@@ -20,7 +21,7 @@
  <form onsubmit={save}>
  <fieldset disabled={!editable||saving} class="ws-form">
  <label class="ws-full">Judul<input required maxlength="200" bind:value={input.title}/></label>
- <label class="ws-full">Project / Pekerjaan<select bind:value={input.jobId}><option value={null}>Tanpa project</option>{#each jobs.filter(j=>j.isActive||j.id===input.jobId) as job}<option value={job.id}>{job.name}</option>{/each}</select></label>
+ <ProjectCombobox {jobs} bind:value={input.jobId}/>
  <label>Status<select bind:value={input.status}>{#each Object.entries(statuses) as [key,label]}<option value={key}>{label}</option>{/each}</select></label>
  <label>Priority<select bind:value={input.priority}>{#each Object.entries(priorities) as [key,label]}<option value={key}>{label}</option>{/each}</select></label>
  <label>Start Date<input type="date" bind:value={input.startDate}/></label><label>Due Date<input type="date" min={input.startDate||undefined} bind:value={input.dueDate}/></label>

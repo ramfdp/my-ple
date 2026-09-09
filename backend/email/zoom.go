@@ -49,9 +49,18 @@ func ZoomMessage(from, to, id string, b model.ZoomBooking, creator bool) ([]byte
 	if b.ZoomResource.Passcode != "" {
 		body += "\nPasscode:\n" + b.ZoomResource.Passcode + "\n"
 	}
+	return alternativeMessage(from, to, id, "zoom-booking.local", subject, body)
+}
+
+// Shared escaped HTML/plain-text MIME strategy for the existing bot outbox.
+func alternativeMessage(from, to, id, domain, subject, body string) ([]byte, error) {
+	if !ValidAddress(from) || !ValidAddress(to) || strings.ContainsAny(id, "\r\n<>") {
+		return nil, errors.New("invalid email headers")
+	}
+	subject = strings.Join(strings.Fields(subject), " ")
 	var out bytes.Buffer
 	parts := multipart.NewWriter(&out)
-	fmt.Fprintf(&out, "From: %s\r\nTo: %s\r\nSubject: %s\r\nMessage-ID: <%s@zoom-booking.local>\r\nDate: %s\r\nMIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=%q\r\n\r\n", from, to, mime.QEncoding.Encode("utf-8", subject), id, time.Now().UTC().Format(time.RFC1123Z), parts.Boundary())
+	fmt.Fprintf(&out, "From: %s\r\nTo: %s\r\nSubject: %s\r\nMessage-ID: <%s@%s>\r\nDate: %s\r\nMIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=%q\r\n\r\n", from, to, mime.QEncoding.Encode("utf-8", subject), id, domain, time.Now().UTC().Format(time.RFC1123Z), parts.Boundary())
 	for _, part := range []struct{ kind, body string }{
 		{"text/plain", body},
 		{"text/html", `<html><body><div style="font-family:Arial,sans-serif;max-width:600px;line-height:1.5;overflow-wrap:anywhere;word-break:break-word">` + strings.ReplaceAll(html.EscapeString(body), "\n", "<br>\n") + `</div></body></html>`},

@@ -171,7 +171,12 @@ func (c *WorkspaceController) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 			}
 		case "jobs":
 			if r.Method == "GET" {
-				rows, e := c.DB.Conn.QueryContext(r.Context(), `SELECT id,name,is_active FROM jobs WHERE division_id=$1 ORDER BY sort_order,id`, id)
+				// Jobs are contextual masters, not a name-only project catalog. PK joins
+				// in job_context preserve one row per ID; expose context for homonyms.
+				rows, e := c.DB.Conn.QueryContext(r.Context(), `SELECT id,name,is_active,
+				CASE WHEN count(*) OVER (PARTITION BY lower(btrim(name)))>1
+				THEN name || ' — ' || concat_ws(' / ',NULLIF(role_name,''),NULLIF(category_name,''))
+				ELSE name END FROM job_context WHERE division_id=$1 ORDER BY sort_order,id`, id)
 				if e != nil {
 					workspaceError(w, e)
 					return
@@ -180,13 +185,13 @@ func (c *WorkspaceController) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 				items := []map[string]any{}
 				for rows.Next() {
 					var jid int
-					var name string
+					var name, label string
 					var active bool
-					if e = rows.Scan(&jid, &name, &active); e != nil {
+					if e = rows.Scan(&jid, &name, &active, &label); e != nil {
 						workspaceError(w, e)
 						return
 					}
-					items = append(items, map[string]any{"id": jid, "name": name, "isActive": active})
+					items = append(items, map[string]any{"id": jid, "name": name, "label": label, "isActive": active})
 				}
 				if e = rows.Err(); e != nil {
 					workspaceError(w, e)
@@ -260,7 +265,8 @@ func (c *WorkspaceController) changed(r *http.Request, actor string, division in
 	}
 	ids, err := c.DB.WorkspaceRecipients(r.Context(), division)
 	if err == nil {
-		c.Notifications.Hub.SendWorkspace(ids, division, actor)
+		// Include the actor's sessions so self-assignment refreshes the private feed too.
+		c.Notifications.Hub.SendWorkspace(ids, division, "")
 	}
 }
 func (c *WorkspaceController) task(w http.ResponseWriter, r *http.Request, userID string, path []string) {

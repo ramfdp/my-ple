@@ -17,7 +17,7 @@ func scanNotification(row interface{ Scan(...any) error }) (model.Notification, 
 		n.Booking = &model.NotificationBooking{}
 		err = json.Unmarshal(data, n.Booking)
 	}
-	if err == nil && n.Type == "workspace_task" {
+	if err == nil && (n.Type == "workspace_task" || n.Type == model.NotificationWorkItemAssigned) {
 		n.Workspace = &model.WorkspaceNotification{}
 		err = json.Unmarshal(data, n.Workspace)
 	}
@@ -76,7 +76,7 @@ func (db *Database) ListNotifications(ctx context.Context, userID string) ([]mod
 		SELECT n.id,n.type,n.actor_user_id,u.name,n.entity_type,n.entity_id,n.data,n.created_at,s.read_at
 		FROM notifications n JOIN users u ON u.id=n.actor_user_id
 		LEFT JOIN notification_user_states s ON s.notification_id=n.id AND s.user_id=$1
-		WHERE notification_visible(n.id,$1) AND n.actor_user_id<>$1 AND n.created_at>=NOW()-INTERVAL '72 hours' AND s.dismissed_at IS NULL
+		WHERE notification_visible(n.id,$1) AND n.created_at>=NOW()-INTERVAL '72 hours' AND s.dismissed_at IS NULL
 		ORDER BY n.created_at DESC`, userID)
 	if err != nil {
 		return nil, err
@@ -97,13 +97,13 @@ func (db *Database) UnreadNotificationCount(ctx context.Context, userID string) 
 	var count int
 	err := db.Conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM notifications n
 		LEFT JOIN notification_user_states s ON s.notification_id=n.id AND s.user_id=$1
-		WHERE notification_visible(n.id,$1) AND n.actor_user_id<>$1 AND n.created_at>=NOW()-INTERVAL '72 hours' AND s.read_at IS NULL AND s.dismissed_at IS NULL`, userID).Scan(&count)
+		WHERE notification_visible(n.id,$1) AND n.created_at>=NOW()-INTERVAL '72 hours' AND s.read_at IS NULL AND s.dismissed_at IS NULL`, userID).Scan(&count)
 	return count, err
 }
 
 func (db *Database) MarkNotificationRead(ctx context.Context, notificationID, userID string) error {
 	result, err := db.Conn.ExecContext(ctx, `INSERT INTO notification_user_states(notification_id,user_id,read_at)
-		SELECT id,$2,NOW() FROM notifications WHERE notification_visible(id,$2) AND id=$1 AND actor_user_id<>$2 AND created_at>=NOW()-INTERVAL '72 hours'
+		SELECT id,$2,NOW() FROM notifications WHERE notification_visible(id,$2) AND id=$1 AND created_at>=NOW()-INTERVAL '72 hours'
 		ON CONFLICT(notification_id,user_id) DO UPDATE SET read_at=COALESCE(notification_user_states.read_at,EXCLUDED.read_at)`, notificationID, userID)
 	if err != nil {
 		return err
@@ -116,7 +116,7 @@ func (db *Database) MarkNotificationRead(ctx context.Context, notificationID, us
 
 func (db *Database) MarkAllNotificationsRead(ctx context.Context, userID string) error {
 	_, err := db.Conn.ExecContext(ctx, `INSERT INTO notification_user_states(notification_id,user_id,read_at)
-		SELECT id,$1,NOW() FROM notifications WHERE notification_visible(id,$1) AND actor_user_id<>$1 AND created_at>=NOW()-INTERVAL '72 hours'
+		SELECT id,$1,NOW() FROM notifications WHERE notification_visible(id,$1) AND created_at>=NOW()-INTERVAL '72 hours'
 		ON CONFLICT(notification_id,user_id) DO UPDATE SET read_at=COALESCE(notification_user_states.read_at,EXCLUDED.read_at)
 		WHERE notification_user_states.dismissed_at IS NULL`, userID)
 	return err
@@ -124,7 +124,7 @@ func (db *Database) MarkAllNotificationsRead(ctx context.Context, userID string)
 
 func (db *Database) DismissNotification(ctx context.Context, notificationID, userID string) error {
 	result, err := db.Conn.ExecContext(ctx, `INSERT INTO notification_user_states(notification_id,user_id,dismissed_at)
-		SELECT id,$2,NOW() FROM notifications WHERE notification_visible(id,$2) AND id=$1 AND actor_user_id<>$2 AND created_at>=NOW()-INTERVAL '72 hours'
+		SELECT id,$2,NOW() FROM notifications WHERE notification_visible(id,$2) AND id=$1 AND created_at>=NOW()-INTERVAL '72 hours'
 		ON CONFLICT(notification_id,user_id) DO UPDATE SET dismissed_at=EXCLUDED.dismissed_at`, notificationID, userID)
 	if err != nil {
 		return err

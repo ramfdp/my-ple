@@ -1,5 +1,10 @@
 # Team Workspace
 
+See [Work assignment fix](WORK_ASSIGNMENT_FIX.md) for the searchable project selector,
+contextual-job diagnosis, targeted assignment notifications, shared email outbox,
+and current verification commands/results. Its assignment behavior supersedes the
+older general collaboration notes below.
+
 Division-private work management integrated with the existing Go/PostgreSQL backend and SvelteKit frontend. `divisions.id` is the workspace ID. There is no second user, division, project, session, or workspace master.
 
 ## Data and migrations

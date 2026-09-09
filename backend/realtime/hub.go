@@ -75,7 +75,7 @@ func (h *Hub) remove(userID string, conn *websocket.Conn) {
 }
 
 func (h *Hub) Broadcast(notification model.Notification, excludeUserID string) {
-	if notification.Workspace != nil || notification.Type == "workspace_task" {
+	if notification.Workspace != nil || notification.Type == "workspace_task" || notification.Type == model.NotificationWorkItemAssigned {
 		return
 	}
 	// ponytail: serialize writes; use per-connection writers if notification throughput grows.

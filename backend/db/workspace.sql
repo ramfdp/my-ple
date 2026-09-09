@@ -62,10 +62,21 @@ CREATE TABLE IF NOT EXISTS notification_recipients (
 );
 CREATE INDEX IF NOT EXISTS notification_recipients_user ON notification_recipients(user_id,notification_id);
 
+-- Extend the existing outbox and worker; retain Zoom columns/uniqueness as-is.
+ALTER TABLE zoom_booking_email_deliveries ALTER COLUMN booking_id DROP NOT NULL;
+ALTER TABLE zoom_booking_email_deliveries ADD COLUMN IF NOT EXISTS notification_type TEXT NOT NULL DEFAULT 'zoom_booking';
+ALTER TABLE zoom_booking_email_deliveries ADD COLUMN IF NOT EXISTS work_item_id UUID REFERENCES work_items(id);
+ALTER TABLE zoom_booking_email_deliveries ADD COLUMN IF NOT EXISTS recipient_user_id UUID REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE zoom_booking_email_deliveries ADD COLUMN IF NOT EXISTS assignment_version INTEGER;
+CREATE UNIQUE INDEX IF NOT EXISTS work_assignment_email_event ON zoom_booking_email_deliveries(work_item_id,recipient_user_id,assignment_version);
+
+ALTER TABLE work_items ADD COLUMN IF NOT EXISTS creation_request_id UUID;
+CREATE UNIQUE INDEX IF NOT EXISTS work_item_creation_request ON work_items(created_by,creation_request_id);
+
 CREATE OR REPLACE FUNCTION notification_visible(notification UUID, viewer UUID) RETURNS BOOLEAN
 LANGUAGE SQL STABLE AS $$
  SELECT EXISTS(SELECT 1 FROM notifications n JOIN users u ON u.id=viewer JOIN roles r ON r.id=u.role_id
- WHERE n.id=notification AND u.is_active AND n.actor_user_id<>viewer AND (
+ WHERE n.id=notification AND u.is_active AND (n.actor_user_id<>viewer OR n.type='work_item_assigned') AND (
  (n.type='zoom_booking_created' AND n.workspace_division_id IS NULL) OR
  (n.workspace_division_id IS NOT NULL AND EXISTS(SELECT 1 FROM notification_recipients nr WHERE nr.notification_id=n.id AND nr.user_id=viewer)
  AND EXISTS(SELECT 1 FROM workspace_access a WHERE a.user_id=viewer AND a.division_id=n.workspace_division_id))))

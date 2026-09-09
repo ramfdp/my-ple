@@ -46,7 +46,7 @@
  <nav class="ws-tabs" aria-label="Tampilan workspace">{#each tabs as tab}<button aria-current={view===tab?'page':undefined} onclick={()=>changeView(tab)}>{tab}</button>{/each}</nav>
  {#if view!=='Overview'&&view!=='Workload'&&view!=='Notes'}<form class="ws-filters" onsubmit={(e)=>{e.preventDefault();offset=0;void refresh()}}>
  <label>Cari<input type="search" bind:value={search} placeholder="Judul atau deskripsi"/></label><label>Assignee<select bind:value={assignee}><option value="">Semua anggota</option>{#each members as m}<option value={m.id}>{m.name}</option>{/each}</select></label>
- <label>Project<select bind:value={jobId}><option value="">Semua project</option>{#each jobs as j}<option value={j.id}>{j.name}</option>{/each}</select></label>
+ <label>Project<select bind:value={jobId}><option value="">Semua project</option>{#each jobs as j}<option value={j.id}>{j.label??j.name}</option>{/each}</select></label>
  <label>Status<select bind:value={status}><option value="">Semua status</option>{#each Object.entries(statuses) as [key,label]}<option value={key}>{label}</option>{/each}</select></label>
  <label>Priority<select bind:value={priority}><option value="">Semua priority</option>{#each Object.entries(priorities) as [key,label]}<option value={key}>{label}</option>{/each}</select></label>
  <label>Dari<input type="date" bind:value={start}/></label><label>Sampai<input type="date" min={start||undefined} bind:value={end}/></label><button type="submit" disabled={loading}>Terapkan</button><button type="button" onclick={()=>{search='';assignee='';jobId='';status='';priority='';start='';end='';offset=0;void refresh()}}>Reset</button>

@@ -6,13 +6,13 @@ export type Status=keyof typeof statuses;
 export type Priority=keyof typeof priorities;
 export interface Member {id:string;name:string;avatarUrl:string}
 export interface Workspace {id:number;name:string;canManage:boolean}
-export interface WorkspaceJob {id:number;name:string;isActive:boolean}
+export interface WorkspaceJob {id:number;name:string;label?:string;isActive:boolean}
 export interface Task {
  id:string;workspaceId:number;jobId:number|null;jobName:string;title:string;description:string;relatedUrl:string;
  startDate:string;dueDate:string;status:Status;priority:Priority;createdBy:string;createdAt:string;updatedAt:string;version:number;
  assignees:Member[];commentCount:number;canEdit:boolean;canDelete:boolean;
 }
-export interface TaskInput {title:string;description:string;relatedUrl:string;jobId:number|null;startDate:string;dueDate:string;status:Status;priority:Priority;assigneeIds:string[];version:number}
+export interface TaskInput {requestId?:string;title:string;description:string;relatedUrl:string;jobId:number|null;startDate:string;dueDate:string;status:Status;priority:Priority;assigneeIds:string[];version:number}
 export interface Comment {id:string;userId:string;name:string;content:string;createdAt:string}
 export interface Activity {id:string;taskId:string;actorName:string;action:string;field:string;oldValue:unknown;newValue:unknown;createdAt:string}
 export interface Workload {member:Member;activeTaskCount:number;highPriorityCount:number;dueSoonCount:number;overdueCount:number;overlapCount:number;workloadScore:number;workloadLevel:'AVAILABLE'|'NORMAL'|'BUSY'|'OVERLOADED';tasks:Task[]}

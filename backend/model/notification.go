@@ -3,6 +3,7 @@ package model
 import "time"
 
 const NotificationZoomBookingCreated = "zoom_booking_created"
+const NotificationWorkItemAssigned = "work_item_assigned"
 
 type NotificationActor struct {
 	ID   string `json:"id"`
@@ -33,6 +34,16 @@ type WorkspaceNotification struct {
 	Title       string `json:"title"`
 	WorkspaceID int    `json:"workspaceId"`
 	Message     string `json:"message"`
+	ProjectName string `json:"projectName,omitempty"`
+	StartDate   string `json:"startDate,omitempty"`
+	DueDate     string `json:"dueDate,omitempty"`
+	Priority    string `json:"priority,omitempty"`
+}
+
+type WorkAssignmentEmail struct {
+	WorkspaceNotification
+	AssignedByName string `json:"assignedByName"`
+	Description    string `json:"description"`
 }
 
 type NotificationEvent struct {

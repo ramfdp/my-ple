@@ -52,6 +52,7 @@ type WorkItem struct {
 	CanDelete    bool              `json:"canDelete"`
 }
 type WorkItemInput struct {
+	RequestID   string   `json:"requestId"`
 	Title       string   `json:"title"`
 	Description string   `json:"description"`
 	RelatedURL  string   `json:"relatedUrl"`
