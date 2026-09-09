@@ -17,17 +17,17 @@ import (
 	"my-ple-backend/model"
 )
 
-func ZoomEnabled() bool { return strings.EqualFold(os.Getenv("ZOOM_EMAIL_ENABLED"), "true") }
+func ZoomEnabled() bool { return Enabled() }
 
 func ValidateZoomConfig() error {
 	if !ZoomEnabled() {
 		return nil
 	}
 	if os.Getenv("SMTP_HOST") != "smtp.gmail.com" || os.Getenv("SMTP_FROM") != "aiple5766@gmail.com" || os.Getenv("SMTP_USERNAME") != "aiple5766@gmail.com" || strings.TrimSpace(os.Getenv("SMTP_PASSWORD")) == "" {
-		return errors.New("Zoom email requires SMTP_HOST=smtp.gmail.com, SMTP_FROM and SMTP_USERNAME=aiple5766@gmail.com, and SMTP_PASSWORD containing a Gmail App Password")
+		return errors.New("Email requires SMTP_HOST=smtp.gmail.com, SMTP_FROM and SMTP_USERNAME=aiple5766@gmail.com, and SMTP_PASSWORD containing a Gmail App Password")
 	}
 	if port := os.Getenv("SMTP_PORT"); port != "" && port != "587" && port != "465" {
-		return errors.New("Zoom email SMTP_PORT must be 587 or 465")
+		return errors.New("Email SMTP_PORT must be 587 or 465")
 	}
 	return nil
 }

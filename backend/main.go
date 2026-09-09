@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -276,6 +279,14 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 
 func main() {
 	loadDotEnv(".env")
+	if len(os.Args) == 2 && os.Args[1] == "email-audit" {
+		if err := runEmailAudit(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	var database *db.Database
 	if url := os.Getenv("DATABASE_URL"); url != "" {
 		conn, err := sql.Open("pgx", url)
@@ -292,8 +303,8 @@ func main() {
 			fmt.Println("Database schema auto-migrated successfully.")
 		}
 		stopCleanup := startCleanup(database)
-		defer stopCleanup()
 		defer conn.Close()
+		defer stopCleanup()
 	}
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -304,14 +315,24 @@ func main() {
 		secret = "development-only-secret-change-me"
 	}
 	fmt.Printf("my-ple backend listening on http://localhost:%s\n", port)
-	if err := http.ListenAndServe(":"+port, newHandler(database, secret, envOr("FRONTEND_ORIGIN", "http://localhost:5173"))); err != nil {
+	server := &http.Server{Addr: ":" + port, Handler: newHandler(database, secret, envOr("FRONTEND_ORIGIN", "http://localhost:5173"))}
+	shutdown, stopSignal := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stopSignal()
+	go func() {
+		<-shutdown.Done()
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = server.Shutdown(ctx)
+	}()
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		panic(err)
 	}
 }
 
 func startCleanup(database *db.Database) func() {
 	ctx, cancel := context.WithCancel(context.Background())
-	go (&notification.ZoomEmailWorker{DB: database}).Start(ctx)
+	workerDone := make(chan struct{})
+	go func() { defer close(workerDone); (&notification.ZoomEmailWorker{DB: database}).Start(ctx) }()
 	go func() {
 		timer := time.NewTimer(time.Until(time.Now().Truncate(time.Minute).Add(time.Minute)))
 		defer timer.Stop()
@@ -345,7 +366,7 @@ func startCleanup(database *db.Database) func() {
 			}
 		}
 	}()
-	return cancel
+	return func() { cancel(); <-workerDone }
 }
 
 func envOr(key, fallback string) string {

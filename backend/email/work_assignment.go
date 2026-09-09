@@ -6,16 +6,25 @@ import (
 	"fmt"
 	"my-ple-backend/model"
 	"os"
+	"strings"
 )
 
 func WorkAssignmentMessage(from, to, id string, a model.WorkAssignmentEmail) ([]byte, error) {
 	subject := "New Work Assignment - " + a.ProjectName + " - " + a.Title
 	body := fmt.Sprintf("Anda telah ditugaskan ke pekerjaan baru.\n\nJudul:\n%s\n\nProject:\n%s\n\nDitugaskan oleh:\n%s\n\nTanggal Mulai:\n%s\n\nDeadline:\n%s\n\nPriority:\n%s\n\nDescription:\n%s\n", a.Title, a.ProjectName, a.AssignedByName, a.StartDate, a.DueDate, a.Priority, a.Description)
+	if a.Message != "" && a.Message != "Anda ditugaskan ke pekerjaan baru" {
+		subject = a.Message + " - " + a.Title
+		body = strings.Replace(body, "Anda telah ditugaskan ke pekerjaan baru.", a.Message+" oleh "+a.AssignedByName+".", 1)
+		body = strings.Replace(body, "Ditugaskan oleh:", "Oleh:", 1)
+	}
+	if origin := strings.TrimRight(os.Getenv("FRONTEND_ORIGIN"), "/"); origin != "" {
+		body += "\nBuka Team Workspace: " + origin + "/workspace\n"
+	}
 	return alternativeMessage(from, to, id, "work-assignment.local", subject, body)
 }
 
 func SendWorkAssignment(ctx context.Context, to, id string, a model.WorkAssignmentEmail) error {
-	if !ZoomEnabled() {
+	if !Enabled() {
 		return errors.New("email disabled")
 	}
 	if err := ValidateZoomConfig(); err != nil {

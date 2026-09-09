@@ -62,7 +62,7 @@ func (db *Database) CreateZoomBookingWithNotification(ctx context.Context, userI
 		if _, err = tx.ExecContext(ctx, "SAVEPOINT zoom_email"); err != nil {
 			return model.ZoomBooking{}, model.Notification{}, err
 		}
-		if err = queueZoomEmail(ctx, tx, booking); err != nil {
+		if err = queueZoomEmail(ctx, tx, booking, notification.ID); err != nil {
 			log.Printf("zoom email booking=%s category=enqueue_failed attempt=0", booking.ID)
 			if _, err = tx.ExecContext(ctx, "ROLLBACK TO SAVEPOINT zoom_email"); err != nil {
 				return model.ZoomBooking{}, model.Notification{}, err

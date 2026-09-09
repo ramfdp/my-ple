@@ -110,18 +110,18 @@ func sendMessage(ctx context.Context, host, port, from, to string, message []byt
 	}
 	if username := os.Getenv("SMTP_USERNAME"); username != "" {
 		if err = client.Auth(smtp.PlainAuth("", username, os.Getenv("SMTP_PASSWORD"), host)); err != nil {
-			return errors.New("SMTP authentication failed")
+			return smtpFailure("authentication", err)
 		}
 	}
 	if err = client.Mail(from); err != nil {
-		return errors.New("SMTP sender rejected")
+		return smtpFailure("sender", err)
 	}
 	if err = client.Rcpt(to); err != nil {
-		return errors.New("SMTP recipient rejected")
+		return smtpFailure("recipient", err)
 	}
 	writer, err := client.Data()
 	if err != nil {
-		return errors.New("SMTP DATA rejected")
+		return smtpFailure("data", err)
 	}
 	if _, err = writer.Write(message); err != nil {
 		return ErrUncertain
@@ -129,7 +129,7 @@ func sendMessage(ctx context.Context, host, port, from, to string, message []byt
 	if err = writer.Close(); err != nil {
 		var rejection *textproto.Error
 		if errors.As(err, &rejection) {
-			return errors.New("SMTP message rejected")
+			return smtpFailure("message", err)
 		}
 		return ErrUncertain
 	}

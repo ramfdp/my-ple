@@ -10,26 +10,27 @@ import (
 	"my-ple-backend/model"
 )
 
-func queueZoomEmail(ctx context.Context, tx *sql.Tx, booking model.ZoomBooking) error {
-	rows, err := tx.QueryContext(ctx, `SELECT lower(btrim(email)), bool_or(id=$1) FROM users WHERE is_active GROUP BY lower(btrim(email))`, booking.UserID)
+func queueZoomEmail(ctx context.Context, tx *sql.Tx, booking model.ZoomBooking, eventID string) error {
+	rows, err := tx.QueryContext(ctx, `SELECT lower(btrim(email)), bool_or(id=$1), (array_agg(id ORDER BY (id=$1) DESC,id))[1] FROM users WHERE is_active GROUP BY lower(btrim(email))`, booking.UserID)
 	if err != nil {
 		return err
 	}
 	type recipient struct {
 		address string
+		id      string
 		creator bool
 	}
 	recipients := []recipient{}
 	for rows.Next() {
 		var r recipient
 		var address sql.NullString
-		if err = rows.Scan(&address, &r.creator); err != nil {
+		if err = rows.Scan(&address, &r.creator, &r.id); err != nil {
 			rows.Close()
 			return err
 		}
 		r.address = address.String
 		if !email.ValidAddress(r.address) {
-			log.Printf("zoom email booking=%s category=invalid_or_empty_recipient attempt=0", booking.ID)
+			log.Printf("email event_id=%s recipient_user_id=%s category=invalid_or_empty_email", eventID, r.id)
 			continue
 		}
 		recipients = append(recipients, r)
@@ -46,9 +47,11 @@ func queueZoomEmail(ctx context.Context, tx *sql.Tx, booking model.ZoomBooking) 
 		return err
 	}
 	for _, r := range recipients {
-		if _, err = tx.ExecContext(ctx, `INSERT INTO zoom_booking_email_deliveries(id,booking_id,recipient_email,is_creator,payload) VALUES($1,$2,$3,$4,$5) ON CONFLICT(booking_id,recipient_email) DO NOTHING`, NewID(), booking.ID, r.address, r.creator, string(payload)); err != nil {
+		outbox := NewID()
+		if _, err = tx.ExecContext(ctx, `INSERT INTO zoom_booking_email_deliveries(id,booking_id,recipient_email,is_creator,payload,recipient_user_id,notification_id) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(booking_id,recipient_email) DO NOTHING`, outbox, booking.ID, r.address, r.creator, string(payload), r.id, eventID); err != nil {
 			return err
 		}
+		log.Printf("email enqueue event_id=%s recipient_user_id=%s outbox_id=%s awaiting_commit=true", eventID, r.id, outbox)
 	}
 	return nil
 }

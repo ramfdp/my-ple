@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"my-ple-backend/email"
 	"my-ple-backend/model"
 )
@@ -24,7 +25,12 @@ func (db *Database) NotifyLeave(ctx context.Context, id string) ([]string, error
 		return nil, err
 	}
 	recipients := []string{}
-	for _, stage := range []string{"PENDING", item.Status} {
+	stages := []string{"PENDING"}
+	if item.Status != "PENDING" {
+		stages = append(stages, item.Status)
+	}
+	for _, stage := range stages {
+		stageQueued := true
 		if (stage == "PENDING" && created) || (stage != "PENDING" && reviewed) {
 			continue
 		}
@@ -59,10 +65,10 @@ func (db *Database) NotifyLeave(ctx context.Context, id string) ([]string, error
 			return nil, err
 		}
 		event := NewID()
-		if _, err = tx.ExecContext(ctx, `INSERT INTO notifications(id,type,actor_user_id,entity_type,entity_id,data) VALUES($1,$2,$3,'leave_request',$4,$5)`, event, kind, actor, id, string(data)); err != nil {
+		if err = tx.QueryRowContext(ctx, `INSERT INTO notifications(id,type,actor_user_id,entity_type,entity_id,data) VALUES($1,$2,$3,'leave_request',$4,$5) ON CONFLICT(entity_id,type) WHERE entity_type='leave_request' DO UPDATE SET entity_id=EXCLUDED.entity_id RETURNING id`, event, kind, actor, id, string(data)).Scan(&event); err != nil {
 			return nil, err
 		}
-		rows, err := tx.QueryContext(ctx, `SELECT u.id,lower(btrim(u.email)) FROM users u JOIN roles r ON r.id=u.role_id
+		rows, err := tx.QueryContext(ctx, `SELECT u.id,COALESCE(lower(btrim(u.email)),'') FROM users u JOIN roles r ON r.id=u.role_id
  WHERE u.is_active AND (($2='PENDING' AND r.name IN ('Admin','Management') AND u.id<>$1) OR ($2<>'PENDING' AND u.id=$1))`, item.UserID, stage)
 		if err != nil {
 			return nil, err
@@ -84,23 +90,40 @@ func (db *Database) NotifyLeave(ctx context.Context, id string) ([]string, error
 		}
 		addresses := map[string]bool{}
 		for _, r := range targets {
-			if _, err = tx.ExecContext(ctx, `INSERT INTO notification_recipients(notification_id,user_id) VALUES($1,$2)`, event, r.id); err != nil {
+			if _, err = tx.ExecContext(ctx, `INSERT INTO notification_recipients(notification_id,user_id) VALUES($1,$2) ON CONFLICT DO NOTHING`, event, r.id); err != nil {
 				return nil, err
 			}
 			recipients = append(recipients, r.id)
-			if addresses[r.address] || !email.ValidAddress(r.address) {
+			if !email.ValidAddress(r.address) {
+				log.Printf("email event_id=%s recipient_user_id=%s category=invalid_or_empty_email", event, r.id)
+				continue
+			}
+			if addresses[r.address] {
 				continue
 			}
 			addresses[r.address] = true
-			if _, err = tx.ExecContext(ctx, `INSERT INTO zoom_booking_email_deliveries(id,recipient_email,is_creator,payload,notification_type,leave_request_id,recipient_user_id)
- VALUES($1,$2,false,$3,$4,$5,$6) ON CONFLICT(leave_request_id,notification_type,recipient_email) DO NOTHING`, NewID(), r.address, string(data), kind, id, r.id); err != nil {
+			if _, err = tx.ExecContext(ctx, `SAVEPOINT leave_email`); err != nil {
+				return nil, err
+			}
+			outbox := NewID()
+			if _, err = tx.ExecContext(ctx, `INSERT INTO zoom_booking_email_deliveries(id,recipient_email,is_creator,payload,notification_type,leave_request_id,recipient_user_id,notification_id)
+ VALUES($1,$2,false,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING`, outbox, r.address, string(data), kind, id, r.id, event); err != nil {
+				stageQueued = false
+				log.Printf("email event_id=%s recipient_user_id=%s category=enqueue_failed", event, r.id)
+				if _, err = tx.ExecContext(ctx, `ROLLBACK TO SAVEPOINT leave_email`); err != nil {
+					return nil, err
+				}
+			} else {
+				log.Printf("email enqueue_attempt event_id=%s recipient_user_id=%s outbox_id=%s awaiting_commit=true", event, r.id, outbox)
+			}
+			if _, err = tx.ExecContext(ctx, `RELEASE SAVEPOINT leave_email`); err != nil {
 				return nil, err
 			}
 		}
 		if stage == "PENDING" {
-			created = true
+			created = stageQueued
 		} else {
-			reviewed = true
+			reviewed = stageQueued
 		}
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE leave_requests SET created_notified=$2,reviewed_notified=$3 WHERE id=$1`, id, created, reviewed); err != nil {

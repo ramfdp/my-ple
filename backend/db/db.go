@@ -37,6 +37,9 @@ var workspaceSQL string
 //go:embed leave.sql
 var leaveSQL string
 
+//go:embed email_delivery.sql
+var emailDeliverySQL string
+
 type Database struct {
 	Conn *sql.DB
 	Now  func() time.Time
@@ -63,7 +66,7 @@ func (db *Database) Migrate(ctx context.Context) error {
 	if _, err = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(71260402)`); err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, schemaSQL+weeklyArchiveSQL+jobsSQL+reportNumberingSQL+jobPICsSQL+workspaceSQL+leaveSQL); err != nil {
+	if _, err = tx.ExecContext(ctx, schemaSQL+weeklyArchiveSQL+jobsSQL+reportNumberingSQL+jobPICsSQL+workspaceSQL+leaveSQL+emailDeliverySQL); err != nil {
 		return err
 	}
 	var unmatched int

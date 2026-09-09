@@ -34,7 +34,7 @@ func LeaveMessage(from, to, id string, a model.LeaveNotification) ([]byte, error
 	return alternativeMessage(from, to, id, "leave-request.local", a.Title+" - "+a.EmployeeName+" - "+leaveDate(a.StartDate), body)
 }
 func SendLeave(ctx context.Context, to, id string, a model.LeaveNotification) error {
-	if !ZoomEnabled() {
+	if !Enabled() {
 		return errors.New("email disabled")
 	}
 	if err := ValidateZoomConfig(); err != nil {

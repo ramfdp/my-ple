@@ -33,28 +33,39 @@ func workAssignmentNotification(ctx context.Context, tx *sql.Tx, id, actor strin
 			return err
 		}
 	}
-	if !email.ZoomEnabled() {
+	if !email.Enabled() {
 		return nil
 	}
 	// Same savepoint failure isolation as Zoom: an unavailable outbox must not lose assignments.
 	if _, err = tx.ExecContext(ctx, `SAVEPOINT work_assignment_email`); err != nil {
 		return err
 	}
+	seen := map[string]bool{}
 	for _, recipient := range added {
 		var address string
 		err = tx.QueryRowContext(ctx, `SELECT COALESCE(lower(btrim(email)),'') FROM users WHERE id=$1 AND is_active`, recipient).Scan(&address)
-		if err != nil {
+		if err != nil && err != sql.ErrNoRows {
 			break
 		}
-		if !email.ValidAddress(address) {
-			log.Printf("work assignment email task=%s category=invalid_or_empty_recipient", id)
+		if err == sql.ErrNoRows {
+			err = nil
 			continue
 		}
-		_, err = tx.ExecContext(ctx, `INSERT INTO zoom_booking_email_deliveries(id,recipient_email,is_creator,payload,notification_type,work_item_id,recipient_user_id,assignment_version)
-  VALUES($1,$2,false,$3,'work_item_assignment',$4,$5,$6) ON CONFLICT(work_item_id,recipient_user_id,assignment_version) DO NOTHING`, NewID(), address, string(data), id, recipient, version)
+		if !email.ValidAddress(address) {
+			log.Printf("email event_id=%s recipient_user_id=%s category=invalid_or_empty_email", event, recipient)
+			continue
+		}
+		if seen[address] {
+			continue
+		}
+		seen[address] = true
+		outbox := NewID()
+		_, err = tx.ExecContext(ctx, `INSERT INTO zoom_booking_email_deliveries(id,recipient_email,is_creator,payload,notification_type,work_item_id,recipient_user_id,assignment_version,notification_id)
+  VALUES($1,$2,false,$3,'work_item_assignment',$4,$5,$6,$7) ON CONFLICT DO NOTHING`, outbox, address, string(data), id, recipient, version, event)
 		if err != nil {
 			break
 		}
+		log.Printf("email enqueue event_id=%s recipient_user_id=%s outbox_id=%s awaiting_commit=true", event, recipient, outbox)
 	}
 	if err != nil {
 		log.Printf("work assignment email task=%s category=enqueue_failed", id)

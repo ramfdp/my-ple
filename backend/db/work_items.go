@@ -388,7 +388,10 @@ func workspaceNotification(ctx context.Context, tx *sql.Tx, id, actor, message s
 	_, err = tx.ExecContext(ctx, `INSERT INTO notification_recipients(notification_id,user_id)
  SELECT $1,a.user_id FROM (SELECT user_id FROM work_item_assignees WHERE work_item_id=$2 UNION SELECT created_by FROM work_items WHERE id=$2) a
  WHERE a.user_id<>$3`, notificationID, id, actor)
-	return err
+	if err != nil {
+		return err
+	}
+	return queueWorkNotificationEmail(ctx, tx, notificationID)
 }
 
 func (db *Database) WorkComments(ctx context.Context, userID, id string) ([]model.WorkComment, error) {

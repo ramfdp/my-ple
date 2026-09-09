@@ -1,5 +1,9 @@
 # Zoom Booking additions
 
+Updated shared email operations, failure states, and configuration are documented
+in [EMAIL_AUDIT.md](EMAIL_AUDIT.md). `EMAIL_ENABLED` now takes precedence over the
+legacy Zoom switch; interrupted claims become `uncertain` after five minutes.
+
 Existing `zoom_bookings.description` now travels in the existing
 `notification.created` event's `notification.booking.description` JSON field.
 The notification bell shows a three-line preview and links to Booking Zoom.

@@ -213,6 +213,13 @@ func (s *WeeklyLifecycle) Run(ctx context.Context, now time.Time) error {
 }
 
 func (s *WeeklyLifecycle) deliver(ctx context.Context, now time.Time) error {
+	if _, err := s.DB.Conn.ExecContext(ctx, `UPDATE weekly_report_email_deliveries SET status='uncertain',last_error='worker_interrupted_acceptance_unknown' WHERE status='sending' AND COALESCE(last_attempt_at,created_at)<$1::timestamptz-interval '5 minutes'`, now); err != nil {
+		return err
+	}
+	// Preserve legacy weekly behavior unless the generic switch is explicitly set.
+	if _, set := os.LookupEnv("EMAIL_ENABLED"); set && !email.Enabled() {
+		return nil
+	}
 	rows, err := s.DB.Conn.QueryContext(ctx, `SELECT id::text FROM weekly_report_email_deliveries WHERE status IN ('pending','failed') AND attempt_count<5 AND (last_attempt_at IS NULL OR last_attempt_at + interval '15 minutes' * power(2,attempt_count-1) <= $1) ORDER BY created_at LIMIT 50`, now)
 	if err != nil {
 		return err
@@ -258,18 +265,27 @@ func (s *WeeklyLifecycle) deliver(ctx context.Context, now time.Time) error {
 		} else if n == 0 {
 			continue
 		}
+		err = s.DB.Conn.QueryRowContext(ctx, `SELECT COALESCE(lower(btrim(u.email)),'') FROM users u JOIN roles r ON r.id=u.role_id JOIN weekly_report_email_deliveries d ON d.recipient_user_id=u.id WHERE d.id=$1 AND u.is_active AND lower(r.name)='management'`, id).Scan(&address)
+		if errors.Is(err, sql.ErrNoRows) || (err == nil && !email.ValidAddress(address)) {
+			if _, err = s.DB.Conn.ExecContext(ctx, `UPDATE weekly_report_email_deliveries SET status='skipped',last_error='recipient_no_longer_eligible' WHERE id=$1`, id); err != nil {
+				return err
+			}
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		if _, err = s.DB.Conn.ExecContext(ctx, `UPDATE weekly_report_email_deliveries SET recipient_email=$2 WHERE id=$1`, id, address); err != nil {
+			return err
+		}
+
 		period := a.Period()
 		rangeLabel := period.Start.Format("2 Jan 2006") + " to " + period.End.Format("2 Jan 2006")
 		log.Printf("weekly email send/retry delivery=%s", id)
 		err = s.SendEmail(ctx, address, "Weekly Report - "+a.Division+" - "+rangeLabel, "Weekly Report "+a.Division+"\r\nReporting Period: "+rangeLabel+"\r\n\r\nThe finalized Weekly Report is attached as a PDF.\r\n", a.Filename, id, data)
 		status, lastError := "sent", ""
 		if err != nil {
-			status = "failed"
-			lastError = err.Error() // email.Send returns sanitized phase errors only.
-			if errors.Is(err, email.ErrUncertain) {
-				status = "uncertain"
-				lastError = "SMTP acceptance uncertain; review before retry"
-			}
+			status, lastError = email.Failure(err)
 		}
 		if _, e := s.DB.Conn.ExecContext(ctx, `UPDATE weekly_report_email_deliveries SET status=$2,last_error=$3,sent_at=CASE WHEN $2='sent' THEN $4::timestamptz ELSE NULL END WHERE id=$1`, id, status, lastError, now); e != nil {
 			return e
