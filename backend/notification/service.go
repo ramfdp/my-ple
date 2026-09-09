@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"my-ple-backend/db"
+	"my-ple-backend/email"
 	"my-ple-backend/model"
 	"my-ple-backend/realtime"
 )
@@ -14,7 +15,7 @@ type Service struct {
 }
 
 func (s *Service) CreateZoomBooking(ctx context.Context, userID string, input model.ZoomBookingInput) (model.ZoomBooking, error) {
-	booking, event, err := s.DB.CreateZoomBookingWithNotification(ctx, userID, input)
+	booking, event, err := s.DB.CreateZoomBookingWithNotification(ctx, userID, input, email.ZoomEnabled())
 	if err != nil {
 		return model.ZoomBooking{}, err
 	}

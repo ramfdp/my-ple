@@ -35,6 +35,7 @@ type ZoomResource struct {
 	MeetingURL  string    `json:"meetingUrl"`
 	MeetingID   string    `json:"meetingId"`
 	HostKey     string    `json:"hostKey"`
+	Passcode    string    `json:"passcode"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
 }
@@ -44,6 +45,7 @@ type ZoomResourceUpdateInput struct {
 	MeetingURL  string `json:"meetingUrl"`
 	MeetingID   string `json:"meetingId"`
 	HostKey     string `json:"hostKey"`
+	Passcode    string `json:"passcode"`
 }
 
 func validHTTPSURL(value string) bool {
@@ -59,7 +61,7 @@ func ValidZoomBooking(input ZoomBookingInput) bool {
 }
 
 func ValidZoomResourceUpdate(input ZoomResourceUpdateInput) bool {
-	return len(input.Description) <= 1000 && len(input.MeetingID) <= 100 && len(input.HostKey) <= 100 && validHTTPSURL(input.MeetingURL)
+	return len(input.Description) <= 1000 && len(input.MeetingID) <= 100 && len(input.HostKey) <= 100 && len(input.Passcode) <= 100 && validHTTPSURL(input.MeetingURL)
 }
 
 func ZoomBookingStatus(start, end, now time.Time) string {

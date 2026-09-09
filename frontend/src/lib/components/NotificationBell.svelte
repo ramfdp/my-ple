@@ -33,12 +33,18 @@
 						<button class="notification-content" type="button" onclick={() => void markRead(item.id).catch(() => {})}>
 							<strong>{#if item.workspace}{item.actor.name}: {item.workspace.message} — {item.workspace.title}{:else}{item.actor.name} membooking {item.booking?.zoomName ?? 'Zoom'}{/if}</strong>
 							{#if item.booking}<span>{date(item.booking.startAt)} · {time(item.booking.startAt)}–{time(item.booking.endAt)}</span>{/if}
+							{#if item.booking?.description}<span class="booking-description">Deskripsi: {item.booking.description}</span>{/if}
 							<small>{relative(item.createdAt)}</small>
 						</button>
 						{#if item.workspace}<a href={'/workspace/'+item.workspace.workspaceId}>Buka Workspace →</a>{/if}
+						{#if item.booking}<a href="/booking-zoom">Buka Booking Zoom →</a>{/if}
 						<button class="notification-dismiss" type="button" onclick={() => void dismissNotification(item.id).catch(() => {})}>Hapus</button>
 					</li>
 				{/each}
 			</ul>
 		</section>
 </div>
+
+<style>
+	.booking-description { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; white-space: pre-wrap; }
+</style>

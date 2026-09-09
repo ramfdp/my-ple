@@ -306,6 +306,7 @@ func main() {
 
 func startCleanup(database *db.Database) func() {
 	ctx, cancel := context.WithCancel(context.Background())
+	go (&notification.ZoomEmailWorker{DB: database}).Start(ctx)
 	go func() {
 		timer := time.NewTimer(time.Until(time.Now().Truncate(time.Minute).Add(time.Minute)))
 		defer timer.Stop()

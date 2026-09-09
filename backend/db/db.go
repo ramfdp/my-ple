@@ -265,13 +265,13 @@ func (db *Database) DeleteUser(ctx context.Context, id string) error {
 func scanZoomBooking(row interface{ Scan(...any) error }) (model.ZoomBooking, error) {
 	var booking model.ZoomBooking
 	err := row.Scan(&booking.ID, &booking.UserID, &booking.CreatedBy, &booking.Title, &booking.Description, &booking.StartAt, &booking.EndAt, &booking.CreatedAt, &booking.UpdatedAt,
-		&booking.ZoomResource.ID, &booking.ZoomResource.Name, &booking.ZoomResource.Code, &booking.ZoomResource.Description, &booking.ZoomResource.MeetingURL, &booking.ZoomResource.MeetingID, &booking.ZoomResource.HostKey, &booking.ZoomResource.CreatedAt, &booking.ZoomResource.UpdatedAt)
+		&booking.ZoomResource.ID, &booking.ZoomResource.Name, &booking.ZoomResource.Code, &booking.ZoomResource.Description, &booking.ZoomResource.MeetingURL, &booking.ZoomResource.MeetingID, &booking.ZoomResource.HostKey, &booking.ZoomResource.Passcode, &booking.ZoomResource.CreatedAt, &booking.ZoomResource.UpdatedAt)
 	return booking, err
 }
 
 func zoomBookingSelect() string {
 	return `z.id, z.user_id, u.name, z.title, z.description, z.start_at, z.end_at, z.created_at, z.updated_at,
-		r.id, r.name, r.code, r.description, r.meeting_url, r.meeting_id, r.host_key, r.created_at, r.updated_at`
+		r.id, r.name, r.code, r.description, r.meeting_url, r.meeting_id, r.host_key, r.passcode, r.created_at, r.updated_at`
 }
 
 func zoomConflict(err error) error {
@@ -325,12 +325,12 @@ func (db *Database) UpdateZoomBooking(ctx context.Context, id, userID string, in
 
 func scanZoomResource(row interface{ Scan(...any) error }) (model.ZoomResource, error) {
 	var resource model.ZoomResource
-	err := row.Scan(&resource.ID, &resource.Name, &resource.Code, &resource.Description, &resource.MeetingURL, &resource.MeetingID, &resource.HostKey, &resource.CreatedAt, &resource.UpdatedAt)
+	err := row.Scan(&resource.ID, &resource.Name, &resource.Code, &resource.Description, &resource.MeetingURL, &resource.MeetingID, &resource.HostKey, &resource.Passcode, &resource.CreatedAt, &resource.UpdatedAt)
 	return resource, err
 }
 
 func (db *Database) ListZoomResources(ctx context.Context) ([]model.ZoomResource, error) {
-	rows, err := db.Conn.QueryContext(ctx, `SELECT id, name, code, description, meeting_url, meeting_id, host_key, created_at, updated_at FROM zoom_resources ORDER BY id`)
+	rows, err := db.Conn.QueryContext(ctx, `SELECT id, name, code, description, meeting_url, meeting_id, host_key, passcode, created_at, updated_at FROM zoom_resources ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -347,7 +347,7 @@ func (db *Database) ListZoomResources(ctx context.Context) ([]model.ZoomResource
 }
 
 func (db *Database) UpdateZoomResource(ctx context.Context, id int, input model.ZoomResourceUpdateInput) (model.ZoomResource, error) {
-	return scanZoomResource(db.Conn.QueryRowContext(ctx, `UPDATE zoom_resources SET description=$2, meeting_url=$3, meeting_id=$4, host_key=$5, updated_at=NOW() WHERE id=$1 RETURNING id, name, code, description, meeting_url, meeting_id, host_key, created_at, updated_at`, id, input.Description, input.MeetingURL, input.MeetingID, input.HostKey))
+	return scanZoomResource(db.Conn.QueryRowContext(ctx, `UPDATE zoom_resources SET description=$2, meeting_url=$3, meeting_id=$4, host_key=$5, passcode=$6, updated_at=NOW() WHERE id=$1 RETURNING id, name, code, description, meeting_url, meeting_id, host_key, passcode, created_at, updated_at`, id, input.Description, input.MeetingURL, input.MeetingID, input.HostKey, input.Passcode))
 }
 
 func (db *Database) DeleteZoomBooking(ctx context.Context, id, userID string) error {

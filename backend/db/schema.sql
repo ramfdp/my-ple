@@ -107,6 +107,7 @@ CREATE TABLE IF NOT EXISTS zoom_resources (
 );
 
 ALTER TABLE zoom_resources ADD COLUMN IF NOT EXISTS host_key VARCHAR(100) NOT NULL DEFAULT '';
+ALTER TABLE zoom_resources ADD COLUMN IF NOT EXISTS passcode VARCHAR(100) NOT NULL DEFAULT '';
 
 INSERT INTO zoom_resources (id, name, code) VALUES
   (1, 'Zoom 1', 'NP'),
@@ -183,3 +184,18 @@ DO $$ BEGIN
       EXCLUDE USING gist (zoom_resource_id WITH =, tstzrange(start_at, end_at, '[)') WITH &&);
   END IF;
 END $$;
+-- Zoom creation mail follows the existing durable per-recipient delivery pattern.
+CREATE TABLE IF NOT EXISTS zoom_booking_email_deliveries (
+    id UUID PRIMARY KEY,
+    booking_id UUID NOT NULL,
+    recipient_email TEXT NOT NULL,
+    is_creator BOOLEAN NOT NULL,
+    payload JSONB NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','sending','sent','failed','uncertain','skipped')),
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    sent_at TIMESTAMPTZ,
+    last_error TEXT NOT NULL DEFAULT '',
+    UNIQUE (booking_id, recipient_email)
+);

@@ -74,6 +74,11 @@ func Send(ctx context.Context, to, subject, body, filename, id string, pdf []byt
 	if err != nil {
 		return err
 	}
+	return sendMessage(ctx, host, port, from, to, message)
+}
+
+// Shared TLS transport; callers retain their own message format and feature flag.
+func sendMessage(ctx context.Context, host, port, from, to string, message []byte) error {
 	dialer := net.Dialer{Timeout: 15 * time.Second}
 	connection, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(host, port))
 	if err != nil {

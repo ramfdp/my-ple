@@ -45,6 +45,7 @@ func (c *ZoomResourceController) Update(w http.ResponseWriter, r *http.Request, 
 	input.Description = strings.TrimSpace(input.Description)
 	input.MeetingID = strings.TrimSpace(input.MeetingID)
 	input.HostKey = strings.TrimSpace(input.HostKey)
+	input.Passcode = strings.TrimSpace(input.Passcode)
 	input.MeetingURL = strings.TrimSpace(input.MeetingURL)
 	if !model.ValidZoomResourceUpdate(input) {
 		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Informasi Zoom tidak valid."})

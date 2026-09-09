@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"log"
 
 	"my-ple-backend/model"
 )
@@ -18,12 +19,12 @@ func scanNotification(row interface{ Scan(...any) error }) (model.Notification, 
 	}
 	if err == nil && n.Type == "workspace_task" {
 		n.Workspace = &model.WorkspaceNotification{}
-		err = json.Unmarshal(data,n.Workspace)
+		err = json.Unmarshal(data, n.Workspace)
 	}
 	return n, err
 }
 
-func (db *Database) CreateZoomBookingWithNotification(ctx context.Context, userID string, input model.ZoomBookingInput) (model.ZoomBooking, model.Notification, error) {
+func (db *Database) CreateZoomBookingWithNotification(ctx context.Context, userID string, input model.ZoomBookingInput, queueEmail ...bool) (model.ZoomBooking, model.Notification, error) {
 	tx, err := db.Conn.BeginTx(ctx, nil)
 	if err != nil {
 		return model.ZoomBooking{}, model.Notification{}, err
@@ -39,7 +40,7 @@ func (db *Database) CreateZoomBookingWithNotification(ctx context.Context, userI
 	if err != nil {
 		return model.ZoomBooking{}, model.Notification{}, zoomConflict(err)
 	}
-	data, err := json.Marshal(model.NotificationBooking{ID: booking.ID, ZoomName: booking.ZoomResource.Name, StartAt: booking.StartAt, EndAt: booking.EndAt})
+	data, err := json.Marshal(model.NotificationBooking{ID: booking.ID, ZoomName: booking.ZoomResource.Name + " - " + booking.ZoomResource.Code, StartAt: booking.StartAt, EndAt: booking.EndAt, Description: booking.Description})
 	if err != nil {
 		return model.ZoomBooking{}, model.Notification{}, err
 	}
@@ -52,6 +53,17 @@ func (db *Database) CreateZoomBookingWithNotification(ctx context.Context, userI
 		FROM inserted n JOIN users u ON u.id=n.actor_user_id`, NewID(), model.NotificationZoomBookingCreated, userID, booking.ID, string(data)))
 	if err != nil {
 		return model.ZoomBooking{}, model.Notification{}, err
+	}
+	if len(queueEmail) > 0 && queueEmail[0] {
+		if _, err = tx.ExecContext(ctx, "SAVEPOINT zoom_email"); err != nil {
+			return model.ZoomBooking{}, model.Notification{}, err
+		}
+		if err = queueZoomEmail(ctx, tx, booking); err != nil {
+			log.Printf("zoom email booking=%s category=enqueue_failed attempt=0", booking.ID)
+			if _, err = tx.ExecContext(ctx, "ROLLBACK TO SAVEPOINT zoom_email"); err != nil {
+				return model.ZoomBooking{}, model.Notification{}, err
+			}
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return model.ZoomBooking{}, model.Notification{}, err

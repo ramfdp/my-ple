@@ -10,10 +10,11 @@ type NotificationActor struct {
 }
 
 type NotificationBooking struct {
-	ID       string    `json:"id"`
-	ZoomName string    `json:"zoomName"`
-	StartAt  time.Time `json:"startAt"`
-	EndAt    time.Time `json:"endAt"`
+	Description string    `json:"description"`
+	ID          string    `json:"id"`
+	ZoomName    string    `json:"zoomName"`
+	StartAt     time.Time `json:"startAt"`
+	EndAt       time.Time `json:"endAt"`
 }
 
 type Notification struct {
