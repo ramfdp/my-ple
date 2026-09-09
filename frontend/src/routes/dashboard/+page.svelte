@@ -3,6 +3,7 @@
 	import NotificationBell from '$lib/components/NotificationBell.svelte';
 
 	let userName = $derived($currentUser?.name ?? 'Nama Pengguna');
+	let canReviewLeave = $derived(['admin', 'management'].includes($currentUser?.role?.toLowerCase() ?? ''));
 </script>
 
 <svelte:head>
@@ -26,10 +27,22 @@
 				<p class="dashboard-kicker">LAYANAN</p>
 				<h2 id="menu-title">Menu utama</h2>
 			</div>
-			<p>5 layanan tersedia</p>
+			<p>{canReviewLeave ? 7 : 6} layanan tersedia</p>
 		</div>
 
 		<div class="menu-grid">
+			<a class="menu-card attendance-card" href="/leave">
+				<div class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h6" /></svg></div>
+				<h3>Izin &amp; Cuti</h3>
+				<p>Ajukan izin atau cuti dan pantau status pengajuan Anda.</p>
+			</a>
+			{#if canReviewLeave}
+				<a class="menu-card progress-card" href="/leave/approvals">
+					<div class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16m4 5 3 3 5-5" /></svg></div>
+					<h3>Persetujuan Izin &amp; Cuti</h3>
+					<p>Tinjau dan setujui atau tolak pengajuan izin dan cuti.</p>
+				</a>
+			{/if}
 			<a class="menu-card progress-card" href="/workspace">
 				<div class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 4h18v16H3zM3 9h18M9 9v11M15 9v11" /></svg></div>
 				<h3>Team Workspace</h3><p>Catatan, timeline, dan koordinasi pekerjaan tim.</p>
