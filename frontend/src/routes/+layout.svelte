@@ -12,6 +12,7 @@
 	import '$lib/styles/booking-zoom.css';
 
 	let { children } = $props();
+	let mobileNavigationOpen = $state(false);
 	let showSidebar = $derived(page.url.pathname !== '/');
 	let initializing = $state(true);
 	let auth = $derived(initializing ? 'loading' : $currentUser ? 'authenticated' : 'unauthenticated');
@@ -43,15 +44,15 @@
 	<p role="status" aria-live="polite">Memeriksa sesi…</p>
 {:else if showSidebar && auth === 'authenticated'}
 	<div class="feature-shell">
-		<Sidebar />
-		<div class="feature-content">{@render children()}</div>
+		<Sidebar bind:mobileOpen={mobileNavigationOpen} />
+		<div class="feature-content" inert={mobileNavigationOpen}>{@render children()}</div>
 	</div>
 {:else if !showSidebar}
 	{@render children()}
 {/if}
 
 <style>
-	.feature-shell { display: flex; min-height: 100vh; }
-	.feature-content { min-width: 0; flex: 1; }
+	.feature-shell { display: flex; min-height: 100dvh; }
+	.feature-content { min-width: 0; flex: 1; overflow-wrap: anywhere; }
 	@media (max-width: 868px) { .feature-shell { flex-direction: column; } }
 </style>

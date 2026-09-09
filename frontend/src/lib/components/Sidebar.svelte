@@ -1,16 +1,43 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { api, session, setAuthenticated } from '$lib/api';
 
 	// ponytail: native Svelte reactivity for mobile drawer without external drawer lib
-	let mobileOpen = $state(false);
+	let { mobileOpen = $bindable(false) }: { mobileOpen?: boolean } = $props();
+	let isMobile = $state(false);
+	let sidebar: HTMLElement;
+	let menuButton: HTMLButtonElement;
 	let canManageEmployees = $state(false);
 	onMount(() => {
 		const role = session()?.user.role?.toLowerCase() ?? '';
 		canManageEmployees = ['admin', 'management', 'hr'].includes(role);
+		const media = matchMedia('(max-width: 868px)');
+		const resize = () => { isMobile = media.matches; if (!isMobile) mobileOpen = false; };
+		resize();
+		media.addEventListener('change', resize);
+		return () => media.removeEventListener('change', resize);
 	});
+	$effect(() => { page.url.pathname; mobileOpen = false; });
+	$effect(() => {
+		if (!mobileOpen) return;
+		const previous = document.body.style.overflowY;
+		document.body.style.overflowY = 'hidden';
+		void tick().then(() => { if (mobileOpen) sidebar?.focus(); });
+		return () => { document.body.style.overflowY = previous; menuButton?.focus(); };
+	});
+	function navigationKey(event: KeyboardEvent) {
+		if (!mobileOpen) return;
+		if (event.key === 'Escape') { mobileOpen = false; return; }
+		if (event.key !== 'Tab') return;
+		const controls = Array.from(sidebar.querySelectorAll<HTMLElement>('a[href], button'));
+		const index = controls.indexOf(document.activeElement as HTMLElement);
+		event.preventDefault();
+		const next = index < 0 ? (event.shiftKey ? controls.length - 1 : 0)
+			: (index + (event.shiftKey ? -1 : 1) + controls.length) % controls.length;
+		controls[next]?.focus();
+	}
 	async function logout(event: MouseEvent) {
 		event.preventDefault();
 		try { await api('/auth/logout', { method: 'POST' }); } finally { setAuthenticated(null); await goto('/'); }
@@ -37,11 +64,15 @@
 	}
 </script>
 
+<svelte:window onkeydown={navigationKey} />
+
 <!-- Mobile Topbar with Hamburger Toggle -->
 <div class="mobile-topbar">
 	<button
 		type="button"
 		class="mobile-menu-btn"
+		bind:this={menuButton}
+		aria-controls="main-navigation"
 		onclick={() => (mobileOpen = !mobileOpen)}
 		aria-label="Toggle navigation menu"
 		aria-expanded={mobileOpen}
@@ -71,9 +102,10 @@
 {/if}
 
 <!-- Sidebar -->
-<aside class="sidebar-container" class:open-mobile={mobileOpen} aria-label="Navigasi Utama">
+<aside id="main-navigation" bind:this={sidebar} tabindex="-1" inert={isMobile && !mobileOpen} class="sidebar-container" class:open-mobile={mobileOpen} aria-label="Navigasi Utama">
 	<!-- Logo Section -->
 	<div class="sidebar-header">
+		<button type="button" class="drawer-close-button" aria-label="Tutup navigasi" onclick={() => mobileOpen = false}>×</button>
 		<a href="/dashboard" class="logo-link" onclick={() => (mobileOpen = false)}>
 			<div class="logo-circle">
 				<img src="/harmoni%20insan%20phooto.webp" alt="my HIS" class="sidebar-logo" />
@@ -225,15 +257,10 @@
 		line-height: 1.2;
 	}
 
-	.brand-badge {
-		font-size: 0.6875rem;
-		font-weight: 600;
-		color: var(--his-primary);
-		letter-spacing: 0.02em;
-		text-transform: uppercase;
-	}
+	.drawer-close-button { display: none; }
 
 	.sidebar-nav {
+		min-height: 0;
 		flex: 1;
 		padding: 18px 12px;
 		display: flex;
@@ -243,6 +270,7 @@
 	}
 
 	.nav-item {
+		min-height: 44px;
 		display: flex;
 		align-items: center;
 		gap: 12px;
@@ -320,6 +348,8 @@
 	}
 
 	@media (max-width: 868px) {
+		.sidebar-header { display: flex; flex-direction: column; gap: 12px; padding: 12px 20px; }
+		.drawer-close-button { display: block; align-self: flex-end; width: 44px; height: 44px; border: 1px solid var(--his-border); border-radius: 8px; background: white; font-size: 24px; }
 		.mobile-topbar {
 			display: flex;
 			align-items: center;
@@ -336,8 +366,8 @@
 		}
 
 		.mobile-menu-btn {
-			width: 38px;
-			height: 38px;
+			width: 44px;
+			height: 44px;
 			border-radius: 8px;
 			border: 1px solid var(--his-border);
 			background: #ffffff;
@@ -365,6 +395,8 @@
 		}
 
 		.sidebar-container {
+			width: min(300px, calc(100% - 32px));
+			visibility: hidden;
 			position: fixed;
 			left: 0;
 			top: 0;
@@ -374,6 +406,7 @@
 		}
 
 		.sidebar-container.open-mobile {
+			visibility: visible;
 			transform: translateX(0);
 		}
 

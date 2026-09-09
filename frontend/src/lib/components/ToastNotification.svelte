@@ -59,7 +59,6 @@
 	.toast-wrapper {
 		position: fixed;
 		bottom: 24px;
-		right: 24px;
 		display: flex;
 		align-items: center;
 		gap: 12px;
@@ -70,7 +69,11 @@
 		border: 1px solid var(--his-border);
 		z-index: 60;
 		animation: toastSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-		max-width: 90vw;
+		width: max-content;
+		max-width: min(480px, calc(100vw - 32px));
+		right: 16px;
+		max-height: calc(100dvh - 48px);
+		overflow-y: auto;
 	}
 
 	@keyframes toastSlideUp {
@@ -118,6 +121,8 @@
 	}
 
 	.toast-message {
+		min-width: 0;
+		overflow-wrap: anywhere;
 		font-size: 0.875rem;
 		font-weight: 600;
 		color: var(--his-text);
@@ -125,6 +130,8 @@
 	}
 
 	.toast-close {
+		flex: 0 0 44px;
+		min-height: 44px;
 		border: none;
 		background: transparent;
 		color: #737373;

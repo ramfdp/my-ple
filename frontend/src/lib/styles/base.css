@@ -13,6 +13,7 @@
 	--his-muted: #595959;
 	--his-border: #dedede;
 	--his-surface: #f7f9f7;
+	--his-page-padding: clamp(14px, 3vw, 48px);
 	font-family: 'DM Sans', system-ui, sans-serif;
 	color: var(--his-text);
 	background: var(--his-surface);
@@ -25,7 +26,7 @@
 
 body {
 	min-width: 320px;
-	min-height: 100vh;
+	min-height: 100dvh;
 	margin: 0;
 }
 
@@ -35,6 +36,8 @@ body {
 }
 
 input, select, textarea {
+	min-width: 0;
+	max-width: 100%;
 	accent-color: var(--his-primary);
 }
 
@@ -42,11 +45,17 @@ input, select, textarea {
 	display: contents;
 }
 
-button,
-input {
+button, input, select, textarea {
 	font: inherit;
 }
 
 button {
 	cursor: pointer;
+}
+
+img, video { max-width: 100%; }
+fieldset { min-width: 0; }
+@media (pointer: coarse) {
+	button:not(.calendar-booking), input:not([type='checkbox']):not([type='radio']), select { min-height: 44px; }
+	body :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]) { font-size: max(1rem, 1em); }
 }

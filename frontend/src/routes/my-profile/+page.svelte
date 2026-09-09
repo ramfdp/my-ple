@@ -140,7 +140,7 @@
 </main>
 
 <style>
-	.profile-page { width: min(100%, 1120px); margin: 0 auto; padding: clamp(24px, 5vw, 56px); color: var(--his-text); }
+	.profile-page { width: min(100%, 1120px); margin: 0 auto; padding: var(--his-page-padding); color: var(--his-text); }
 	.page-intro { margin-bottom: 24px; animation: profile-reveal 420ms cubic-bezier(.22, 1, .36, 1) both; }
 	.page-intro h1, .page-intro p, h2 { margin: 0; }
 	.page-intro h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: clamp(1.8rem, 4vw, 2.5rem); letter-spacing: -0.04em; }
@@ -171,7 +171,7 @@
 	.edit-modal { min-width: 0; width: min(100%, 520px); max-height: calc(100dvh - 36px); overflow: auto; padding: 24px; border-radius: 18px; background: #fff; box-shadow: 0 20px 50px rgb(23 23 23 / .2); }
 	.edit-modal header { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
 	.edit-modal header p { margin: 4px 0 0; color: var(--his-muted); font-size: .84rem; }
-	.edit-modal .close { border: 0; background: transparent; color: var(--his-muted); font-size: 1.6rem; cursor: pointer; }
+	.edit-modal .close { flex: 0 0 44px; min-height: 44px; border: 0; background: transparent; color: var(--his-muted); font-size: 1.6rem; cursor: pointer; }
 	.edit-modal label { display: grid; gap: 7px; margin-top: 16px; font-size: .84rem; font-weight: 700; }
 	.edit-modal input, .edit-modal textarea { box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid var(--his-border); border-radius: 9px; font: inherit; }
 	.edit-modal small { color: var(--his-muted); font-weight: 400; }

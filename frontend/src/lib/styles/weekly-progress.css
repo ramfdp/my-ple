@@ -1,6 +1,6 @@
 .weekly-progress-page {
-	min-height: 100vh;
-	padding: clamp(28px, 6vw, 76px);
+	min-height: 100dvh;
+	padding: var(--his-page-padding);
 	background: var(--his-surface);
 	color: var(--his-text);
 }
@@ -49,7 +49,7 @@
 
 .division-selection,
 .task-list {
-	padding: clamp(22px, 4vw, 36px);
+	padding: clamp(14px, 3vw, 36px);
 	border: 1px solid var(--his-border);
 	border-radius: 24px;
 	background: #fff;
@@ -105,7 +105,7 @@
 .report-submit { display: inline-flex; justify-content: center; align-items: center; max-width: 100%; padding: 11px 16px; border: 0; border-radius: 10px; background: var(--his-primary); color: #fff; font: inherit; font-weight: 700; text-decoration: none; cursor: pointer; }
 .report-button:disabled { opacity: .55; cursor: not-allowed; }
 .export-button { background: var(--his-primary); }
-.work-table-wrap { margin-top: 28px; overflow-x: auto; border: 1px solid var(--his-border); border-radius: 14px; }
+.work-table-wrap { min-width: 0; max-width: 100%; overscroll-behavior-x: contain; margin-top: 28px; overflow-x: auto; border: 1px solid var(--his-border); border-radius: 14px; }
 .work-table { width: 100%; min-width: 640px; table-layout: fixed; border-collapse: collapse; background: #fff; text-align: left; overflow-wrap: anywhere; }
 .work-table th { box-sizing: border-box; padding: 15px 14px; background: var(--his-primary); color: #fff; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-align: center; text-transform: uppercase; }
 .work-table td { box-sizing: border-box; padding: 14px; border-top: 1px solid var(--his-border); color: var(--his-text); line-height: 1.55; text-align: center; vertical-align: middle; }
@@ -133,7 +133,7 @@
 .work-table tbody tr:hover { background: var(--his-primary-soft); }
 .demo-note { margin: 24px 0 0; color: var(--his-muted); font-size: 0.8rem; font-style: italic; }
 .report-shell { max-width: 720px; }
-.report-form { display: grid; gap: 20px; padding: clamp(22px, 4vw, 36px); border: 1px solid var(--his-border); border-radius: 24px; background: #fff; box-shadow: 0 16px 42px rgb(23 23 23 / 0.08); }
+.report-form { min-width: 0; display: grid; gap: 20px; padding: clamp(14px, 3vw, 36px); border: 1px solid var(--his-border); border-radius: 24px; background: #fff; box-shadow: 0 16px 42px rgb(23 23 23 / 0.08); }
 .report-form label { display: grid; min-width: 0; gap: 8px; color: var(--his-text); font-weight: 700; }
 .report-form small { color: var(--his-muted); font-weight: 400; }
 .report-form input,
@@ -146,19 +146,19 @@
 .report-form textarea:focus { border-color: var(--his-primary); outline: 2px solid rgb(0 122 65 / 0.15); }
 .report-submit { justify-self: start; }
 .report-drawer-layer,
-.report-modal-layer { position: fixed; inset: 0; z-index: 50; }
+.report-modal-layer { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; }
 .report-drawer-backdrop,
 .report-modal-backdrop { position: absolute; inset: 0; width: 100%; border: 0; background: rgb(23 23 23 / 0.32); backdrop-filter: blur(8px); cursor: default; }
-.report-drawer { position: absolute; top: 50%; right: clamp(16px, 4vw, 56px); width: min(calc(100% - 32px), 460px); max-height: calc(100dvh - 32px); overflow-y: auto; padding: 28px; transform: translateY(-50%); background: #fff; box-shadow: 0 20px 56px rgb(23 23 23 / 0.24); }
+.report-drawer { position: relative; justify-self: end; width: min(100%, 460px); max-height: calc(100dvh - 32px); overflow-y: auto; padding: 28px; background: #fff; box-shadow: 0 20px 56px rgb(23 23 23 / 0.24); }
 .report-drawer-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
 .report-drawer-header h2,
 .report-delete-modal h2 { margin: 0; color: var(--his-text); font-family: 'Plus Jakarta Sans', sans-serif; }
-.drawer-close { width: 36px; height: 36px; border: 0; border-radius: 50%; background: var(--his-primary-soft); color: var(--his-primary); font-size: 1.5rem; line-height: 1; cursor: pointer; }
+.drawer-close { flex: 0 0 auto; width: 44px; height: 44px; border: 0; border-radius: 50%; background: var(--his-primary-soft); color: var(--his-primary); font-size: 1.5rem; line-height: 1; cursor: pointer; }
 .report-drawer-form { padding: 0; border: 0; border-radius: 0; box-shadow: none; }
 .drawer-form-actions,
 .delete-modal-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .drawer-cancel { padding: 11px 16px; border: 1px solid var(--his-border); border-radius: 10px; background: #fff; color: var(--his-text); font: inherit; font-weight: 700; cursor: pointer; }
-.report-delete-modal { position: absolute; top: 50%; left: 50%; width: min(calc(100% - 40px), 420px); max-height: calc(100dvh - 32px); overflow: auto; overflow-wrap: anywhere; padding: 28px; transform: translate(-50%, -50%); border-radius: 18px; background: #fff; box-shadow: 0 20px 56px rgb(23 23 23 / 0.24); }
+.report-delete-modal { position: relative; width: min(100%, 420px); max-height: calc(100dvh - 32px); overflow: auto; overflow-wrap: anywhere; padding: 28px; border-radius: 18px; background: #fff; box-shadow: 0 20px 56px rgb(23 23 23 / 0.24); }
 .report-delete-modal p { margin: 12px 0 24px; color: var(--his-muted); line-height: 1.6; }
 .delete-report-confirm { padding: 11px 16px; border: 0; border-radius: 10px; background: var(--his-danger); color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
 
@@ -174,7 +174,7 @@
 	.report-actions { justify-content: flex-start; }
 	.selected-division { text-align: left; }
 	.work-table-wrap { margin-top: 20px; }
-	.report-drawer { right: 16px; padding: 20px; }
+	.report-drawer { padding: 20px; }
 	.report-delete-modal { width: min(calc(100% - 32px), 420px); padding: 22px; }
 }
 
@@ -186,7 +186,7 @@
 	.task-list { padding: 18px 14px; }
 	.task-list-actions { width: 100%; }
 	.report-button { width: 100%; box-sizing: border-box; text-align: center; }
-	.report-drawer { right: 8px; width: calc(100% - 16px); max-height: calc(100dvh - 16px); padding: 18px; }
+	.report-drawer { padding: 18px; }
 	.report-drawer-header { margin-bottom: 16px; }
 	.report-drawer-form { gap: 16px; }
 }

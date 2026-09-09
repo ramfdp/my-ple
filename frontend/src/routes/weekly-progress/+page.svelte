@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { fade, fly } from 'svelte/transition';
+	import { fade } from 'svelte/transition';
 	import { api, currentUser, download, session, type Report, type ReportingPeriod } from '$lib/api';
 	import JobPicker from '$lib/components/JobPicker.svelte';
 	import type { Job } from '$lib/api';
@@ -136,7 +136,7 @@
 {#if editing}
 	<div class="report-drawer-layer" transition:fade={{ duration: 180 }}>
 		<button class="report-drawer-backdrop" type="button" aria-label="Tutup edit laporan" onclick={() => (editing = null)}></button>
-		<div class="report-drawer" role="dialog" aria-modal="true" aria-labelledby="edit-report-title" transition:fly={{ x: 32, duration: 240, opacity: 0 }}>
+		<div class="report-drawer" role="dialog" aria-modal="true" aria-labelledby="edit-report-title" transition:fade={{ duration: 180 }}>
 			<div class="report-drawer-header"><h2 id="edit-report-title">Edit laporan</h2><button class="drawer-close" type="button" aria-label="Tutup" onclick={() => (editing = null)}>×</button></div>
 			<form class="report-form report-drawer-form" onsubmit={(event) => { event.preventDefault(); void saveEdit(); }}>
 				<JobPicker division={editing.primaryDivision} existing={editing} fixedDivision bind:selected={editJob} bind:busy={jobsBusy} />
@@ -150,7 +150,7 @@
 {#if deleting}
 	<div class="report-modal-layer" transition:fade={{ duration: 180 }}>
 		<button class="report-modal-backdrop" type="button" aria-label="Batal hapus laporan" onclick={() => (deleting = null)}></button>
-		<div class="report-delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-report-title" transition:fly={{ y: 18, duration: 220, opacity: 0 }}>
+		<div class="report-delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-report-title" transition:fade={{ duration: 180 }}>
 			<h2 id="delete-report-title">Hapus laporan?</h2><p>Make sure Anda ingin menghapus laporan ini. Tindakan ini tidak dapat dibatalkan.</p>
 			<div class="delete-modal-actions"><button class="delete-report-confirm" type="button" onclick={() => void deleteReport()}>Hapus laporan</button><button class="drawer-cancel" type="button" onclick={() => (deleting = null)}>Batal</button></div>
 		</div>
