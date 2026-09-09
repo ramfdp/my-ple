@@ -1,0 +1,61 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: my_ple
+      POSTGRES_USER: my_ple
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-my_ple_local}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U my_ple -d my_ple"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      DATABASE_URL: "host=db port=5432 user=my_ple password=${POSTGRES_PASSWORD:-my_ple_local} dbname=my_ple sslmode=disable"
+      PORT: "3000"
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
+      UPLOAD_DIR: /app/upload
+      WEEKLY_REPORT_STORAGE_DIR: /app/storage/weekly-reports
+    ports:
+      - "3000:3000"
+    volumes:
+      - uploads:/app/upload
+      - reports:/app/storage
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
+    environment:
+      ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
+    ports:
+      - "5173:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  uploads:
+  reports:

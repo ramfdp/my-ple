@@ -4,3 +4,4 @@
 /backend/storage/
 /. tmp-go-cache
 /tasks
+/.env

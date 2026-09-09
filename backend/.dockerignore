@@ -1,0 +1,7 @@
+.env
+.env.*
+.git
+upload
+storage
+*.exe
+Dockerfile
