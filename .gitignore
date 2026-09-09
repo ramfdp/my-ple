@@ -3,3 +3,4 @@
 /.tmp-gocache
 /backend/storage/
 /. tmp-go-cache
+/tasks

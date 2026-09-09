@@ -1,0 +1,12 @@
+<script lang="ts">
+ import {statuses,priorities,labelDate,taskSpan,type Task} from '$lib/workspace';
+ let {tasks,days,onopen}:{tasks:Task[];days:string[];onopen:(t:Task)=>void}=$props();
+ const positioned=$derived(tasks.map(task=>({task,span:taskSpan(task,days[0],days.at(-1)!)})).filter(row=>row.span));
+</script>
+<p class="ws-muted">Klik pekerjaan untuk detail dan mengubah tanggal. Tanggal mengikuti Asia/Jakarta.</p>
+<div class="ws-scroll"><div class="ws-timeline" style:min-width={(260+days.length*38)+'px'}>
+ <div class="ws-timeline-row"><div class="ws-timeline-label">Pekerjaan</div><div class="ws-timeline-days" style:grid-template-columns={'repeat('+days.length+',1fr)'}>{#each days as day}<span>{day.slice(-2)}</span>{/each}</div></div>
+ {#each positioned as {task,span}}<div class="ws-timeline-row"><div class="ws-timeline-label"><button class="ws-link" onclick={()=>onopen(task)}>{task.title}</button><small>{task.assignees.map(a=>a.name).join(', ')} · {statuses[task.status]} · {priorities[task.priority]}</small></div>
+ <div class="ws-timeline-track" style:grid-template-columns={'repeat('+days.length+',1fr)'}><button class={'ws-bar '+task.status} style:grid-column={(days.indexOf(span!.start)+1)+' / '+(days.indexOf(span!.end)+2)} title={task.title+': '+labelDate(task.startDate)+' – '+labelDate(task.dueDate)} onclick={()=>onopen(task)}>{task.title}</button></div></div>{/each}
+</div></div>
+{#if !positioned.length}<p class="ws-empty">Belum ada pekerjaan bertanggal pada periode ini.</p>{/if}

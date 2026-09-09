@@ -31,6 +31,9 @@ var reportNumberingSQL string
 //go:embed job_pics.sql
 var jobPICsSQL string
 
+//go:embed workspace.sql
+var workspaceSQL string
+
 type Database struct {
 	Conn *sql.DB
 	Now  func() time.Time
@@ -57,7 +60,7 @@ func (db *Database) Migrate(ctx context.Context) error {
 	if _, err = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(71260402)`); err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, schemaSQL+weeklyArchiveSQL+jobsSQL+reportNumberingSQL+jobPICsSQL); err != nil {
+	if _, err = tx.ExecContext(ctx, schemaSQL+weeklyArchiveSQL+jobsSQL+reportNumberingSQL+jobPICsSQL+workspaceSQL); err != nil {
 		return err
 	}
 	var unmatched int
@@ -247,6 +250,10 @@ func (db *Database) DeleteUser(ctx context.Context, id string) error {
 	}
 	result, err := tx.ExecContext(ctx, `DELETE FROM users WHERE id = $1`, id)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23503" && (pgErr.TableName == "work_items" || pgErr.TableName == "work_item_assignees" || pgErr.TableName == "work_item_comments" || pgErr.TableName == "work_item_activity" || pgErr.TableName == "workspace_pages") {
+			return ErrUserHasWorkspaceHistory
+		}
 		return err
 	}
 	if count, _ := result.RowsAffected(); count == 0 {

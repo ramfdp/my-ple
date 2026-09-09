@@ -75,6 +75,9 @@ func (h *Hub) remove(userID string, conn *websocket.Conn) {
 }
 
 func (h *Hub) Broadcast(notification model.Notification, excludeUserID string) {
+	if notification.Workspace != nil || notification.Type == "workspace_task" {
+		return
+	}
 	// ponytail: serialize writes; use per-connection writers if notification throughput grows.
 	h.broadcastMu.Lock()
 	defer h.broadcastMu.Unlock()
@@ -100,5 +103,29 @@ func (h *Hub) Broadcast(notification model.Notification, excludeUserID string) {
 				_ = conn.Close()
 			}
 		}
+	}
+}
+
+// Workspace events only invalidate authorized clients. No task or note content is sent.
+func (h *Hub) SendWorkspace(userIDs []string, divisionID int, excludeUserID string) {
+	h.broadcastMu.Lock()
+	defer h.broadcastMu.Unlock()
+	payload, _ := json.Marshal(map[string]any{"event": "workspace.changed", "workspaceId": divisionID})
+	h.mu.RLock()
+	targets := []*websocket.Conn{}
+	for _, id := range userIDs {
+		if id != excludeUserID {
+			for c := range h.connections[id] {
+				targets = append(targets, c)
+			}
+		}
+	}
+	h.mu.RUnlock()
+	for _, c := range targets {
+		_ = c.SetWriteDeadline(time.Now().Add(5 * time.Second))
+		if err := c.WriteMessage(websocket.TextMessage, payload); err != nil {
+			_ = c.Close()
+		}
+		_ = c.SetWriteDeadline(time.Time{})
 	}
 }

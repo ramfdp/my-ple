@@ -18,6 +18,7 @@
 
 	const navItems = [
 		{ name: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
+		{ name: 'Team Workspace', href: '/workspace', icon: 'users' },
 		{ name: 'My Profile', href: '/my-profile', icon: 'user' },
 		{ name: 'Attendance', href: '/attendance', icon: 'calendar' },
 		{ name: 'Leave', href: '/leave', icon: 'clock' },
@@ -28,6 +29,7 @@
 	let visibleNavItems = $derived(canManageEmployees ? [{ name: 'Employees', href: '/employees', icon: 'users' }, ...navItems] : navItems);
 
 	function isItemActive(href: string): boolean {
+		if (href === '/workspace') return page.url.pathname === href || page.url.pathname.startsWith(href+'/');
 		if (href === '/my-profile') {
 			return page.url.pathname === '/my-profile' || page.url.pathname === '/profile';
 		}

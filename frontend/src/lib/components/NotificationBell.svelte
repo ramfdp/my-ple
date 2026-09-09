@@ -22,10 +22,11 @@
 				{#each $notifications.items as item (item.id)}
 					<li class:unread={!item.readAt}>
 						<button class="notification-content" type="button" onclick={() => void markRead(item.id).catch(() => {})}>
-							<strong>{item.actor.name} membooking {item.booking?.zoomName ?? 'Zoom'}</strong>
+							<strong>{#if item.workspace}{item.actor.name}: {item.workspace.message} — {item.workspace.title}{:else}{item.actor.name} membooking {item.booking?.zoomName ?? 'Zoom'}{/if}</strong>
 							{#if item.booking}<span>{date(item.booking.startAt)} · {time(item.booking.startAt)}–{time(item.booking.endAt)}</span>{/if}
 							<small>{relative(item.createdAt)}</small>
 						</button>
+						{#if item.workspace}<a href={'/workspace/'+item.workspace.workspaceId}>Buka Workspace →</a>{/if}
 						<button class="notification-dismiss" type="button" onclick={() => void dismissNotification(item.id).catch(() => {})}>Hapus</button>
 					</li>
 				{/each}

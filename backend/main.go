@@ -89,6 +89,7 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 	zoomCtrl := controller.NewZoomBookingController(database, notificationService)
 	zoomResourceCtrl := controller.NewZoomResourceController(database)
 	notificationCtrl := &controller.NotificationController{DB: database}
+	workspaceCtrl := &controller.WorkspaceController{DB: database, Notifications: notificationService}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		current, ok := middleware.GetClaims(r.Context())
 		if !ok {
@@ -97,6 +98,10 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 		}
 		if r.URL.Path == "/jobs" || strings.HasPrefix(r.URL.Path, "/jobs/") {
 			jobCtrl.ServeHTTP(w, r)
+			return
+		}
+		if r.URL.Path == "/workspaces" || strings.HasPrefix(r.URL.Path, "/workspaces/") || strings.HasPrefix(r.URL.Path, "/work-items/") || strings.HasPrefix(r.URL.Path, "/workspace-pages/") {
+			workspaceCtrl.ServeHTTP(w, r)
 			return
 		}
 		if r.Method == http.MethodGet && (r.URL.Path == "/me" || r.URL.Path == "/auth/me" || r.URL.Path == "/api/auth/me") {
@@ -174,6 +179,7 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 					{"id": "weekly-progress", "name": "Weekly Progress"},
 					{"id": "overtime", "name": "List Lembur"},
 					{"id": "zoom-booking", "name": "Booking Zoom"},
+					{"id": "workspace", "name": "Team Workspace"},
 				},
 			})
 			return

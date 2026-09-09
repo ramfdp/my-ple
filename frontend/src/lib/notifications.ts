@@ -28,6 +28,7 @@ export async function dismissNotification(id: string) {
 }
 
 export function startNotifications() {
+	notifications.set({items:[],unread:0});
 	const current = session();
 	if (!current) return () => {};
 	let stopped = false;
@@ -42,7 +43,7 @@ export function startNotifications() {
 		if (stopped) return;
 		notifications.update((state) => {
 			const ids = new Set(feed.notifications.map(({ id }) => id));
-			const items = merge ? [...feed.notifications, ...state.items.filter(({ id }) => !ids.has(id))] : feed.notifications;
+			const items = merge ? [...feed.notifications, ...state.items.filter(({ id, type }) => type !== 'workspace_task' && !ids.has(id))] : feed.notifications;
 			return { items, unread: merge ? items.filter(({ readAt }) => !readAt).length : count.count };
 		});
 	};
@@ -54,12 +55,13 @@ export function startNotifications() {
 		socket.onopen = () => { retry = 1000; void refresh(true).catch(() => {}); };
 		socket.onmessage = ({ data }) => {
 			try {
-				const message = JSON.parse(data) as { event: string; notification: Notification };
+				const message = JSON.parse(data) as { event: string; notification: Notification; workspaceId?:number };
+				if(message.event==='workspace.changed') { window.dispatchEvent(new CustomEvent('workspace.changed',{detail:{workspaceId:message.workspaceId}})); void refresh(false).catch(()=>{}); }
 				if (message.event === 'notification.created' && message.notification.actor.id !== current.user.id) addNotification(message.notification);
 			} catch { /* Ignore malformed server events. */ }
 		};
 		socket.onclose = () => { if (!stopped) { timer = setTimeout(connect, retry); retry = Math.min(retry * 2, 30_000); } };
 	};
 	void refresh(false).then(connect).catch(connect);
-	return () => { stopped = true; clearTimeout(timer); socket?.close(); };
+	return () => { stopped = true; clearTimeout(timer); socket?.close(); notifications.set({items:[],unread:0}); };
 }

@@ -35,7 +35,8 @@ export interface ZoomResource {
 }
 export interface ZoomResourceInput { description: string; meetingUrl: string; meetingId: string; hostKey: string }
 export interface Notification {
-	id: string; type: 'zoom_booking_created'; actor: { id: string; name: string };
+	id: string; type: 'zoom_booking_created'|'workspace_task'; actor: { id: string; name: string };
+	workspace?: {title:string;workspaceId:number;message:string};
 	entityType: string; entityId: string; createdAt: string; readAt: string | null;
 	booking?: { id: string; zoomName: string; startAt: string; endAt: string };
 }
