@@ -63,13 +63,3 @@ func ValidZoomBooking(input ZoomBookingInput) bool {
 func ValidZoomResourceUpdate(input ZoomResourceUpdateInput) bool {
 	return len(input.Description) <= 1000 && len(input.MeetingID) <= 100 && len(input.HostKey) <= 100 && len(input.Passcode) <= 100 && validHTTPSURL(input.MeetingURL)
 }
-
-func ZoomBookingStatus(start, end, now time.Time) string {
-	if now.Before(start) {
-		return "upcoming"
-	}
-	if now.Before(end) {
-		return "ongoing"
-	}
-	return "completed"
-}

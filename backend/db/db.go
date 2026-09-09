@@ -288,17 +288,6 @@ func zoomConflict(err error) error {
 	return err
 }
 
-func (db *Database) CreateZoomBooking(ctx context.Context, userID string, input model.ZoomBookingInput) (model.ZoomBooking, error) {
-	booking, err := scanZoomBooking(db.Conn.QueryRowContext(ctx, `
-		WITH inserted AS (
-			INSERT INTO zoom_bookings (id, user_id, zoom_resource_id, title, description, start_at, end_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *
-		)
-		SELECT `+zoomBookingSelect()+` FROM inserted z JOIN users u ON u.id=z.user_id JOIN zoom_resources r ON r.id=z.zoom_resource_id`,
-		NewID(), userID, input.ZoomResourceID, input.Title, input.Description, input.StartAt, input.EndAt))
-	return booking, zoomConflict(err)
-}
-
 func (db *Database) ListZoomBookings(ctx context.Context, start, end time.Time) ([]model.ZoomBooking, error) {
 	rows, err := db.Conn.QueryContext(ctx, `
 		SELECT `+zoomBookingSelect()+`
@@ -445,11 +434,6 @@ func (db *Database) CreateReport(ctx context.Context, userID string, input model
 	}
 	result.JobID = input.JobID
 	return result, nil
-}
-
-func (db *Database) CleanupExpiredReports(ctx context.Context, weekStart time.Time) error {
-	// Retained for callers: only the archive worker may reset verified periods.
-	return nil
 }
 
 func (db *Database) ListReports(ctx context.Context, primaryDivision string, weekStart, nextWeekStart time.Time) ([]model.WeeklyReport, error) {

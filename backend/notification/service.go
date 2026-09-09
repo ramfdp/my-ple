@@ -15,7 +15,7 @@ type Service struct {
 }
 
 func (s *Service) CreateZoomBooking(ctx context.Context, userID string, input model.ZoomBookingInput) (model.ZoomBooking, error) {
-	booking, event, err := s.DB.CreateZoomBookingWithNotification(ctx, userID, input, email.ZoomEnabled())
+	booking, event, err := s.DB.CreateZoomBookingWithNotification(ctx, userID, input, email.Enabled())
 	if err != nil {
 		return model.ZoomBooking{}, err
 	}

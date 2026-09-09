@@ -22,8 +22,7 @@ import (
 	"my-ple-backend/realtime"
 )
 
-func newHandler(database *db.Database, secret, corsOrigin string) http.Handler {
-	_ = secret // retained in the constructor signature for existing callers
+func newHandler(database *db.Database, corsOrigin string) http.Handler {
 	sessionTTL, err := time.ParseDuration(envOr("SESSION_TTL", "8h"))
 	if err != nil || sessionTTL <= 0 {
 		sessionTTL = 8 * time.Hour
@@ -310,12 +309,8 @@ func main() {
 	if port == "" {
 		port = "3000"
 	}
-	secret := os.Getenv("AUTH_SECRET")
-	if secret == "" {
-		secret = "development-only-secret-change-me"
-	}
 	fmt.Printf("my-ple backend listening on http://localhost:%s\n", port)
-	server := &http.Server{Addr: ":" + port, Handler: newHandler(database, secret, envOr("FRONTEND_ORIGIN", "http://localhost:5173"))}
+	server := &http.Server{Addr: ":" + port, Handler: newHandler(database, envOr("FRONTEND_ORIGIN", "http://localhost:5173"))}
 	shutdown, stopSignal := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stopSignal()
 	go func() {

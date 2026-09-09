@@ -16,10 +16,8 @@ import (
 	"my-ple-backend/model"
 )
 
-func ZoomEnabled() bool { return Enabled() }
-
 func ValidateZoomConfig() error {
-	if !ZoomEnabled() {
+	if !Enabled() {
 		return nil
 	}
 	if os.Getenv("SMTP_HOST") != "smtp.gmail.com" || os.Getenv("SMTP_FROM") != "aiple5766@gmail.com" || os.Getenv("SMTP_USERNAME") != "aiple5766@gmail.com" || strings.TrimSpace(os.Getenv("SMTP_PASSWORD")) == "" {
@@ -88,7 +86,7 @@ func alternativeMessage(from, to, id, domain, subject, body string) ([]byte, err
 }
 
 func SendZoom(ctx context.Context, to, id string, b model.ZoomBooking, creator bool) error {
-	if !ZoomEnabled() {
+	if !Enabled() {
 		return errors.New("Zoom email disabled")
 	}
 	if err := ValidateZoomConfig(); err != nil {
