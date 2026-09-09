@@ -451,7 +451,7 @@ func (db *Database) WorkActivity(ctx context.Context, userID string, division in
 		}
 	}
 	rows, err := db.Conn.QueryContext(ctx, `SELECT a.id,a.work_item_id,u.name,a.action,a.field_name,COALESCE(a.old_value,'null'),COALESCE(a.new_value,'null'),a.created_at
- FROM work_item_activity a JOIN work_items t ON t.id=a.work_item_id JOIN users u ON u.id=a.actor_user_id WHERE t.division_id=$1 AND ($2='' OR t.id=NULLIF($2,'')::uuid) ORDER BY a.created_at DESC,a.id DESC LIMIT 100`, division, id)
+ FROM work_item_activity a JOIN work_items t ON t.id=a.work_item_id JOIN users u ON u.id=a.actor_user_id WHERE t.division_id=$1 AND ($2='' OR t.id=NULLIF($2,'')::uuid) AND ($2<>'' OR a.created_at >= $3) ORDER BY a.created_at DESC,a.id DESC LIMIT 100`, division, id, db.Now().Add(-7*24*time.Hour))
 	if err != nil {
 		return nil, err
 	}

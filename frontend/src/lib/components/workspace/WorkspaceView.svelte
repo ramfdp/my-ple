@@ -1,4 +1,5 @@
 <script lang="ts">
+ import {formatActivity} from '$lib/activity';
  import {api} from '$lib/api';
  import {statuses,priorities,today,period,addDays,dateString,dateValue,labelDate,type Task,type Workspace,type WorkspaceJob,type Member,type Workload,type Activity} from '$lib/workspace';
  import TaskTable from './TaskTable.svelte';
@@ -57,7 +58,7 @@
  <div class="ws-metrics">{#each [['active','Active Tasks'],['inProgress','In Progress'],['needRevision','Need Revision'],['done','Completed'],['overdue','Overdue']] as [key,label]}<article class="ws-panel"><strong>{overview[key]??0}</strong><p>{label}</p></article>{/each}</div>
  <section class="ws-panel"><h2>Pekerjaan Mendekati Deadline</h2>{#each tasks.filter(t=>t.dueDate&&t.status!=='DONE').sort((a,b)=>a.dueDate.localeCompare(b.dueDate)).slice(0,8) as t}<p><button class="ws-link" onclick={()=>open(t)}>{t.title}</button> · {t.dueDate}</p>{:else}<p>Belum ada deadline terdekat.</p>{/each}</section>
  <section class="ws-panel"><h2>Team Workload Summary</h2><p>{workload.filter(w=>w.workloadLevel==='AVAILABLE').length} Available · {workload.filter(w=>w.workloadLevel==='NORMAL').length} Normal · {workload.filter(w=>w.workloadLevel==='BUSY').length} Busy · {workload.filter(w=>w.workloadLevel==='OVERLOADED').length} Overloaded</p></section>
- <section class="ws-panel"><h2>Aktivitas Terbaru</h2><ul class="ws-activity">{#each activity.slice(0,10) as a}<li>{a.actorName} · {a.action} {a.field}<small> · {new Date(a.createdAt).toLocaleString('id-ID')}</small></li>{:else}<li>Belum ada aktivitas tim.</li>{/each}</ul></section>
+ <section class="ws-panel"><h2>Aktivitas Terbaru</h2><ul class="ws-activity">{#each activity.slice(0,10) as a}{@const formatted=formatActivity(a)}<li>{formatted.title}<br/><small>{formatted.timestamp}</small></li>{:else}<li>Belum ada aktivitas terbaru.</li>{/each}</ul></section>
  {:else if view==='Table'}<TaskTable {tasks} onopen={open} {sort} onsort={(value)=>{sort=value;void refresh()}}/>
  {:else if view==='Board'}<TaskBoard {tasks} onopen={open} onchanged={saved}/>
  {:else if view==='Timeline'||view==='Calendar'}

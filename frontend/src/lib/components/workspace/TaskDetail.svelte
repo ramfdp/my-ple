@@ -1,4 +1,5 @@
 <script lang="ts">
+ import {formatActivity} from '$lib/activity';
  import {onMount} from 'svelte';
  import {api,currentUser} from '$lib/api';
  import ProjectCombobox from './ProjectCombobox.svelte';
@@ -34,7 +35,7 @@
  {#if confirmArchive}<div class="ws-panel"><p>Arsipkan pekerjaan ini? Pekerjaan tidak lagi muncul pada tampilan aktif.</p><button disabled={saving} onclick={archive}>Ya, arsipkan</button> <button onclick={()=>confirmArchive=false}>Batal</button></div>{/if}
  {#if task}
  <section><h3>Komentar</h3>{#if loading}<p role="status">Memuat diskusi…</p>{/if}{#each comments as c}<article class="ws-comment"><strong>{c.name}</strong><small> · {time(c.createdAt)}</small><p>{c.content}</p></article>{:else}<p>Belum ada komentar.</p>{/each}
- <form onsubmit={sendComment}><label>Komentar baru<textarea required maxlength="4000" rows="2" bind:value={comment} disabled={saving}></textarea></label><button type="submit" disabled={saving||!comment.trim()}>Kirim Komentar</button></form></section>
- <section><h3>Activity History</h3><ul class="ws-activity">{#each activity as a}<li><strong>{a.actorName}</strong> · {a.action} {a.field}<br/>{#if a.oldValue!==null||a.newValue!==null}<span>{JSON.stringify(a.oldValue)} → {JSON.stringify(a.newValue)}</span><br/>{/if}<small>{time(a.createdAt)}</small></li>{/each}</ul></section>
+ <form class="ws-comment-form" onsubmit={sendComment}><label>Komentar baru<textarea required maxlength="4000" rows="2" bind:value={comment} disabled={saving}></textarea></label><button type="submit" disabled={saving||!comment.trim()}>Kirim Komentar</button></form></section>
+ <section><h3>Activity History</h3><ul class="ws-activity">{#each activity as a}{@const formatted=formatActivity(a)}<li>{formatted.title}<br/><small>{formatted.timestamp}</small></li>{/each}</ul></section>
  {/if}
 </dialog>

@@ -4,3 +4,5 @@
 .ws-notes{display:grid;grid-template-columns:260px minmax(0,1fr);gap:20px}.ws-note-tree{padding-left:16px;overflow-wrap:anywhere}.ws-note-tree li{margin:12px 0}.ws-note-form{min-width:0;border:0;padding:0;display:grid;gap:14px}.ws-note-line{display:flex;gap:10px;flex-wrap:wrap;align-items:end;border-bottom:1px solid #e2e8f0;padding-bottom:12px}.ws-note-text{flex:1 1 180px;min-width:0}.ws-document{line-height:1.75;overflow-wrap:anywhere}.ws-document p{white-space:pre-wrap}@media(max-width:868px){.ws-notes{grid-template-columns:1fr}}
 
 @media(max-width:640px){.ws-timeline{--ws-label-width:160px}}
+
+.ws-comment-form{display:flex;flex-direction:column;gap:12px;margin-top:16px;min-width:0}.ws-comment-form textarea{width:100%;max-width:100%;box-sizing:border-box;min-height:96px;resize:vertical}.ws-comment-form button{align-self:flex-start;max-width:100%;min-height:44px}

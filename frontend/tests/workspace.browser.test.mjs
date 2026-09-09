@@ -8,7 +8,7 @@ import { join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
 const profile = await mkdtemp(join(tmpdir(), 'workspace-browser-'));
-const browser = spawn(process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe', ['--headless=new', '--disable-gpu', '--disable-extensions', '--disable-background-networking', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'], { windowsHide: true, stdio: ['ignore','ignore','pipe'] });
+const browser = spawn(process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe', ['--headless=new', '--disable-gpu', '--in-process-gpu', '--no-sandbox', '--disable-extensions', '--disable-background-networking', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'], { windowsHide: true, stdio: ['ignore','ignore','pipe'] });
 let browserLog='';browser.stderr.on('data',data=>browserLog=(browserLog+data).slice(-3000));
 let socket;
 try {
@@ -33,7 +33,8 @@ try {
   await call('Runtime.enable'); await call('Page.enable');
 
   await call('Page.addScriptToEvaluateOnNewDocument',{source:`
-   window.saved=[];window.feed=[];
+   window.saved=[];window.feed=[];window.comments=[];window.activities=[];
+   window.task={id:'activity-task',workspaceId:1,title:'Activity fixture',description:'',relatedUrl:'',jobId:null,startDate:'',dueDate:'2099-01-01',status:'TODO',priority:'MEDIUM',assignees:[],canEdit:true,canDelete:true,version:1};
    window.jobs=[{id:17,name:'MPS SGR',label:'MPS SGR',isActive:true},{id:17,name:'MPS SGR',label:'MPS SGR',isActive:true},{id:18,name:'MPS PIT',isActive:true},{id:19,name:'MPS SGP',isActive:true},...Array.from({length:30},(_,i)=>({id:100+i,name:'Long project '+('name '.repeat(25))+i,isActive:true}))];
    const realFetch=window.fetch;
    window.fetch=async(input,options)=>{
@@ -43,10 +44,12 @@ try {
     if(url.pathname==='/auth/me')body={user:{id:'budi',name:'Budi',role:'Management',isActive:true}};
     if(url.pathname==='/workspaces/1')body={workspace:{id:1,name:'Project Engineer',canManage:true},members:[{id:'budi',name:'Budi',avatarUrl:''},{id:'andi',name:'Andi',avatarUrl:''}]};
     if(url.pathname.endsWith('/jobs'))body={jobs:window.jobs};
-    if(url.pathname.endsWith('/tasks')){body={tasks:[],total:0};if(options?.method==='POST'){window.saved.push(JSON.parse(options.body));body={task:{id:'saved',...window.saved.at(-1)}};}}
+    if(url.pathname.endsWith('/tasks')){body={tasks:window.activities.length?[window.task]:[],total:window.activities.length?1:0};if(options?.method==='POST'){window.saved.push(JSON.parse(options.body));body={task:{id:'saved',...window.saved.at(-1)}};}}
     if(url.pathname.endsWith('/workload'))body={workload:[]};
     if(url.pathname.endsWith('/overview'))body={overview:{}};
-    if(url.pathname.endsWith('/activity'))body={activity:[]};
+    if(url.pathname.endsWith('/activity'))body={activity:window.activities};
+    if(url.pathname==='/work-items/activity-task')body={task:window.task};
+    if(url.pathname.endsWith('/comments')){if(options?.method==='POST')window.comments.push({id:'comment',name:'Budi',createdAt:new Date().toISOString(),...JSON.parse(options.body)});body={comments:window.comments};}
     if(url.pathname==='/notifications')body={notifications:window.feed};
     if(url.pathname==='/notifications/unread-count')body={count:window.feed.length};
     return new Response(JSON.stringify(body),{status:200,headers:{'Content-Type':'application/json'}});
@@ -107,6 +110,50 @@ try {
   await evaluate(`Array.from(document.querySelectorAll('[role=option] button')).find(e=>e.textContent==='Tanpa project').click()`);
   await evaluate(`(()=>{const title=document.querySelector('input[required]');title.value='No project';title.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('dialog form').requestSubmit()})()`);
   await waitFor(`window.saved.length===2`);assert.equal(await evaluate(`window.saved[1].jobId`),null);
+  // Activity presentation and comment form use the actual components with fixture APIs.
+  await evaluate(`document.querySelector('.ws-tabs button').click()`);
+  await waitFor(`document.querySelector('.ws-activity')?.textContent.includes('Belum ada aktivitas terbaru.')`);
+  await evaluate(`window.activities=[
+   {action:'CREATE',newValue:'MoM asistensi 20'},
+   {action:'STATUS_CHANGE',oldValue:'TODO',newValue:'IN_PROGRESS'},
+   {action:'STATUS_CHANGE',oldValue:'DONE',newValue:'NEED_REVISION'},
+   {action:'ASSIGN',newValue:'internal-user-id'},
+   {action:'FUTURE_EVENT',newValue:{secret:'hidden'}},
+   {action:'CREATE',newValue:'<script>danger</script>'+('long'.repeat(100))}
+  ].map((a,i)=>({id:String(i),actorName:'username'.repeat(30),createdAt:'2026-08-01T10:00:00Z',field:'internal_field',oldValue:null,newValue:null,...a}));document.querySelector('.ws-tabs button').click()`);
+  await waitFor(`document.querySelector('.ws-activity')?.textContent.includes('MoM asistensi 20')`);
+  const recentText=await evaluate(`document.querySelector('.ws-activity').textContent`);
+  assert(recentText.includes('membuat pekerjaan "MoM asistensi 20"'));
+  assert(recentText.includes('mengubah status dari Belum Dimulai menjadi Sedang Dikerjakan'));
+  assert(recentText.includes('mengubah status dari Selesai menjadi Perlu Revisi'));
+  assert(recentText.includes('menetapkan penanggung jawab')&&recentText.includes('memperbarui pekerjaan'));
+  assert(!/CREATE|STATUS_CHANGE|IN_PROGRESS|ASSIGN|internal_field|internal-user-id|hidden|null/.test(recentText));
+  assert(await evaluate(`!document.querySelector('.ws-activity script')`));
+  await evaluate(`document.querySelector('.ws-panel .ws-link').click()`);
+  await waitFor(`!!document.querySelector('.ws-comment-form')&&document.querySelector('dialog .ws-activity').textContent.includes('MoM asistensi 20')`);
+  assert.equal(await evaluate(`document.querySelector('dialog .ws-activity').textContent`),recentText,'same formatter, old history rendered');
+  assert(await evaluate(`document.querySelector('.ws-comment-form button').disabled`));
+  for(const width of [320,360,390,414,768,1366]){
+   await call('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<600});
+   for(const height of [96,240]){
+    await evaluate(`document.querySelector('.ws-comment-form textarea').style.height='${height}px';document.querySelector('.ws-comment-form').scrollIntoView({block:'center'})`);
+    const metrics=await evaluate(`(()=>{const f=document.querySelector('.ws-comment-form'),t=f.querySelector('textarea').getBoundingClientRect(),b=f.querySelector('button').getBoundingClientRect(),d=document.querySelector('dialog');return{gap:b.top-t.bottom,left:t.left,right:t.right,buttonRight:b.right,buttonHeight:b.height,viewport:innerWidth,dialogScroll:d.scrollWidth,dialogWidth:d.clientWidth,pageScroll:document.documentElement.scrollWidth}})()`);
+    assert(metrics.gap>=12&&metrics.left>=0&&metrics.right<=width&&metrics.buttonRight<=width&&metrics.buttonHeight>=44&&metrics.dialogScroll<=metrics.dialogWidth+1&&metrics.pageScroll<=width+1,JSON.stringify(metrics));
+   }
+   const shot=await call('Page.captureScreenshot');await writeFile(resolve('../.tmp-gocache/workspace-comment-'+width+'.png'),Buffer.from(shot.data,'base64'));
+  }
+  await evaluate(`(()=>{const t=document.querySelector('.ws-comment-form textarea');t.value='Komentar uji';t.dispatchEvent(new Event('input',{bubbles:true}))})()`);
+  await waitFor(`!document.querySelector('.ws-comment-form button').disabled`);
+  await evaluate(`document.querySelector('.ws-comment-form').requestSubmit()`);
+  await waitFor(`document.querySelector('.ws-comment')?.textContent.includes('Komentar uji')`);
+  assert.equal(await evaluate(`window.comments[0].content`),'Komentar uji');
+  assert(await evaluate(`document.querySelector('.ws-comment-form textarea').value===''&&document.querySelector('.ws-comment-form button').disabled`));
+  await evaluate(`document.querySelector('dialog header button').click()`);
+  for(const width of [320,360,390,414,768,1366]){
+   await call('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<600});
+   assert(await evaluate(`document.documentElement.scrollWidth<=innerWidth+1&&Array.from(document.querySelectorAll('.ws-activity li, .ws-activity small')).every(e=>e.getBoundingClientRect().right<=innerWidth+1)`),'overview activity fits '+width);
+  }
+  console.log('PASS: shared activity labels, status labels, unknown fallback, raw payload safety, empty state, old history, comment submission, 320/360/390/414/768/1366 layouts and resized textarea.');
   // Verify assignment payload rendering through the existing workspace invalidation/refetch path.
   await call('Page.navigate',{url:'http://127.0.0.1:5190/dashboard'});
   await waitFor(`!!window.testSocket?.onmessage&&!!document.querySelector('.notification-button')`);
