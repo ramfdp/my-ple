@@ -11,6 +11,35 @@ Frontend: http://localhost:5173. Backend: http://localhost:3000
 (health check: `/health`). Compose menjalankan PostgreSQL baru; skema dibuat
 otomatis oleh backend. Data database lokal yang sudah ada tidak diimpor otomatis.
 
+Nginx menerima trafik backend pada port `3000` dan membaginya secara round-robin.
+Frontend tetap satu container pada port `5173`. Untuk menjalankan tiga backend:
+
+```sh
+docker compose up -d --build --scale backend=3
+```
+
+Ubah jumlahnya kapan saja, misalnya menjadi lima atau kembali satu:
+
+```sh
+docker compose up -d --scale backend=5
+docker compose up -d --scale backend=1
+docker compose ps backend
+docker compose exec nginx nginx -t
+```
+
+Ganti angka sesuai kebutuhan. Tidak perlu mengedit konfigurasi atau reload Nginx:
+[upstream resolve](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#server)
+memperbarui alamat backend melalui DNS Docker dengan cache 5 detik.
+Semua replika berbagi database, upload, dan arsip laporan yang sama.
+Upload diteruskan ke backend; [WebSocket](https://nginx.org/en/docs/http/websocket.html)
+juga diteruskan melalui Nginx. Koneksi WebSocket pada replika yang dihentikan
+akan tersambung ulang melalui mekanisme reconnect frontend.
+
+Batasan: hub event WebSocket aplikasi masih berada di memori masing-masing
+backend. Saat memakai beberapa replika, notifikasi realtime dan invalidasi
+workspace/cuti belum tersebar antar-replika; data tetap dapat dibaca melalui API
+atau refresh halaman. Sinkronisasi event lintas replika memerlukan pub/sub bersama.
+
 `backend/.env` opsional untuk pengaturan aplikasi/SMTP. Compose mengganti
 `DATABASE_URL`, port, origin, dan direktori penyimpanan agar sesuai container.
 Konfigurasi default menggunakan HTTP lokal; pastikan `APP_ENV` bukan `production`
