@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"html"
-	"mime"
 	"mime/multipart"
 	"mime/quotedprintable"
 	"net/textproto"
@@ -60,7 +59,12 @@ func alternativeMessage(from, to, id, domain, subject, body string) ([]byte, err
 	subject = strings.Join(strings.Fields(subject), " ")
 	var out bytes.Buffer
 	parts := multipart.NewWriter(&out)
-	fmt.Fprintf(&out, "From: %s\r\nTo: %s\r\nSubject: %s\r\nMessage-ID: <%s@%s>\r\nDate: %s\r\nMIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=%q\r\n\r\n", from, to, mime.QEncoding.Encode("utf-8", subject), id, domain, time.Now().UTC().Format(time.RFC1123Z), parts.Boundary())
+	headers, err := messageHeaders(from, to, subject, id, strings.TrimSuffix(domain, ".local"))
+	if err != nil {
+		return nil, err
+	}
+	out.WriteString(headers)
+	fmt.Fprintf(&out, "Content-Type: multipart/alternative; boundary=%q\r\n\r\n", parts.Boundary())
 	for _, part := range []struct{ kind, body string }{
 		{"text/plain", body},
 		{"text/html", `<html><body><div style="font-family:Arial,sans-serif;max-width:600px;line-height:1.5;overflow-wrap:anywhere;word-break:break-word">` + strings.ReplaceAll(html.EscapeString(body), "\n", "<br>\n") + `</div></body></html>`},

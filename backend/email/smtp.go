@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"mime"
 	"mime/multipart"
+	"mime/quotedprintable"
 	"net"
 	"net/mail"
 	"net/smtp"
@@ -27,18 +28,44 @@ func ValidAddress(value string) bool {
 	return err == nil && a.Address == value && !strings.ContainsAny(value, "\r\n") && strings.Contains(value, "@")
 }
 
+// One accurate sender identity and RFC 5322 date/Message-ID format for all mail.
+// Authentication headers are supplied by Gmail, never fabricated by this app.
+func messageHeaders(from, to, subject, id, namespace string) (string, error) {
+	if !ValidAddress(from) || !ValidAddress(to) || id == "" || len(id) > 200 {
+		return "", errors.New("invalid email headers")
+	}
+	for _, c := range id {
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-' || c == '_') {
+			return "", errors.New("invalid message ID")
+		}
+	}
+	_, domain, _ := strings.Cut(from, "@")
+	subject = strings.Join(strings.Fields(subject), " ")
+	sender := (&mail.Address{Name: "my-ple", Address: from}).String()
+	return fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMessage-ID: <%s.%s@%s>\r\nDate: %s\r\nAuto-Submitted: auto-generated\r\nMIME-Version: 1.0\r\n", sender, to, mime.QEncoding.Encode("utf-8", subject), namespace, id, domain, time.Now().UTC().Format(time.RFC1123Z)), nil
+}
+
 func Message(from, to, subject, body, filename, id string, pdf []byte) ([]byte, error) {
 	if !ValidAddress(from) || !ValidAddress(to) || strings.ContainsAny(subject+filename+id, "\r\n") {
 		return nil, errors.New("invalid email headers")
 	}
 	var out bytes.Buffer
 	parts := multipart.NewWriter(&out)
-	fmt.Fprintf(&out, "From: %s\r\nTo: %s\r\nSubject: %s\r\nMessage-ID: <%s@weekly-report.local>\r\nDate: %s\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=%q\r\n\r\n", from, to, mime.QEncoding.Encode("utf-8", subject), id, time.Now().UTC().Format(time.RFC1123Z), parts.Boundary())
-	text, err := parts.CreatePart(textproto.MIMEHeader{"Content-Type": {"text/plain; charset=utf-8"}})
+	headers, err := messageHeaders(from, to, subject, id, "weekly-report")
 	if err != nil {
 		return nil, err
 	}
-	if _, err = text.Write([]byte(body)); err != nil {
+	out.WriteString(headers)
+	fmt.Fprintf(&out, "Content-Type: multipart/mixed; boundary=%q\r\n\r\n", parts.Boundary())
+	text, err := parts.CreatePart(textproto.MIMEHeader{"Content-Type": {"text/plain; charset=utf-8"}, "Content-Transfer-Encoding": {"quoted-printable"}})
+	if err != nil {
+		return nil, err
+	}
+	encodedText := quotedprintable.NewWriter(text)
+	if _, err = encodedText.Write([]byte(body)); err != nil {
+		return nil, err
+	}
+	if err = encodedText.Close(); err != nil {
 		return nil, err
 	}
 	attachment, err := parts.CreatePart(textproto.MIMEHeader{"Content-Type": {"application/pdf"}, "Content-Disposition": {mime.FormatMediaType("attachment", map[string]string{"filename": filename})}, "Content-Transfer-Encoding": {"base64"}})
