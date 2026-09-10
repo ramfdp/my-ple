@@ -96,7 +96,7 @@
 			<div class="identity">
 				<div class="avatar-wrap"><ProfileAvatar src={assetUrl(user.avatarUrl)} alt={`${user.name}'s profile photo`} size={112} borderWidth={5} /></div>
 				<div class="identity-copy">
-					<div class="name-row"><h2 id="profile-name">{display(user.name)}</h2><EmployeeStatusBadge status={user.isActive ? 'Active Employee' : 'Inactive'} size="sm" /></div>
+					<div class="name-row"><h2 id="profile-name">{display(user.name)}</h2><EmployeeStatusBadge status={user.isActive ? 'Active Employee' : 'Inactive'} /></div>
 					<p>{display(user.jobTitle)}{user.role ? ` · ${user.role}` : ''}</p>
 				</div>
 				<div class="join-date"><span>Account created</span><strong>{joinedOn(user.createdAt)}</strong></div>
@@ -117,7 +117,7 @@
 				<ProfileInformationItem icon="briefcase" label="Job Title" value={display(user.jobTitle)} />
 				<ProfileInformationItem icon="map-pin" label="Address / Residence" value={display(user.residence)} />
 				<ProfileInformationItem icon="shield" label="Account Created" value={joinedOn(user.createdAt)} />
-				<ProfileInformationItem icon="briefcase" label="Employment Status"><EmployeeStatusBadge status={display(user.employmentStatus)} size="sm" /></ProfileInformationItem>
+				<ProfileInformationItem icon="briefcase" label="Employment Status"><EmployeeStatusBadge status={display(user.employmentStatus)} /></ProfileInformationItem>
 				<ProfileInformationItem icon="wallet" label="Salary" value={salary(user.salary)} />
 			</div>
 		</section>

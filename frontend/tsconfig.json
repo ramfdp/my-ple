@@ -9,8 +9,7 @@
 		"resolveJsonModule": true,
 		"skipLibCheck": true,
 		"sourceMap": true,
-		"moduleResolution": "bundler",
-		"jsx": "react-jsx"
+		"moduleResolution": "bundler"
 	},
-	"exclude": ["src/react-components", "tests", "node_modules", ".svelte-kit"]
+	"exclude": ["tests", "node_modules", ".svelte-kit"]
 }

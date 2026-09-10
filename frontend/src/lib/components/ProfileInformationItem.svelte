@@ -4,15 +4,11 @@
 		icon = 'user',
 		label,
 		value,
-		isLocked = false,
-		lockedMessage = 'HR/Admin only',
 		children
 	}: {
-		icon?: 'user' | 'building' | 'wallet' | 'map-pin' | 'phone' | 'mail' | 'briefcase' | 'shield';
+		icon?: 'user' | 'wallet' | 'map-pin' | 'phone' | 'mail' | 'briefcase' | 'shield';
 		label: string;
 		value?: string | number;
-		isLocked?: boolean;
-		lockedMessage?: string;
 		children?: import('svelte').Snippet;
 	} = $props();
 </script>
@@ -23,16 +19,6 @@
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 				<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
 				<circle cx="12" cy="7" r="4" />
-			</svg>
-		{:else if icon === 'building'}
-			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-				<path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" />
-				<path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" />
-				<path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" />
-				<path d="M10 6h4" />
-				<path d="M10 10h4" />
-				<path d="M10 14h4" />
-				<path d="M10 18h4" />
 			</svg>
 		{:else if icon === 'wallet'}
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -69,15 +55,6 @@
 	<div class="info-content">
 		<div class="info-label-row">
 			<span class="info-label">{label}</span>
-			{#if isLocked}
-				<span class="locked-indicator" title={lockedMessage}>
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-						<rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
-						<path d="M7 11V7a5 5 0 0 1 10 0v4" />
-					</svg>
-					HR Only
-				</span>
-			{/if}
 		</div>
 
 		<div class="info-value">
@@ -148,23 +125,7 @@
 		letter-spacing: -0.01em;
 	}
 
-	.locked-indicator {
-		display: inline-flex;
-		align-items: center;
-		gap: 3px;
-		font-size: 0.6875rem;
-		font-weight: 600;
-		color: #737373;
-		background: var(--his-surface);
-		padding: 2px 6px;
-		border-radius: 4px;
-		line-height: 1;
-	}
 
-	.locked-indicator svg {
-		width: 10px;
-		height: 10px;
-	}
 
 	.info-value {
 		font-size: 0.9375rem;

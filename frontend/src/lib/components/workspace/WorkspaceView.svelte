@@ -37,7 +37,6 @@
  function create(){opening++;selected=null;detail=true}
  function closeDetail(){opening++;detail=false}
  function changeView(v:string){view=v;offset=0;void refresh()}
- async function saved(){await refresh()}
  function navigate(n:number){if(scale==='week'&&view==='Timeline')anchor=addDays(anchor,n*7);else{const d=dateValue(anchor);anchor=dateString(new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+n,1)))}offset=0;void refresh()}
 </script>
 <svelte:head><title>{workspace?.name??'Division'} Workspace | my HIS</title></svelte:head>
@@ -60,7 +59,7 @@
  <section class="ws-panel"><h2>Team Workload Summary</h2><p>{workload.filter(w=>w.workloadLevel==='AVAILABLE').length} Available · {workload.filter(w=>w.workloadLevel==='NORMAL').length} Normal · {workload.filter(w=>w.workloadLevel==='BUSY').length} Busy · {workload.filter(w=>w.workloadLevel==='OVERLOADED').length} Overloaded</p></section>
  <section class="ws-panel"><h2>Aktivitas Terbaru</h2><ul class="ws-activity">{#each activity.slice(0,10) as a}{@const formatted=formatActivity(a)}<li>{formatted.title}<br/><small>{formatted.timestamp}</small></li>{:else}<li>Belum ada aktivitas terbaru.</li>{/each}</ul></section>
  {:else if view==='Table'}<TaskTable {tasks} onopen={open} {sort} onsort={(value)=>{sort=value;void refresh()}}/>
- {:else if view==='Board'}<TaskBoard {tasks} onopen={open} onchanged={saved}/>
+ {:else if view==='Board'}<TaskBoard {tasks} onopen={open} onchanged={refresh}/>
  {:else if view==='Timeline'||view==='Calendar'}
  <div class="ws-row ws-period"><div><button onclick={()=>navigate(-1)} aria-label="Periode sebelumnya">←</button> <button onclick={()=>{anchor=today();offset=0;void refresh()}}>Today</button> <button onclick={()=>navigate(1)} aria-label="Periode berikutnya">→</button></div><strong>{labelDate(currentPeriod.start)} – {labelDate(currentPeriod.end)}</strong>
  {#if view==='Timeline'}<label>Skala<select bind:value={scale} onchange={()=>{offset=0;void refresh()}}><option value="month">Month</option><option value="week">Week</option></select></label>{/if}</div>
@@ -69,5 +68,5 @@
  {:else if view==='Notes'}<WorkspaceNotes {workspace}/>{/if}
  {#if view!=='Overview'&&view!=='Workload'&&view!=='Notes'}{#if !tasks.length}<div class="ws-empty">Belum ada pekerjaan. <button onclick={create}>Tambah Pekerjaan</button></div>{/if}<div class="ws-row ws-pagination"><span>{total} pekerjaan · {total?offset+1:0}–{Math.min(offset+tasks.length,total)}</span><div><button disabled={offset===0} onclick={()=>{offset=Math.max(0,offset-100);void refresh()}}>Sebelumnya</button> <button disabled={offset+100>=total} onclick={()=>{offset+=100;void refresh()}}>Berikutnya</button></div></div>{/if}
  {/if}
- {#if detail&&workspace}{#key selected?.id??'new'}<TaskDetail task={selected} {workspace} {members} {jobs} onclose={closeDetail} onsaved={saved}/>{/key}{/if}
+ {#if detail&&workspace}{#key selected?.id??'new'}<TaskDetail task={selected} {workspace} {members} {jobs} onclose={closeDetail} onsaved={refresh}/>{/key}{/if}
 </main>

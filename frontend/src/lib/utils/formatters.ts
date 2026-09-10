@@ -12,7 +12,3 @@ export function validateIndonesianPhone(phone: string): boolean {
 	const clean = phone.replace(/[\s-]/g, '');
 	return /^(?:\+62|62|0)8[1-9]\d{7,10}$/.test(clean);
 }
-
-export function validateEmail(email: string): boolean {
-	return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}

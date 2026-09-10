@@ -1,58 +1,33 @@
 <script lang="ts">
-	import type { EmploymentStatus } from '$lib/types/employee';
-
 	// ponytail: lookup dictionary replaces multi-level conditional branches
-	let {
-		status = 'Permanent Employee',
-		size = 'md'
-	}: {
-		status: EmploymentStatus | 'Active Employee' | string;
-		size?: 'sm' | 'md' | 'lg';
-	} = $props();
+	let { status = 'Permanent Employee' }: { status: string } = $props();
+
+	const green = {
+		bg: 'var(--his-primary-soft)',
+		text: 'var(--his-primary)',
+		border: 'var(--his-primary-soft)',
+		dot: 'var(--his-primary)'
+	};
+	const red = {
+		bg: 'var(--his-danger-soft)',
+		text: 'var(--his-danger)',
+		border: 'var(--his-danger-border)',
+		dot: 'var(--his-danger)'
+	};
 
 	const statusStyles: Record<string, { bg: string; text: string; border: string; dot: string }> = {
-		'Permanent Employee': {
-			bg: 'var(--his-primary-soft)',
-			text: 'var(--his-primary)',
-			border: 'var(--his-primary-soft)',
-			dot: 'var(--his-primary)'
-		},
-		'Contract Employee': {
-			bg: 'var(--his-primary-soft)',
-			text: 'var(--his-primary)',
-			border: 'var(--his-primary-soft)',
-			dot: 'var(--his-primary)'
-		},
+		'Permanent Employee': green,
+		'Contract Employee': green,
 		'Probation': {
 			bg: '#fffbeb',
 			text: '#b45309',
 			border: '#fde68a',
 			dot: '#f59e0b'
 		},
-		'Intern': {
-			bg: 'var(--his-danger-soft)',
-			text: 'var(--his-danger)',
-			border: 'var(--his-danger-border)',
-			dot: 'var(--his-danger)'
-		},
-		'Freelancer': {
-			bg: 'var(--his-primary-soft)',
-			text: 'var(--his-primary)',
-			border: 'var(--his-primary-soft)',
-			dot: 'var(--his-primary)'
-		},
-		'Inactive': {
-			bg: 'var(--his-danger-soft)',
-			text: 'var(--his-danger)',
-			border: 'var(--his-danger-border)',
-			dot: 'var(--his-danger)'
-		},
-		'Active Employee': {
-			bg: 'var(--his-primary-soft)',
-			text: 'var(--his-primary)',
-			border: 'var(--his-primary-soft)',
-			dot: 'var(--his-primary)'
-		}
+		'Intern': red,
+		'Freelancer': green,
+		'Inactive': red,
+		'Active Employee': green
 	};
 
 	let currentStyle = $derived(
@@ -66,7 +41,7 @@
 </script>
 
 <span
-	class="status-badge {size}"
+	class="status-badge"
 	style:background-color={currentStyle.bg}
 	style:color={currentStyle.text}
 	style:border-color={currentStyle.border}
@@ -87,21 +62,8 @@
 		width: fit-content;
 		white-space: nowrap;
 		line-height: 1;
-	}
-
-	.status-badge.sm {
 		padding: 4px 10px;
 		font-size: 0.75rem;
-	}
-
-	.status-badge.md {
-		padding: 6px 12px;
-		font-size: 0.8125rem;
-	}
-
-	.status-badge.lg {
-		padding: 8px 16px;
-		font-size: 0.875rem;
 	}
 
 	.status-dot {
