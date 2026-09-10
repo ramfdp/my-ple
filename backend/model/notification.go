@@ -43,6 +43,8 @@ type WorkspaceNotification struct {
 
 type WorkAssignmentEmail struct {
 	WorkspaceNotification
+	WorkspaceName  string `json:"workspaceName,omitempty"`
+	TaskID         string `json:"taskId,omitempty"`
 	AssignedByName string `json:"assignedByName"`
 	Description    string `json:"description"`
 }

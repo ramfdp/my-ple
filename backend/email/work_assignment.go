@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"my-ple-backend/model"
+	"net/url"
 	"os"
 	"strings"
 )
@@ -18,7 +19,17 @@ func WorkAssignmentMessage(from, to, id string, a model.WorkAssignmentEmail) ([]
 		body = strings.Replace(body, "Ditugaskan oleh:", "Oleh:", 1)
 	}
 	if origin := strings.TrimRight(os.Getenv("FRONTEND_ORIGIN"), "/"); origin != "" {
-		body += "\nBuka Team Workspace: " + origin + "/workspace\n"
+		path := "/workspace"
+		if a.TaskID != "" {
+			if u, e := url.Parse(origin); e != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
+				return nil, errors.New("invalid frontend origin")
+			}
+			path = fmt.Sprintf("/workspace/%d?task=%s", a.WorkspaceID, url.QueryEscape(a.TaskID))
+			body += "\nWorkspace:\n" + a.WorkspaceName + "\n"
+		}
+		body += "\nBuka Team Workspace: " + origin + path + "\n"
+	} else if a.TaskID != "" {
+		return nil, errors.New("frontend origin required for assignment link")
 	}
 	return alternativeMessage(from, to, id, "work-assignment.local", subject, body)
 }

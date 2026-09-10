@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/go-pdf/fpdf"
+	"my-ple-backend/db"
 	"my-ple-backend/middleware"
 	"my-ple-backend/model"
 )
@@ -65,6 +66,11 @@ func weeklyPDF(division string, period model.ReportingPeriod, reports []model.We
 }
 
 func weeklyPDFDocument(division string, period model.ReportingPeriod, reports []model.WeeklyReport, compression bool) ([]byte, error) {
+	reports = append([]model.WeeklyReport(nil), reports...)
+	for i := range reports {
+		model.NormalizeWeeklyReport(&reports[i])
+	}
+	db.SortReports(reports)
 	pdf := fpdf.New("P", "mm", "A4", "")
 	pdf.SetCompression(compression)
 	text := pdf.UnicodeTranslatorFromDescriptor("")
@@ -73,15 +79,6 @@ func weeklyPDFDocument(division string, period model.ReportingPeriod, reports []
 	pdf.SetAutoPageBreak(false, 15)
 	sectionLabel := "Weekly Report"
 	pdf.SetHeaderFunc(func() {
-		pdf.SetAlpha(0.08, "Normal")
-		pdf.SetTextColor(18, 58, 90)
-		pdf.SetFont("Helvetica", "B", 36)
-		pdf.TransformBegin()
-		pdf.TransformRotate(35, 105, 148)
-		pdf.SetXY(left, 142)
-		pdf.CellFormat(180, 12, "CONFIDENTIAL", "", 0, "C", false, 0, "")
-		pdf.TransformEnd()
-		pdf.SetAlpha(1, "Normal")
 		pdf.SetXY(left, 15)
 		pdf.SetFont("Helvetica", "", 8)
 		pdf.SetTextColor(100, 116, 139)
@@ -221,7 +218,7 @@ func weeklyPDFDocument(division string, period model.ReportingPeriod, reports []
 					x, y := left+roleWidth+categoryWidth, pdf.GetY()
 					pdf.SetFont("Helvetica", "", 9)
 					pdf.SetXY(x, y)
-					pdf.CellFormat(numberWidth, height, fmt.Sprint(report.Number), "1", 0, "C", false, 0, "")
+					pdf.CellFormat(numberWidth, height, fmt.Sprint(report.DisplayNumber), "1", 0, "C", false, 0, "")
 					pdf.SetXY(x+numberWidth, y)
 					pdf.Rect(x+numberWidth, y, reportWidth, height, "D")
 					pdf.SetXY(x+numberWidth+2, y+2)

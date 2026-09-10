@@ -22,7 +22,7 @@ import (
 	"my-ple-backend/realtime"
 )
 
-func newHandler(database *db.Database, corsOrigin string) http.Handler {
+func newHandler(database *db.Database, corsOrigin string, contexts ...context.Context) http.Handler {
 	sessionTTL, err := time.ParseDuration(envOr("SESSION_TTL", "8h"))
 	if err != nil || sessionTTL <= 0 {
 		sessionTTL = 8 * time.Hour
@@ -32,7 +32,10 @@ func newHandler(database *db.Database, corsOrigin string) http.Handler {
 	hub := realtime.NewHub(corsOrigin)
 	authCtrl.OnLogout = hub.CloseUser
 	notifications := &notification.Service{DB: database, Hub: hub}
-	protected := middleware.RequireAuth(database, protectedHandler(database, authCtrl, notifications))
+	if database != nil && len(contexts) > 0 {
+		go notifications.Relay(contexts[0], os.Getenv("DATABASE_URL"))
+	}
+	protected := middleware.RequireAuth(database, changeEvents(protectedHandler(database, authCtrl, notifications), notifications))
 	uploads := http.StripPrefix("/uploads/", http.FileServer(http.Dir(envOr("UPLOAD_DIR", "upload"))))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -310,9 +313,9 @@ func main() {
 		port = "3000"
 	}
 	fmt.Printf("my-ple backend listening on http://localhost:%s\n", port)
-	server := &http.Server{Addr: ":" + port, Handler: newHandler(database, envOr("FRONTEND_ORIGIN", "http://localhost:5173"))}
 	shutdown, stopSignal := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stopSignal()
+	server := &http.Server{Addr: ":" + port, Handler: newHandler(database, envOr("FRONTEND_ORIGIN", "http://localhost:5173"), shutdown)}
 	go func() {
 		<-shutdown.Done()
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

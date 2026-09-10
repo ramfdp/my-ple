@@ -67,13 +67,14 @@ export function startNotifications() {
 		const url = new URL(`${apiUrl}/ws/notifications`, window.location.origin);
 		url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
 		socket = new WebSocket(url);
-		socket.onopen = () => { retry = 1000; void refresh(true).catch(() => {}); };
+		socket.onopen = () => { retry = 1000; window.dispatchEvent(new Event('realtime.resync')); void refresh(true).catch(() => {}); };
 		socket.onmessage = ({ data }) => {
    if (stopped) return;
 			try {
 				const message = JSON.parse(data) as { event: string; notification: Notification; workspaceId?:number };
-				if(message.event==='workspace.changed') { window.dispatchEvent(new CustomEvent('workspace.changed',{detail:{workspaceId:message.workspaceId}})); void refresh(false,true).catch(()=>{}); }
+				if(message.event==='workspace.changed') { window.dispatchEvent(new CustomEvent('workspace.changed',{detail:message})); void refresh(false,true).catch(()=>{}); }
 				if(message.event==='leave.changed') { window.dispatchEvent(new Event('leave.changed')); void refresh(false,true).catch(()=>{}); }
+				if(['reports.changed','zoom.changed','jobs.changed','users.changed'].includes(message.event))window.dispatchEvent(new CustomEvent(message.event,{detail:message}));
     if (message.event === 'notification.created' && message.notification?.id && message.notification.actor?.id && message.notification.actor.id !== current.user.id) {
      const item = message.notification;
      if (!seen.has(item.id)) { seen.add(item.id); addNotification(item); if (!item.readAt) sound.play(); }
@@ -83,5 +84,9 @@ export function startNotifications() {
 		socket.onclose = () => { if (!stopped) { timer = setTimeout(connect, retry); retry = Math.min(retry * 2, 30_000); } };
 	};
 	void refresh(false).then(connect).catch(connect);
-	return () => { stopped = true; sound.stop(); clearTimeout(timer); socket?.close(); notifications.set({items:[],unread:0}); };
+	// Bounded recovery for missed relay events and silently disconnected sockets.
+	const resync=()=>{if(!stopped&&document.visibilityState==='visible')window.dispatchEvent(new Event('realtime.resync'))};
+	const fallback=setInterval(resync,30_000);
+	document.addEventListener('visibilitychange',resync);
+	return () => { stopped = true; sound.stop(); clearTimeout(timer);clearInterval(fallback);document.removeEventListener('visibilitychange',resync); socket?.close(); notifications.set({items:[],unread:0}); };
 }

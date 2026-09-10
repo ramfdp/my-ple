@@ -11,7 +11,7 @@ func (db *Database) WorkspaceWorkload(ctx context.Context, userID string, divisi
 	if err != nil {
 		return nil, err
 	}
-	rows, err := db.Conn.QueryContext(ctx, `SELECT a.user_id,t.id,t.title,t.status,t.priority,COALESCE(t.start_date::text,''),COALESCE(t.due_date::text,'')
+	rows, err := db.Conn.QueryContext(ctx, `SELECT a.user_id,t.id,t.title,t.status,t.priority,COALESCE(t.start_date::text,''),COALESCE(t.due_date::text,''),t.requires_qa,t.qa_stage
  FROM work_items t JOIN work_item_assignees a ON a.work_item_id=t.id JOIN workspace_members m ON m.user_id=a.user_id AND m.division_id=t.division_id
  WHERE t.division_id=$1 AND t.archived_at IS NULL AND t.status<>'DONE' ORDER BY t.due_date NULLS LAST,t.id`, division)
 	if err != nil {
@@ -22,7 +22,7 @@ func (db *Database) WorkspaceWorkload(ctx context.Context, userID string, divisi
 	for rows.Next() {
 		var id string
 		var t model.WorkItem
-		if err = rows.Scan(&id, &t.ID, &t.Title, &t.Status, &t.Priority, &t.StartDate, &t.DueDate); err != nil {
+		if err = rows.Scan(&id, &t.ID, &t.Title, &t.Status, &t.Priority, &t.StartDate, &t.DueDate, &t.RequiresQA, &t.QAStage); err != nil {
 			return nil, err
 		}
 		byUser[id] = append(byUser[id], t)

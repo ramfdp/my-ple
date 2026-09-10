@@ -19,6 +19,10 @@ func workAssignmentNotification(ctx context.Context, tx *sql.Tx, id, actor strin
 	if err != nil {
 		return err
 	}
+	payload.TaskID = id
+	if err = tx.QueryRowContext(ctx, `SELECT name FROM divisions WHERE id=$1`, payload.WorkspaceID).Scan(&payload.WorkspaceName); err != nil {
+		return err
+	}
 	payload.Message = "Anda ditugaskan ke pekerjaan baru"
 	data, err := json.Marshal(payload)
 	if err != nil {
@@ -33,43 +37,26 @@ func workAssignmentNotification(ctx context.Context, tx *sql.Tx, id, actor strin
 			return err
 		}
 	}
-	if !email.Enabled() {
-		return nil
-	}
-	// Same savepoint failure isolation as Zoom: an unavailable outbox must not lose assignments.
-	if _, err = tx.ExecContext(ctx, `SAVEPOINT work_assignment_email`); err != nil {
-		return err
-	}
-	seen := map[string]bool{}
 	for _, recipient := range added {
 		var address string
-		err = tx.QueryRowContext(ctx, `SELECT COALESCE(lower(btrim(email)),'') FROM users WHERE id=$1 AND is_active`, recipient).Scan(&address)
-		if err != nil && err != sql.ErrNoRows {
-			break
+		err = tx.QueryRowContext(ctx, `SELECT COALESCE(lower(btrim(email)),'') FROM users WHERE id=$1`, recipient).Scan(&address)
+		if err != nil {
+			return err
 		}
-		if err == sql.ErrNoRows {
-			err = nil
-			continue
+		status, reason := "pending", ""
+		if !email.Enabled() {
+			reason = "email_disabled"
 		}
 		if !email.ValidAddress(address) {
-			log.Printf("email event_id=%s recipient_user_id=%s category=invalid_or_empty_email", event, recipient)
-			continue
+			status, reason = "skipped", "invalid_or_empty_email"
 		}
-		if seen[address] {
-			continue
-		}
-		seen[address] = true
 		outbox := NewID()
-		_, err = tx.ExecContext(ctx, `INSERT INTO zoom_booking_email_deliveries(id,recipient_email,is_creator,payload,notification_type,work_item_id,recipient_user_id,assignment_version,notification_id)
-  VALUES($1,$2,false,$3,'work_item_assignment',$4,$5,$6,$7) ON CONFLICT DO NOTHING`, outbox, address, string(data), id, recipient, version, event)
+		_, err = tx.ExecContext(ctx, `INSERT INTO zoom_booking_email_deliveries(id,recipient_email,is_creator,payload,notification_type,work_item_id,recipient_user_id,assignment_version,notification_id,status,last_error)
+  VALUES($1,$2,false,$3,'work_item_assignment',$4,$5,$6,$7,$8,$9) ON CONFLICT(notification_id,recipient_user_id) DO NOTHING`, outbox, address, string(data), id, recipient, version, event, status, reason)
 		if err != nil {
-			break
+			return err
 		}
 		log.Printf("email enqueue event_id=%s recipient_user_id=%s outbox_id=%s awaiting_commit=true", event, recipient, outbox)
-	}
-	if err != nil {
-		log.Printf("work assignment email task=%s category=enqueue_failed", id)
-		_, err = tx.ExecContext(ctx, `ROLLBACK TO SAVEPOINT work_assignment_email`)
 	}
 	return err
 }

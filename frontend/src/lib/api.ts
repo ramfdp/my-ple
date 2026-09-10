@@ -13,6 +13,7 @@ export interface Job { pics?:JobPIC[]; id: number; divisionId: number; roleId: n
 export interface JobMaster { id: number; name: string; divisionId?: number; roleId: number | null }
 export interface JobMasters { divisions: JobMaster[]; roles: JobMaster[]; categories: JobMaster[] }
 export interface Report {
+ version:number;
  pics?:JobPIC[];
  jobId?: number;
 	id: string; userId: string; primaryDivision: string; workDivision: string;
@@ -46,12 +47,15 @@ export const currentUser = writable<User | null>(null);
 export function session(): { user: User } | null { const user = get(currentUser); return user ? { user } : null; }
 export function setAuthenticated(user: User | null) { currentUser.set(user); }
 
+export class APIError extends Error {
+ constructor(message:string, public status:number, public data:Record<string,unknown>){super(message)}
+}
 async function checked(response: Response, fallback: string) {
 	if (response.status === 401) {
 		setAuthenticated(null);
 		if (typeof window !== 'undefined' && location.pathname !== '/') location.assign('/');
 	}
-	if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || fallback);
+	if (!response.ok) { const data=await response.json().catch(()=>({})); throw new APIError(data.error||fallback,response.status,data); }
 	return response;
 }
 

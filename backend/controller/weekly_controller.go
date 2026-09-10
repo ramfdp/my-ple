@@ -72,21 +72,19 @@ func (c *WeeklyController) Update(w http.ResponseWriter, r *http.Request, id str
 		return
 	}
 	var input model.WeeklyReportUpdateInput
-	if !DecodeJSON(w, r, &input) {
+	if !DecodeStrictJSON(w, r, &input) {
 		return
 	}
-	input.Description = strings.TrimSpace(input.Description)
-	input.PrimaryDivision = strings.TrimSpace(input.PrimaryDivision)
-	input.WorkDivision = strings.TrimSpace(input.WorkDivision)
-	input.Role = strings.TrimSpace(input.Role)
-	input.Work = strings.TrimSpace(input.Work)
-	input.Role, input.WorkDivision = model.NormalizeWeeklyRoleCategory(input.Role, input.WorkDivision)
-	if input.Description == "" || len(input.Description) > 500 {
+	if input.Version < 1 {
 		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Uraian laporan tidak valid."})
 		return
 	}
 	// The repository validates the category against the report's stored primary division.
 	report, err := c.DB.UpdateReport(r.Context(), id, input)
+	if errors.Is(err, db.ErrReportConflict) {
+		WriteJSON(w, http.StatusConflict, map[string]any{"error": err.Error(), "code": "report_conflict", "report": report})
+		return
+	}
 	if errors.Is(err, db.ErrReportClosed) {
 		WriteJSON(w, http.StatusConflict, map[string]string{"error": "Laporan periode yang sudah ditutup hanya dapat dibaca."})
 		return

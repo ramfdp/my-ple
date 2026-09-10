@@ -1,6 +1,7 @@
 <script lang="ts">
  import JobPICEditor from '$lib/components/JobPICEditor.svelte';
  import { onMount } from 'svelte';
+ import {subscribeChanges} from '$lib/realtime';
  import { api, currentUser, type Job, type JobMasters } from '$lib/api';
  let allowed=$derived(!!$currentUser);
  let canManage=$derived(['admin','management'].includes($currentUser?.role.toLowerCase() ?? ''));
@@ -15,8 +16,8 @@
  function resetCategory(){categoryId=masters.categories.find(c=>c.divisionId===divisionId && c.roleId===roleId)?.id ?? null;}
  function resetRole(){roleId=masters.roles.find(r=>r.divisionId===divisionId)?.id ?? null;resetCategory();}
  let request=0;
- async function load(){
-  const version=++request; loading=true;error='';jobs=[];
+ async function load(background=false){
+  const version=++request; if(!background){loading=true;jobs=[]}error='';
   try{const response=await api<{jobs:Job[]}>(`/jobs?division_id=${divisionId}&role_id=${roleId ?? 0}&job_category_id=${categoryId ?? 0}`);if(version===request)jobs=response.jobs;}
   catch(e){if(version===request)error=e instanceof Error?e.message:'Pekerjaan tidak dapat dimuat.';}
   finally{if(version===request)loading=false;}
@@ -25,7 +26,7 @@
   try{masters=await api<JobMasters>('/jobs/masters');divisionId=masters.divisions[0]?.id ?? 0;resetRole();}
   catch(e){error=e instanceof Error?e.message:'Pilihan tidak dapat dimuat.';loading=false;}
  }
- onMount(()=>{if(allowed)void initialize();});
+ onMount(()=>{if(allowed)void initialize();const stop=subscribeChanges(['jobs.changed'],()=>{if(allowed&&divisionId)return load(true)});return()=>{request++;stop()}});
  $effect(()=>{divisionId;roleId;categoryId;if(divisionId && allowed)void load();});
  function openForm(job:Job|null){editing=job;name=job?.name ?? '';description=job?.description ?? '';active=job?.isActive ?? true;sortOrder=job?.sortOrder ?? jobs.length;showForm=true;error='';success='';}
  async function save(event:SubmitEvent){

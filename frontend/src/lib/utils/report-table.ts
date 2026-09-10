@@ -1,5 +1,6 @@
 import type { JobPIC } from '$lib/api';
 export interface GroupableReport {
+ id?:string;
  pics?:JobPIC[];
 	primaryDivision: string;
 	workDivision: string;
@@ -10,33 +11,35 @@ export interface GroupableReport {
 }
 
 export type TableReport<T extends GroupableReport> =
-	| { type: 'work'; work: string; pics?:JobPIC[]; category?: string; role?: string; categoryRowSpan?: number; roleRowSpan?: number }
+	| { type: 'work'; key:string; work: string; pics?:JobPIC[]; category?: string; role?: string; categoryRowSpan?: number; roleRowSpan?: number }
 	| { type: 'report'; report: T; displayNumber: number };
 
 export const canModifyReport = (user: { id: string; role: string } | null | undefined, _ownerID: string) => !!user;
 
-const projectEngineerCategoryOrder = ['MK supervisi', 'Non-MK supervisi', 'QA'];
+const projectEngineerCategoryOrder = ['MK supervisi', 'Non-MK supervisi', 'QA1', 'QA2', 'JAKG', 'Manggarai Hydrant', 'Jember'];
 
-const canonicalQA = (value: string) => value === 'QA 1' || value === 'QA 2' ? 'QA' : value;
+const canonicalQA = (value: string) => ['QA 1','QA 2','QA1','QA2'].includes(value) ? 'QA' : value;
 
 const groupKey = (report: GroupableReport) => `${report.primaryDivision}\u0000${report.workDivision}\u0000${report.role}\u0000${report.work}`;
 
-function compareReports(a: GroupableReport, b: GroupableReport, groupOrder: Map<string, number>) {
-	const divisionComparison = a.primaryDivision.localeCompare(b.primaryDivision, 'id');
+function compareReports(a: GroupableReport, b: GroupableReport) {
+	const compare=(a:string,b:string)=>a<b?-1:a>b?1:0;
+	const divisionComparison = compare(a.primaryDivision,b.primaryDivision);
 	if (divisionComparison !== 0) return divisionComparison;
+	const rank:Record<string,number>={PE:1,QA:2,CIHPK:3};
+	const roleComparison=(rank[a.role]??0)-(rank[b.role]??0);
+	if(roleComparison)return roleComparison;
 
 	const categoryRank = (category: string) => {
 		const rank = projectEngineerCategoryOrder.indexOf(category);
-		return rank === -1 ? projectEngineerCategoryOrder.length : rank;
+		return rank === -1 ? -1 : rank;
 	};
-	const categoryComparison = categoryRank(a.workDivision) - categoryRank(b.workDivision) || a.workDivision.localeCompare(b.workDivision, 'id');
+	const categoryComparison = categoryRank(a.workDivision) - categoryRank(b.workDivision) || compare(a.workDivision,b.workDivision);
 	if (categoryComparison !== 0) return categoryComparison;
 
-	const roleComparison = a.role.localeCompare(b.role, 'id');
-	if (roleComparison !== 0) return roleComparison;
-	const workComparison = (groupOrder.get(groupKey(a)) ?? 0) - (groupOrder.get(groupKey(b)) ?? 0) || a.work.localeCompare(b.work, 'id');
+	const workComparison = compare(a.work,b.work);
 	if (workComparison !== 0) return workComparison;
-	return a.number - b.number || (a.completedAt ?? '').localeCompare(b.completedAt ?? '');
+	return a.number - b.number || compare(a.completedAt??'',b.completedAt??'') || compare(a.id??'',b.id??'');
 }
 
 function renderedSpan<T extends GroupableReport>(reports: T[], start: number, sameGroup: (report: T) => boolean) {
@@ -49,22 +52,22 @@ function renderedSpan<T extends GroupableReport>(reports: T[], start: number, sa
 }
 
 export function groupReports<T extends GroupableReport>(reports: T[]): TableReport<T>[] {
-	const normalized = reports.map((report) => ({ ...report, role: canonicalQA(report.role), workDivision: canonicalQA(report.workDivision) }));
-	const groupOrder = new Map<string, number>();
-	for (const report of normalized) groupOrder.set(groupKey(report), Math.min(groupOrder.get(groupKey(report)) ?? Infinity, report.number));
-	const sortedReports = normalized.sort((a, b) => compareReports(a, b, groupOrder));
+	const normalized = reports.map((report) => ({ ...report, role: canonicalQA(report.role), workDivision: report.workDivision==='QA'?'QA1':report.workDivision.replace(/^QA ([12])$/,'QA$1') }));
+	const sortedReports = normalized.sort(compareReports);
 	const rows: TableReport<T>[] = [];
+	let displayNumber=0;
 
 	for (let index = 0; index < sortedReports.length; index += 1) {
 		const report = sortedReports[index];
 		const previous = sortedReports[index - 1];
-		const displayNumber = report.number;
 		const categoryStart = !previous || report.primaryDivision !== previous.primaryDivision || report.workDivision !== previous.workDivision;
 		const roleStart = categoryStart || report.role !== previous.role;
 		const workStart = roleStart || report.work !== previous.work;
+		displayNumber=workStart?1:displayNumber+1;
 
 		if (workStart) rows.push({
 			type: 'work',
+			key: groupKey(report),
             ...(report.pics?.length ? {pics:report.pics} : {}),
 			work: report.work || '—',
 			...(categoryStart ? { category: report.workDivision, categoryRowSpan: renderedSpan(sortedReports, index, (item) => item.primaryDivision === report.primaryDivision && item.workDivision === report.workDivision) } : {}),

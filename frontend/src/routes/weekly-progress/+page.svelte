@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
-	import { api, currentUser, download, session, type Report, type ReportingPeriod } from '$lib/api';
+	import { api, APIError, currentUser, download, session, type Report, type ReportingPeriod } from '$lib/api';
+	import {subscribeChanges} from '$lib/realtime';
 	import JobPicker from '$lib/components/JobPicker.svelte';
 	import type { Job } from '$lib/api';
 	import { canModifyReport, groupReports } from '$lib/utils/report-table';
@@ -17,21 +18,30 @@
 	let deleting = $state<Report | null>(null);
 	let editJob=$state<Job|null>(null), jobsBusy=$state(true), saving=$state(false);
 	let editDescription = $state('');
+	let latest=$state<Report|null>(null), remoteDeleted=$state(false);
+	let pickerReport=$state<Report|null>(null);
+	let loadGeneration=0;
 	const tableRows = $derived(groupReports(reports));
 
-	async function selectDivision(index: number) {
+	async function selectDivision(index: number, background=false) {
+		const generation=++loadGeneration;
 		selectedDivision = index;
-		reports = [];
-		loading = true;
+		if(!background){reports=[];loading=true}
 		error = '';
 		try {
 			const response = await api<{ reports: Report[] | null; period: ReportingPeriod }>(`/reports?primaryDivision=${encodeURIComponent(divisions[index])}`);
+			if(generation!==loadGeneration)return;
 			reports = response.reports ?? [];
 			period = response.period;
+			if(editing){
+			 const server=reports.find(r=>r.id===editing?.id);
+			 remoteDeleted=!server;
+			 if(server&&server.version!==editing.version){latest=server}
+			}
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Laporan tidak dapat dimuat.';
 		} finally {
-			loading = false;
+			if(generation===loadGeneration)loading = false;
 		}
 	}
 
@@ -59,10 +69,14 @@
 		saving=true;
 		error = '';
 		try {
-			await api<{ report: Report }>(`/reports/${editing.id}`, { method: 'PUT', body: JSON.stringify({ primaryDivision: editing.primaryDivision, workDivision: editJob.category, role: editJob.role, work: editJob.id ? editJob.name : editing.work, jobId: editJob.id || undefined, description: editDescription }) });
+			const patch:Record<string,unknown>={version:editing.version};
+			if(editDescription!==editing.description)patch.description=editDescription;
+			if(editJob.id&&editJob.id!==editing.jobId)Object.assign(patch,{jobId:editJob.id,workDivision:editJob.category,role:editJob.role,work:editJob.name});
+			await api<{ report: Report }>(`/reports/${editing.id}`, { method: 'PATCH', body: JSON.stringify(patch) });
 			editing = null;
 			if (selectedDivision !== null) await selectDivision(selectedDivision);
 		} catch (err) {
+			if(err instanceof APIError&&err.data.code==='report_conflict')latest=err.data.report as Report;
 			error = err instanceof Error ? err.message : 'Laporan tidak dapat diperbarui.';
 		} finally { saving=false; }
 	}
@@ -84,6 +98,8 @@
 		const requested = new URLSearchParams(location.search).get('division');
 		const index = divisions.indexOf(requested ?? '');
 		if (index >= 0) void selectDivision(index);
+		const stop=subscribeChanges(['reports.changed'],()=>{if(selectedDivision!==null)return selectDivision(selectedDivision,true)});
+		return()=>{loadGeneration++;stop()};
 	});
 </script>
 
@@ -92,7 +108,7 @@
 	<meta name="description" content="Pilih divisi dan lihat daftar pekerjaan mingguan." />
 </svelte:head>
 
-<svelte:window onfocus={() => { if (selectedDivision !== null) void selectDivision(selectedDivision); }} />
+<svelte:window onfocus={() => { if (selectedDivision !== null) void selectDivision(selectedDivision,true); }} />
 
 <main class="weekly-progress-page">
 	<div class="weekly-progress-shell">
@@ -113,7 +129,7 @@
 						<tbody>
 							{#if loading}<tr><td colspan="5">Memuat laporan…</td></tr>
 							{:else if reports.length === 0}<tr><td colspan="5">Belum ada laporan pekerjaan untuk periode ini.</td></tr>
-							{:else}{#each tableRows as row}
+							{:else}{#each tableRows as row (row.type==='report'?row.report.id:row.key)}
 								{#if row.type === 'work'}
 									<tr class="work-group-row">
 										{#if row.role}<td rowspan={row.roleRowSpan ?? 1} class="task-role">{row.role}</td>{/if}
@@ -121,7 +137,7 @@
 										<td colspan="3" class="task-work-title"><div class="job-heading"><span>{row.work}</span>{#if row.pics?.length}<small>PIC: {row.pics.map(pic=>pic.name+(pic.isActive?'':' (Nonaktif)')).join(', ')}</small>{/if}</div></td>
 									</tr>
 								{:else}
-									<tr><td class="task-number">{row.displayNumber}</td><td class="task-description">{row.report.description}</td><td class="task-actions">{#if !period?.readOnly && canModifyReport($currentUser, row.report.userId)}<div class="report-row-actions"><button class="edit-report" type="button" onclick={() => { editing = row.report; editDescription = row.report.description; }}>Edit</button><button class="delete-report" type="button" onclick={() => (deleting = row.report)}>Hapus</button></div>{:else}<span class="no-actions">—</span>{/if}</td></tr>
+									<tr><td class="task-number">{row.displayNumber}</td><td class="task-description">{row.report.description}</td><td class="task-actions">{#if !period?.readOnly && canModifyReport($currentUser, row.report.userId)}<div class="report-row-actions"><button class="edit-report" type="button" onclick={() => { latest=null;remoteDeleted=false;editing = row.report; pickerReport=row.report; editDescription = row.report.description; }}>Edit</button><button class="delete-report" type="button" onclick={() => (deleting = row.report)}>Hapus</button></div>{:else}<span class="no-actions">—</span>{/if}</td></tr>
 								{/if}
 							{/each}{/if}
 						</tbody>
@@ -139,10 +155,12 @@
 		<div class="report-drawer" role="dialog" aria-modal="true" aria-labelledby="edit-report-title" transition:fade={{ duration: 180 }}>
 			<div class="report-drawer-header"><h2 id="edit-report-title">Edit laporan</h2><button class="drawer-close" type="button" aria-label="Tutup" onclick={() => (editing = null)}>×</button></div>
 			<form class="report-form report-drawer-form" onsubmit={(event) => { event.preventDefault(); void saveEdit(); }}>
-				<JobPicker division={editing.primaryDivision} existing={editing} fixedDivision bind:selected={editJob} bind:busy={jobsBusy} />
+				{#key pickerReport}<JobPicker division={editing.primaryDivision} existing={pickerReport??editing} fixedDivision bind:selected={editJob} bind:busy={jobsBusy} />{/key}
 				<label>Uraian pekerjaan yang dilakukan<textarea bind:value={editDescription} rows="5" required maxlength="500"></textarea></label>
+				{#if latest}<section role="status"><p>Data server berubah (versi {latest.version}). Draf Anda tetap tersedia di atas.</p><p>Pekerjaan terbaru: {latest.work} · {latest.role} · {latest.workDivision}</p><p class="task-description">{latest.description}</p><button type="button" onclick={()=>{if(!latest||!editing)return;const descriptionChanged=editDescription!==editing.description;const jobChanged=editJob?.id!==editing.jobId; if(!descriptionChanged)editDescription=latest.description;if(!jobChanged)pickerReport=latest;editing=latest;latest=null;error=''}}>Sudah dibandingkan — gunakan versi terbaru sebagai dasar draf</button><button type="button" onclick={()=>{if(!latest)return;editDescription=latest.description;pickerReport=latest;editing=latest;latest=null;error=''}}>Gunakan data server</button></section>{/if}
+				{#if remoteDeleted}<p role="alert">Laporan ini sudah dihapus atau diarsipkan. Draf Anda tetap tersedia untuk disalin.</p>{/if}
 				{#if error}<p role="alert">{error}</p>{/if}
-				<div class="drawer-form-actions"><button class="report-submit" type="submit" disabled={saving || jobsBusy || !editJob}>{saving ? "Menyimpan?" : "Simpan perubahan"}</button><button class="drawer-cancel" type="button" onclick={() => (editing = null)}>Batal</button></div>
+				<div class="drawer-form-actions"><button class="report-submit" type="submit" disabled={saving || jobsBusy || !editJob || !!latest || remoteDeleted || period?.readOnly}>{saving ? "Menyimpan…" : "Simpan perubahan"}</button><button class="drawer-cancel" type="button" onclick={() => (editing = null)}>Batal</button></div>
 			</form>
 		</div>
 	</div>

@@ -52,12 +52,13 @@ func (s *WeeklyLifecycle) EnsurePDF(ctx context.Context, a *model.WeeklyArchive)
 		return nil, err
 	}
 	// Refresh the digest after waiting for a concurrent download/worker.
-	if err = tx.QueryRowContext(ctx, `SELECT pdf_sha256,pdf_filename FROM weekly_report_archives WHERE id=$1`, a.ID).Scan(&a.SHA256, &a.Filename); err != nil {
+	var templateVersion int
+	if err = tx.QueryRowContext(ctx, `SELECT pdf_sha256,pdf_filename,pdf_template_version FROM weekly_report_archives WHERE id=$1`, a.ID).Scan(&a.SHA256, &a.Filename, &templateVersion); err != nil {
 		return nil, err
 	}
 	path := s.pdfPath(*a)
 	data, readErr := os.ReadFile(path)
-	if readErr == nil && validPDF(data) && fmt.Sprintf("%x", sha256.Sum256(data)) == a.SHA256 {
+	if templateVersion == 1 && readErr == nil && validPDF(data) && fmt.Sprintf("%x", sha256.Sum256(data)) == a.SHA256 {
 		return data, tx.Commit()
 	}
 	reports := a.Reports()
@@ -96,7 +97,7 @@ func (s *WeeklyLifecycle) EnsurePDF(ctx context.Context, a *model.WeeklyArchive)
 	period := a.Period()
 	a.Filename = fmt.Sprintf("weekly-report-%s-%s-to-%s.pdf", strings.ToLower(strings.Trim(unsafeFilename.ReplaceAllString(a.Division, "-"), "-")), period.Start.Format("2006-01-02"), period.End.Format("2006-01-02"))
 	a.StorageKey = a.Period().Start.Format("2006") + "/" + a.ID + ".pdf"
-	if _, err = tx.ExecContext(ctx, `UPDATE weekly_report_archives SET pdf_filename=$2,pdf_sha256=$3,pdf_storage_key=$4,pdf_generated_at=clock_timestamp() WHERE id=$1`, a.ID, a.Filename, a.SHA256, a.StorageKey); err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE weekly_report_archives SET pdf_filename=$2,pdf_sha256=$3,pdf_storage_key=$4,pdf_generated_at=clock_timestamp(),pdf_template_version=1 WHERE id=$1`, a.ID, a.Filename, a.SHA256, a.StorageKey); err != nil {
 		return nil, err
 	}
 	log.Printf("weekly PDF generated archive=%s", a.ID)

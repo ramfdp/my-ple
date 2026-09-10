@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import {subscribeChanges} from '$lib/realtime';
 	import { api, session, type ZoomBooking, type ZoomBookingInput, type ZoomResource, type ZoomResourceInput } from '$lib/api';
 	import ToastNotification from '$lib/components/ToastNotification.svelte';
 	import WeeklyZoomCalendar from '$lib/components/WeeklyZoomCalendar.svelte';
@@ -21,15 +22,19 @@
 	let editingResource = $state<ZoomResource | null>(null);
 	let toast = $state({ visible: false, message: '', type: 'success' as 'success' | 'error' });
 	const currentUserID = session()?.user.id;
+	let generation=0;
 	const canEditResources = canEditZoomResources(session()?.user.role);
 	let weekLabel = $derived(`${weekStart.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })} – ${addDays(weekStart, 6).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}`);
 
 	function notify(message: string, type: 'success' | 'error' = 'success') { toast = { visible: true, message, type }; }
 	async function loadBookings() {
-		loading = true;
+		const sequence=++generation;
+		if(!bookings.length)loading = true;
 		try {
 			const end = addDays(weekStart, 7);
-			bookings = (await api<{ bookings: ZoomBooking[] }>(`/zoom-bookings?start=${encodeURIComponent(weekStart.toISOString())}&end=${encodeURIComponent(end.toISOString())}`)).bookings ?? [];
+			const result=await api<{ bookings: ZoomBooking[] }>(`/zoom-bookings?start=${encodeURIComponent(weekStart.toISOString())}&end=${encodeURIComponent(end.toISOString())}`);
+			if(sequence!==generation)return;bookings=result.bookings??[];
+			if(selected)selected=bookings.find(b=>b.id===selected?.id)??null;
 		} catch (error) { notify(error instanceof Error ? error.message : 'Booking tidak dapat dimuat.', 'error'); }
 		finally { loading = false; }
 	}
@@ -78,7 +83,8 @@
 	onMount(() => {
 		void Promise.all([loadBookings(), loadResources()]);
 		const timer = setInterval(() => (now = new Date()), 30_000);
-		return () => clearInterval(timer);
+		const stop=subscribeChanges(['zoom.changed'],async()=>{await Promise.all([loadBookings(),loadResources()])});
+		return () => {generation++;clearInterval(timer);stop()};
 	});
 </script>
 

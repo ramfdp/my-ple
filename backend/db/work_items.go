@@ -69,6 +69,7 @@ func workspaceUUID(s string) bool {
 }
 
 const workJSON = `jsonb_build_object('id',t.id,'workspaceId',t.division_id,'jobId',t.job_id,'jobName',COALESCE(j.name,''),
+ 'requiresQa',t.requires_qa,'qaStage',t.qa_stage,
  'title',t.title,'description',t.description,'relatedUrl',t.related_url,'startDate',COALESCE(t.start_date::text,''),'dueDate',COALESCE(t.due_date::text,''),
  'status',t.status,'priority',t.priority,'createdBy',t.created_by,'createdAt',t.created_at,'updatedAt',t.updated_at,'version',t.version,
  'assignees',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',u.id,'name',u.name,'avatarUrl',u.avatar_url) ORDER BY u.name,u.id)
@@ -104,6 +105,10 @@ func (db *Database) WorkItem(ctx context.Context, userID, id string) (model.Work
 		return t, err
 	}
 	workPermissions(&t, userID, manager)
+	t.CanCheckQA, err = db.WorkspaceQA(ctx, userID, t.WorkspaceID)
+	if err != nil {
+		return t, err
+	}
 	return t, nil
 }
 
@@ -197,9 +202,32 @@ func (db *Database) SaveWorkItem(ctx context.Context, userID string, division in
 		if err != nil {
 			return empty, err
 		}
-		if old.WorkspaceID != division || !old.CanEdit {
+		if old.WorkspaceID != division || (!old.CanEdit && !in.PriorityOnly && !(in.QAOnly && old.CanCheckQA)) {
 			return empty, ErrWorkspaceForbidden
 		}
+		if in.PriorityOnly || in.QAOnly {
+			// Internal flags are never accepted from JSON; guard other fields here too.
+			a, b := in, model.WorkItemInput{Title: old.Title, Description: old.Description, RelatedURL: old.RelatedURL, JobID: old.JobID, StartDate: old.StartDate, DueDate: old.DueDate, Status: old.Status, Priority: old.Priority, RequiresQA: old.RequiresQA, QAStage: old.QAStage}
+			a.Version = 0
+			a.PriorityOnly = false
+			a.QAOnly = false
+			a.AssigneeIDs = nil
+			a.RequestID = ""
+			if in.PriorityOnly {
+				a.Priority = b.Priority
+			} else {
+				a.Status = b.Status
+				a.QAStage = b.QAStage
+			}
+			x, _ := json.Marshal(a)
+			y, _ := json.Marshal(b)
+			if string(x) != string(y) {
+				return empty, ErrWorkspaceForbidden
+			}
+		}
+	}
+	if err = validateQATransition(old, in, old.CanCheckQA); err != nil {
+		return empty, err
 	}
 	if in.AssigneeIDs == nil {
 		if id == "" {
@@ -283,9 +311,9 @@ func (db *Database) SaveWorkItem(ctx context.Context, userID string, division in
 	}
 	if id == "" {
 		id = NewID()
-		_, err = tx.ExecContext(ctx, `INSERT INTO work_items(id,division_id,job_id,title,description,related_url,start_date,due_date,status,priority,created_by,creation_request_id) VALUES($1,$2,$3,$4,$5,$6,NULLIF($7,'')::date,NULLIF($8,'')::date,$9,$10,$11,NULLIF($12,'')::uuid)`, id, division, in.JobID, in.Title, in.Description, in.RelatedURL, in.StartDate, in.DueDate, in.Status, in.Priority, userID, in.RequestID)
+		_, err = tx.ExecContext(ctx, `INSERT INTO work_items(id,division_id,job_id,title,description,related_url,start_date,due_date,status,priority,created_by,creation_request_id,requires_qa,qa_stage) VALUES($1,$2,$3,$4,$5,$6,NULLIF($7,'')::date,NULLIF($8,'')::date,$9,$10,$11,NULLIF($12,'')::uuid,$13,$14)`, id, division, in.JobID, in.Title, in.Description, in.RelatedURL, in.StartDate, in.DueDate, in.Status, in.Priority, userID, in.RequestID, in.RequiresQA, in.QAStage)
 	} else {
-		_, err = tx.ExecContext(ctx, `UPDATE work_items SET job_id=$2,title=$3,description=$4,related_url=$5,start_date=NULLIF($6,'')::date,due_date=NULLIF($7,'')::date,status=$8,priority=$9,updated_at=NOW(),version=version+1 WHERE id=$1`, id, in.JobID, in.Title, in.Description, in.RelatedURL, in.StartDate, in.DueDate, in.Status, in.Priority)
+		_, err = tx.ExecContext(ctx, `UPDATE work_items SET job_id=$2,title=$3,description=$4,related_url=$5,start_date=NULLIF($6,'')::date,due_date=NULLIF($7,'')::date,status=$8,priority=$9,requires_qa=$10,qa_stage=$11,updated_at=NOW(),version=version+1 WHERE id=$1 AND version=$12`, id, in.JobID, in.Title, in.Description, in.RelatedURL, in.StartDate, in.DueDate, in.Status, in.Priority, in.RequiresQA, in.QAStage, in.Version)
 	}
 	if err != nil {
 		return empty, err

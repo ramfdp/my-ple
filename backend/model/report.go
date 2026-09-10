@@ -53,6 +53,8 @@ type WeeklyReportInput struct {
 	Description     string `json:"description"`
 }
 type WeeklyReport struct {
+	Version         int       `json:"version"`
+	DisplayNumber   int       `json:"displayNumber"`
 	PICs            JobPICs   `json:"pics,omitempty"`
 	JobID           *int      `json:"jobId,omitempty"`
 	ID              string    `json:"id"`
@@ -73,10 +75,11 @@ type ReportingPeriod struct {
 	Label    string    `json:"label"`
 }
 type WeeklyReportUpdateInput struct {
-	JobID           *int   `json:"jobId"`
-	PrimaryDivision string `json:"primaryDivision"`
-	WorkDivision    string `json:"workDivision"`
-	Role            string `json:"role"`
-	Work            string `json:"work"`
-	Description     string `json:"description"`
+	Version         int     `json:"version"`
+	JobID           *int    `json:"jobId"`
+	PrimaryDivision *string `json:"primaryDivision"`
+	WorkDivision    *string `json:"workDivision"`
+	Role            *string `json:"role"`
+	Work            *string `json:"work"`
+	Description     *string `json:"description"`
 }

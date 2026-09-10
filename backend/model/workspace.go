@@ -31,6 +31,9 @@ type WorkspaceMember struct {
 	AvatarURL string `json:"avatarUrl"`
 }
 type WorkItem struct {
+	RequiresQA   bool              `json:"requiresQa"`
+	QAStage      string            `json:"qaStage"`
+	CanCheckQA   bool              `json:"canCheckQa"`
 	ID           string            `json:"id"`
 	WorkspaceID  int               `json:"workspaceId"`
 	JobID        *int              `json:"jobId"`
@@ -52,17 +55,21 @@ type WorkItem struct {
 	CanDelete    bool              `json:"canDelete"`
 }
 type WorkItemInput struct {
-	RequestID   string   `json:"requestId"`
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	RelatedURL  string   `json:"relatedUrl"`
-	JobID       *int     `json:"jobId"`
-	StartDate   string   `json:"startDate"`
-	DueDate     string   `json:"dueDate"`
-	Status      string   `json:"status"`
-	Priority    string   `json:"priority"`
-	AssigneeIDs []string `json:"assigneeIds"`
-	Version     int      `json:"version"`
+	RequiresQA   bool     `json:"requiresQa"`
+	QAStage      string   `json:"qaStage"`
+	PriorityOnly bool     `json:"-"`
+	QAOnly       bool     `json:"-"`
+	RequestID    string   `json:"requestId"`
+	Title        string   `json:"title"`
+	Description  string   `json:"description"`
+	RelatedURL   string   `json:"relatedUrl"`
+	JobID        *int     `json:"jobId"`
+	StartDate    string   `json:"startDate"`
+	DueDate      string   `json:"dueDate"`
+	Status       string   `json:"status"`
+	Priority     string   `json:"priority"`
+	AssigneeIDs  []string `json:"assigneeIds"`
+	Version      int      `json:"version"`
 }
 type WorkComment struct {
 	ID        string    `json:"id"`

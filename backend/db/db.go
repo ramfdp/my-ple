@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -40,12 +41,16 @@ var leaveSQL string
 //go:embed email_delivery.sql
 var emailDeliverySQL string
 
+//go:embed collaboration.sql
+var collaborationSQL string
+
 type Database struct {
 	Conn *sql.DB
 	Now  func() time.Time
 }
 
 var ErrInvalidReport = errors.New("invalid report")
+var ErrReportConflict = errors.New("Laporan sudah berubah. Bandingkan dengan data terbaru sebelum menyimpan lagi.")
 var ErrUserHasReports = errors.New("user has working reports awaiting archival")
 var ErrZoomBookingConflict = errors.New("zoom booking conflict")
 
@@ -66,7 +71,7 @@ func (db *Database) Migrate(ctx context.Context) error {
 	if _, err = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(71260402)`); err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, schemaSQL+weeklyArchiveSQL+jobsSQL+reportNumberingSQL+jobPICsSQL+workspaceSQL+leaveSQL+emailDeliverySQL); err != nil {
+	if _, err = tx.ExecContext(ctx, schemaSQL+weeklyArchiveSQL+jobsSQL+reportNumberingSQL+jobPICsSQL+workspaceSQL+leaveSQL+emailDeliverySQL+collaborationSQL); err != nil {
 		return err
 	}
 	var unmatched int
@@ -433,12 +438,13 @@ func (db *Database) CreateReport(ctx context.Context, userID string, input model
 		return result, err
 	}
 	result.JobID = input.JobID
+	result.Version = 1
 	return result, nil
 }
 
 func (db *Database) ListReports(ctx context.Context, primaryDivision string, weekStart, nextWeekStart time.Time) ([]model.WeeklyReport, error) {
 	rows, err := db.Conn.QueryContext(ctx, `
-		SELECT id, user_id, primary_division, work_division, number, report_role, COALESCE((SELECT name FROM jobs WHERE id=reports.job_id),work), description, completed_at, reports.job_id, p.pics
+		SELECT id, user_id, primary_division, work_division, number, report_role, COALESCE((SELECT name FROM jobs WHERE id=reports.job_id),work), description, completed_at, reports.job_id, p.pics, reports.version
 		FROM reports LEFT JOIN job_pic_summary p ON p.job_id=reports.job_id WHERE primary_division = $1 AND completed_at >= $2 AND completed_at < $3
 		ORDER BY CASE work_division WHEN 'MK supervisi' THEN 1 WHEN 'Non-MK supervisi' THEN 2 WHEN 'QA 1' THEN 3 WHEN 'QA 2' THEN 4 ELSE 5 END,
 		work_division, report_role, MIN(number) OVER (PARTITION BY primary_division, work_division, report_role, work), number, completed_at, id`, primaryDivision, weekStart, nextWeekStart)
@@ -449,7 +455,7 @@ func (db *Database) ListReports(ctx context.Context, primaryDivision string, wee
 	reports := []model.WeeklyReport{}
 	for rows.Next() {
 		var item model.WeeklyReport
-		if err := rows.Scan(&item.ID, &item.UserID, &item.PrimaryDivision, &item.WorkDivision, &item.Number, &item.Role, &item.Work, &item.Description, &item.CompletedAt, &item.JobID, &item.PICs); err != nil {
+		if err := rows.Scan(&item.ID, &item.UserID, &item.PrimaryDivision, &item.WorkDivision, &item.Number, &item.Role, &item.Work, &item.Description, &item.CompletedAt, &item.JobID, &item.PICs, &item.Version); err != nil {
 			return nil, err
 		}
 		model.NormalizeWeeklyReport(&item)
@@ -483,8 +489,18 @@ func SortReports(reports []model.WeeklyReport) {
 		if a.Number != b.Number {
 			return a.Number < b.Number
 		}
-		return a.CompletedAt.Before(b.CompletedAt)
+		if !a.CompletedAt.Equal(b.CompletedAt) {
+			return a.CompletedAt.Before(b.CompletedAt)
+		}
+		return a.ID < b.ID
 	})
+	numbers := map[string]int{}
+	for i := range reports {
+		r := &reports[i]
+		key := r.PrimaryDivision + "\x00" + r.Role + "\x00" + r.WorkDivision + "\x00" + r.Work
+		numbers[key]++
+		r.DisplayNumber = numbers[key]
+	}
 }
 
 func (db *Database) UpdateReport(ctx context.Context, id string, input model.WeeklyReportUpdateInput) (model.WeeklyReport, error) {
@@ -498,35 +514,49 @@ func (db *Database) UpdateReport(ctx context.Context, id string, input model.Wee
 		return result, err
 	}
 	var old model.WeeklyReport
-	if err := tx.QueryRowContext(ctx, `SELECT primary_division,work_division,report_role,work,job_id,number,completed_at FROM reports WHERE id=$1 FOR UPDATE`, id).Scan(&old.PrimaryDivision, &old.WorkDivision, &old.Role, &old.Work, &old.JobID, &old.Number, &old.CompletedAt); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT id,user_id,primary_division,work_division,report_role,work,job_id,number,completed_at,description,version FROM reports WHERE id=$1 FOR UPDATE`, id).Scan(&old.ID, &old.UserID, &old.PrimaryDivision, &old.WorkDivision, &old.Role, &old.Work, &old.JobID, &old.Number, &old.CompletedAt, &old.Description, &old.Version); err != nil {
 		return result, err
 	}
 	model.NormalizeWeeklyReport(&old)
-	if input.PrimaryDivision != old.PrimaryDivision {
+	if input.Version != old.Version {
+		return old, ErrReportConflict
+	}
+	if input.PrimaryDivision != nil && *input.PrimaryDivision != old.PrimaryDivision {
 		return result, ErrInvalidReport
 	}
-	resolved := model.WeeklyReportInput{JobID: input.JobID, PrimaryDivision: input.PrimaryDivision, WorkDivision: input.WorkDivision, Role: input.Role, Work: input.Work, Description: input.Description}
+	value := func(v *string, fallback string) string {
+		if v != nil {
+			return strings.TrimSpace(*v)
+		}
+		return fallback
+	}
+	resolved := model.WeeklyReportInput{JobID: old.JobID, PrimaryDivision: old.PrimaryDivision, WorkDivision: value(input.WorkDivision, old.WorkDivision), Role: value(input.Role, old.Role), Work: value(input.Work, old.Work), Description: value(input.Description, old.Description)}
+	if input.JobID != nil {
+		resolved.JobID = input.JobID
+	}
+	if resolved.Description == "" || len(resolved.Description) > 500 {
+		return result, ErrInvalidReport
+	}
 	if err := resolveReportJob(ctx, tx, &resolved, &old); err != nil {
 		return result, err
 	}
-	input.JobID, input.Work, input.Role, input.WorkDivision = resolved.JobID, resolved.Work, resolved.Role, resolved.WorkDivision
 	number := old.Number
-	if input.JobID != nil && (old.JobID == nil || *input.JobID != *old.JobID) {
-		number, err = allocateReportNumber(ctx, tx, input.PrimaryDivision, input.WorkDivision, input.JobID, old.CompletedAt)
+	if resolved.JobID != nil && (old.JobID == nil || *resolved.JobID != *old.JobID) {
+		number, err = allocateReportNumber(ctx, tx, resolved.PrimaryDivision, resolved.WorkDivision, resolved.JobID, old.CompletedAt)
 		if err != nil {
 			return result, err
 		}
 	}
-	if err := tx.QueryRowContext(ctx, `UPDATE reports SET work_division=$2,report_role=$3,work=$4,description=$5,job_id=$6,number=$7 WHERE id=$1
- RETURNING id,user_id,primary_division,work_division,number,report_role,work,description,completed_at`,
-		id, input.WorkDivision, input.Role, input.Work, input.Description, input.JobID, number,
-	).Scan(&result.ID, &result.UserID, &result.PrimaryDivision, &result.WorkDivision, &result.Number, &result.Role, &result.Work, &result.Description, &result.CompletedAt); err != nil {
+	if err := tx.QueryRowContext(ctx, `UPDATE reports SET work_division=$2,report_role=$3,work=$4,description=$5,job_id=$6,number=$7,version=version+1 WHERE id=$1 AND version=$8
+ RETURNING id,user_id,primary_division,work_division,number,report_role,work,description,completed_at,version`,
+		id, resolved.WorkDivision, resolved.Role, resolved.Work, resolved.Description, resolved.JobID, number, input.Version,
+	).Scan(&result.ID, &result.UserID, &result.PrimaryDivision, &result.WorkDivision, &result.Number, &result.Role, &result.Work, &result.Description, &result.CompletedAt, &result.Version); err != nil {
 		return result, err
 	}
 	if err := tx.Commit(); err != nil {
 		return result, err
 	}
-	result.JobID = input.JobID
+	result.JobID = resolved.JobID
 	return result, nil
 }
 

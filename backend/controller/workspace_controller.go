@@ -121,6 +121,7 @@ func (c *WorkspaceController) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 					return
 				}
 				WriteJSON(w, 201, map[string]any{"page": a})
+				c.changed(r, user.ID, id)
 				return
 			}
 		case "tasks":
@@ -145,7 +146,7 @@ func (c *WorkspaceController) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 					workspaceError(w, e)
 					return
 				}
-				c.changed(r, user.ID, id)
+				c.changed(r, user.ID, id, t)
 				WriteJSON(w, 201, map[string]any{"task": t})
 				return
 			}
@@ -176,7 +177,7 @@ func (c *WorkspaceController) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 				rows, e := c.DB.Conn.QueryContext(r.Context(), `SELECT id,name,is_active,
 				CASE WHEN count(*) OVER (PARTITION BY lower(btrim(name)))>1
 				THEN name || ' — ' || concat_ws(' / ',NULLIF(role_name,''),NULLIF(category_name,''))
-				ELSE name END FROM job_context WHERE division_id=$1 ORDER BY sort_order,id`, id)
+				ELSE name END,role_name FROM job_context WHERE division_id=$1 ORDER BY sort_order,id`, id)
 				if e != nil {
 					workspaceError(w, e)
 					return
@@ -185,13 +186,13 @@ func (c *WorkspaceController) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 				items := []map[string]any{}
 				for rows.Next() {
 					var jid int
-					var name, label string
+					var name, label, role string
 					var active bool
-					if e = rows.Scan(&jid, &name, &active, &label); e != nil {
+					if e = rows.Scan(&jid, &name, &active, &label, &role); e != nil {
 						workspaceError(w, e)
 						return
 					}
-					items = append(items, map[string]any{"id": jid, "name": name, "label": label, "isActive": active})
+					items = append(items, map[string]any{"id": jid, "name": name, "label": label, "isActive": active, "role": role})
 				}
 				if e = rows.Err(); e != nil {
 					workspaceError(w, e)
@@ -241,6 +242,7 @@ func (c *WorkspaceController) workspacePage(w http.ResponseWriter, r *http.Reque
 			return
 		}
 		WriteJSON(w, 200, map[string]any{"page": updated})
+		c.changed(r, userID, p.WorkspaceID)
 		return
 	case "DELETE":
 		var in struct {
@@ -254,20 +256,28 @@ func (c *WorkspaceController) workspacePage(w http.ResponseWriter, r *http.Reque
 			return
 		}
 		w.WriteHeader(204)
+		c.changed(r, userID, p.WorkspaceID)
 		return
 	}
 	http.NotFound(w, r)
 }
 
-func (c *WorkspaceController) changed(r *http.Request, actor string, division int) {
+func (c *WorkspaceController) changed(r *http.Request, actor string, division int, task ...model.WorkItem) {
 	if c.Notifications == nil || c.Notifications.Hub == nil {
 		return
 	}
-	ids, err := c.DB.WorkspaceRecipients(r.Context(), division)
-	if err == nil {
-		// Include the actor's sessions so self-assignment refreshes the private feed too.
-		c.Notifications.Hub.SendWorkspace(ids, division, "")
+	id := ""
+	var version int64
+	if len(task) > 0 {
+		id = task[0].ID
+		version = int64(task[0].Version)
+	} else {
+		path := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+		if len(path) > 1 && path[0] == "work-items" {
+			id = path[1]
+		}
 	}
+	c.Notifications.Changed(r.Context(), "workspace.changed", division, id, version)
 }
 func (c *WorkspaceController) task(w http.ResponseWriter, r *http.Request, userID string, path []string) {
 	t, err := c.DB.WorkItem(r.Context(), userID, path[0])
@@ -281,7 +291,7 @@ func (c *WorkspaceController) task(w http.ResponseWriter, r *http.Request, userI
 			WriteJSON(w, 200, map[string]any{"task": t})
 			return
 		case "PATCH", "PUT":
-			in := model.WorkItemInput{Title: t.Title, Description: t.Description, RelatedURL: t.RelatedURL, JobID: t.JobID, StartDate: t.StartDate, DueDate: t.DueDate, Status: t.Status, Priority: t.Priority}
+			in := model.WorkItemInput{Title: t.Title, Description: t.Description, RelatedURL: t.RelatedURL, JobID: t.JobID, StartDate: t.StartDate, DueDate: t.DueDate, Status: t.Status, Priority: t.Priority, RequiresQA: t.RequiresQA, QAStage: t.QAStage}
 			if !DecodeStrictJSON(w, r, &in) {
 				return
 			}
@@ -290,7 +300,7 @@ func (c *WorkspaceController) task(w http.ResponseWriter, r *http.Request, userI
 				workspaceError(w, e)
 				return
 			}
-			c.changed(r, userID, t.WorkspaceID)
+			c.changed(r, userID, t.WorkspaceID, updated)
 			WriteJSON(w, 200, map[string]any{"task": updated})
 			return
 		case "DELETE":
@@ -308,6 +318,43 @@ func (c *WorkspaceController) task(w http.ResponseWriter, r *http.Request, userI
 			w.WriteHeader(204)
 			return
 		}
+	}
+	if len(path) == 2 && (path[1] == "priority" || path[1] == "qa") && r.Method == "PATCH" {
+		in := model.WorkItemInput{Title: t.Title, Description: t.Description, RelatedURL: t.RelatedURL, JobID: t.JobID, StartDate: t.StartDate, DueDate: t.DueDate, Status: t.Status, Priority: t.Priority, RequiresQA: t.RequiresQA, QAStage: t.QAStage}
+		if path[1] == "priority" {
+			var patch struct {
+				Priority string `json:"priority"`
+				Version  int    `json:"version"`
+			}
+			if !DecodeStrictJSON(w, r, &patch) {
+				return
+			}
+			in.Priority = patch.Priority
+			in.Version = patch.Version
+			in.PriorityOnly = true
+		} else {
+			var patch struct {
+				Stage   string `json:"qaStage"`
+				Version int    `json:"version"`
+			}
+			if !DecodeStrictJSON(w, r, &patch) {
+				return
+			}
+			in.QAStage = patch.Stage
+			in.Version = patch.Version
+			in.QAOnly = true
+			if patch.Stage == "COMPLETE" {
+				in.Status = model.WorkDone
+			}
+		}
+		updated, e := c.DB.SaveWorkItem(r.Context(), userID, t.WorkspaceID, t.ID, in)
+		if e != nil {
+			workspaceError(w, e)
+			return
+		}
+		c.changed(r, userID, t.WorkspaceID, updated)
+		WriteJSON(w, 200, map[string]any{"task": updated})
+		return
 	}
 	if len(path) == 2 && path[1] == "comments" {
 		if r.Method == "GET" {

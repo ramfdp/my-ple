@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import {subscribeChanges} from '$lib/realtime';
 	import { api, session, upload, type Role, type User } from '$lib/api';
 	import { formatRupiah } from '$lib/utils/formatters';
 
@@ -8,6 +9,7 @@
 	let users = $state<User[]>([]), roles = $state<Role[]>([]), form = $state<Partial<User> & { password?: string }>(blank());
 	let editing = $state(false), showForm = $state(false), loading = $state(true), error = $state(''), allowed = $state(false);
 	const canManage = (role?: string) => ['admin', 'management', 'hr'].includes(role?.toLowerCase() ?? '');
+	onMount(()=>subscribeChanges(['users.changed'],async()=>{if(!allowed)return;try{users=(await api<{users:User[]}>('/users')).users}catch(e){error=(e as Error).message}}));
 
 	onMount(async () => {
 		allowed = canManage(session()?.user.role);

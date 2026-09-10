@@ -1,19 +1,22 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import {subscribeChanges} from '$lib/realtime';
 	import { api, download, type WeeklyArchive } from '$lib/api';
 	let division = $state(''), date = $state(''), page = $state(1);
 	let archives = $state<WeeklyArchive[]>([]), detail = $state<WeeklyArchive | null>(null);
 	let loading = $state(true), hasMore = $state(false), error = $state(''), downloading = $state('');
+	let generation=0;
 	const divisions = ['Project Engineer', 'AI Dev', 'Keuangan', 'Business Development', 'HR', 'PMO'];
 	const formatDate = (value: string) => new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value));
 	const period = (a: WeeklyArchive) => `${formatDate(a.weekStart)} – ${formatDate(new Date(new Date(a.weekEnd).getTime() - 1).toISOString())}`;
-	async function load(next = 1) {
-		loading = true; error = ''; detail = null;
+	async function load(next = 1, background=false) {
+		const sequence=++generation;
+		if(!background){loading = true; error = ''; detail = null;}
 		try {
 			const response = await api<{ archives: WeeklyArchive[]; hasMore: boolean }>(`/reports/history?${new URLSearchParams({ division, date, page: String(next) })}`);
-			archives = response.archives; hasMore = response.hasMore; page = next;
-		} catch (e) { error = e instanceof Error ? e.message : 'Riwayat tidak dapat dimuat.'; }
-		finally { loading = false; }
+			if(sequence===generation){archives = response.archives; hasMore = response.hasMore; page = next;}
+		} catch (e) { if(sequence===generation)error = e instanceof Error ? e.message : 'Riwayat tidak dapat dimuat.'; }
+		finally { if(sequence===generation)loading = false; }
 	}
 	async function openDetail(id: string) {
 		error = ''; detail = null;
@@ -29,7 +32,7 @@
 		} catch (e) { error = e instanceof Error ? e.message : 'PDF tidak dapat diunduh.'; }
 		finally { downloading = ''; }
 	}
-	onMount(() => { void load(); });
+	onMount(() => { void load();const stop=subscribeChanges(['reports.changed'],()=>load(page,true));return()=>{generation++;stop()}; });
 </script>
 
 <svelte:head><title>Weekly Report History | my HIS</title></svelte:head>
