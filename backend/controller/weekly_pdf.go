@@ -94,19 +94,61 @@ func documentReports(reports []model.WeeklyReport) []model.WeeklyReport {
 	return reports
 }
 
-func reportGroup(r model.WeeklyReport) string {
-	return r.PrimaryDivision + "\x00" + r.Role + "\x00" + r.WorkDivision + "\x00" + r.Work
+type exportProgress struct {
+	Number  int                `json:"number"`
+	Content string             `json:"content"`
+	Report  model.WeeklyReport `json:"report"`
 }
-func reportHeading(r model.WeeklyReport) string {
+type exportJob struct {
+	Key      string           `json:"key"`
+	Name     string           `json:"name"`
+	PICs     model.JobPICs    `json:"pics,omitempty"`
+	Progress []exportProgress `json:"progress"`
+}
+type exportCategory struct {
+	Name string      `json:"name"`
+	Jobs []exportJob `json:"jobs"`
+}
+type exportRole struct {
+	Name       string           `json:"name"`
+	Categories []exportCategory `json:"categories"`
+}
+
+func exportGroups(reports []model.WeeklyReport) []exportRole {
+	reports = documentReports(reports)
+	groups := []exportRole{}
+	for _, report := range reports {
+		if len(groups) == 0 || groups[len(groups)-1].Name != report.Role {
+			groups = append(groups, exportRole{Name: report.Role})
+		}
+		role := &groups[len(groups)-1]
+		if len(role.Categories) == 0 || role.Categories[len(role.Categories)-1].Name != report.WorkDivision {
+			role.Categories = append(role.Categories, exportCategory{Name: report.WorkDivision})
+		}
+		category := &role.Categories[len(role.Categories)-1]
+		key := report.Work
+		if report.JobID != nil {
+			key = fmt.Sprint(*report.JobID)
+		}
+		if len(category.Jobs) == 0 || category.Jobs[len(category.Jobs)-1].Key != key {
+			category.Jobs = append(category.Jobs, exportJob{Key: key, Name: report.Work, PICs: report.PICs})
+		}
+		job := &category.Jobs[len(category.Jobs)-1]
+		job.Progress = append(job.Progress, exportProgress{Number: len(job.Progress) + 1, Content: report.Description, Report: report})
+	}
+	return groups
+}
+
+func reportHeading(work string, pics model.JobPICs) string {
 	names := []string{}
-	for _, pic := range r.PICs {
+	for _, pic := range pics {
 		name := pic.Name
 		if !pic.IsActive {
 			name += " (Nonaktif)"
 		}
 		names = append(names, name)
 	}
-	heading := r.Work
+	heading := work
 	if len(names) > 0 {
 		heading += "    PIC: " + strings.Join(names, ", ")
 	}
@@ -114,13 +156,13 @@ func reportHeading(r model.WeeklyReport) string {
 }
 
 func weeklyPDFDocument(division string, period model.ReportingPeriod, reports []model.WeeklyReport, compression bool) ([]byte, error) {
-	reports = documentReports(reports)
+	groups := exportGroups(reports)
 	pdf := fpdf.New("P", "mm", "A4", "")
 	pdf.SetCompression(compression)
 	pdf.AddUTF8FontFromBytes("Report", "", reportFont)
 	pdf.AddUTF8FontFromBytes("Report", "B", reportBoldFont)
 	const left, bottom, lineHeight = 15.0, 282.0, 5.0
-	widths := []float64{20, 42, 14, 104}
+	widths := []float64{24, 34, 14, 108}
 	pdf.SetMargins(left, 15, left)
 	pdf.SetAutoPageBreak(false, 15)
 	pdf.SetHeaderFunc(func() {
@@ -140,9 +182,54 @@ func weeklyPDFDocument(division string, period model.ReportingPeriod, reports []
 		pdf.Ln(9)
 		pdf.SetTextColor(41, 70, 93)
 	})
-	// PDF-specific physical rows, without rowspans. Each column can continue on
-	// another page, including an individual entry taller than the entire page.
-	row := func(values []string, sizes []float64, bold bool) {
+	pdf.AddPage()
+	contentTop := pdf.GetY()
+	activeRole, activeCategory := "", ""
+	roleStart, categoryStart := pdf.GetY(), pdf.GetY()
+	drawMergedText := func(x, start, end, width float64, value string) {
+		lines := pdf.SplitText(value, width-4)
+		y := start + max(2, (end-start-float64(len(lines))*lineHeight)/2)
+		for _, line := range lines {
+			pdf.SetXY(x+2, y)
+			pdf.CellFormat(width-4, lineHeight, line, "", 0, "C", false, 0, "")
+			y += lineHeight
+		}
+	}
+	closeCategory := func() {
+		if activeCategory == "" {
+			return
+		}
+		y := pdf.GetY()
+		pdf.Line(left+widths[0], y, left+widths[0]+widths[1], y)
+		drawMergedText(left+widths[0], categoryStart, y, widths[1], activeCategory)
+		activeCategory = ""
+	}
+	closeRole := func() {
+		if activeRole == "" {
+			return
+		}
+		y := pdf.GetY()
+		pdf.Line(left, y, left+widths[0], y)
+		drawMergedText(left, roleStart, y, widths[0], activeRole)
+		activeRole = ""
+	}
+	beginRole := func(value string) {
+		activeRole, roleStart = value, pdf.GetY()
+		pdf.Line(left, roleStart, left+widths[0], roleStart)
+	}
+	beginCategory := func(value string) {
+		activeCategory, categoryStart = value, pdf.GetY()
+		pdf.Line(left+widths[0], categoryStart, left+widths[0]+widths[1], categoryStart)
+	}
+	newPage := func() {
+		role, category := activeRole, activeCategory
+		closeCategory()
+		closeRole()
+		pdf.AddPage()
+		beginRole(role)
+		beginCategory(category)
+	}
+	rowLines := func(values []string, sizes []float64, bold bool) ([][]string, int) {
 		style := ""
 		if bold {
 			style = "B"
@@ -160,16 +247,37 @@ func weeklyPDFDocument(division string, period model.ReportingPeriod, reports []
 			}
 			total = max(total, len(lines[i]))
 		}
+		return lines, total
+	}
+	rowHeight := func(values []string, sizes []float64, bold bool) float64 {
+		_, lines := rowLines(values, sizes, bold)
+		return float64(lines)*lineHeight + 4
+	}
+	// Role/category cells are merged only within a page. Long content splits into
+	// physical rows and repeats its group context after each page break.
+	row := func(values []string, sizes []float64, bold bool) {
+		lines, total := rowLines(values, sizes, bold)
+		style := ""
+		if bold {
+			style = "B"
+		}
 		for offset := 0; offset < total; {
 			available := int((bottom - pdf.GetY() - 4) / lineHeight)
 			if available < 1 {
-				pdf.AddPage()
+				newPage()
 				continue
 			}
 			count := min(available, total-offset)
 			height := float64(count)*lineHeight + 4
 			x, y := left, pdf.GetY()
 			pdf.SetFont("Report", style, 9)
+			pdf.SetFillColor(255, 255, 255)
+			for _, width := range widths[:2] {
+				pdf.Rect(x, y, width, height, "F")
+				pdf.Line(x, y, x, y+height)
+				x += width
+			}
+			pdf.Line(x, y, x, y+height)
 			for i, column := range lines {
 				pdf.SetFillColor(223, 242, 235)
 				fill := "D"
@@ -191,27 +299,36 @@ func weeklyPDFDocument(division string, period model.ReportingPeriod, reports []
 			pdf.SetXY(left, y+height)
 			offset += count
 			if offset < total {
-				pdf.AddPage()
+				newPage()
 			}
 		}
 	}
-	pdf.AddPage()
-	group := ""
-	previousRole := ""
-	for _, report := range reports {
-		if division == "Project Engineer" && report.Role == "CIHPK" && previousRole != "" && previousRole != "CIHPK" {
+	renderedRole := false
+	for _, role := range groups {
+		if role.Name == "CIHPK" && renderedRole {
 			pdf.AddPage()
 		}
-		previousRole = report.Role
-		if key := reportGroup(report); key != group {
-			group = key
-			// Reserve only the next line, never the full height of an arbitrarily long entry.
-			if bottom-pdf.GetY() < 23 {
-				pdf.AddPage()
+		beginRole(role.Name)
+		for _, category := range role.Categories {
+			beginCategory(category.Name)
+			for _, job := range category.Jobs {
+				heading := reportHeading(job.Name, job.PICs)
+				required := rowHeight([]string{heading}, []float64{widths[2] + widths[3]}, true)
+				if len(job.Progress) > 0 {
+					required += rowHeight([]string{"1", job.Progress[0].Content}, widths[2:], false)
+				}
+				if required <= bottom-contentTop && bottom-pdf.GetY() < required {
+					newPage()
+				}
+				row([]string{heading}, []float64{widths[2] + widths[3]}, true)
+				for _, progress := range job.Progress {
+					row([]string{fmt.Sprint(progress.Number), progress.Content}, widths[2:], false)
+				}
 			}
-			row([]string{report.Role, report.WorkDivision, reportHeading(report)}, []float64{20, 42, 118}, true)
+			closeCategory()
 		}
-		row([]string{report.Role, report.WorkDivision, fmt.Sprint(report.DisplayNumber), report.Description}, widths, false)
+		closeRole()
+		renderedRole = true
 	}
 	var output bytes.Buffer
 	err := pdf.Output(&output)

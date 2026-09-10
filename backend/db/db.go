@@ -442,6 +442,7 @@ func (db *Database) CreateReport(ctx context.Context, userID string, input model
 	}
 	result.JobID = input.JobID
 	result.Version = 1
+	model.NormalizeWeeklyReport(&result)
 	return result, nil
 }
 
@@ -473,8 +474,8 @@ func (db *Database) ListReports(ctx context.Context, primaryDivision string, wee
 
 // SortReports keeps manual and archived PDFs on the existing grouping order.
 func SortReports(reports []model.WeeklyReport) {
-	roleRank := map[string]int{"PE": 1, "QA": 2, "CIHPK": 3}
-	categoryRank := map[string]int{"MK supervisi": 1, "Non-MK supervisi": 2, "QA1": 3, "QA2": 4, "JAKG": 5, "Manggarai Hydrant": 6, "Jember": 7}
+	roleRank := map[string]int{"Project Engineer": 1, "Quality Assurance": 2, "CIHPK": 3}
+	categoryRank := map[string]int{"MK/Supervisi": 1, "Non MK/Non Supervisi": 2, "QA 1": 3, "QA 2": 4}
 	sort.SliceStable(reports, func(i, j int) bool {
 		a, b := reports[i], reports[j]
 		if roleRank[a.Role] != roleRank[b.Role] {
@@ -560,6 +561,7 @@ func (db *Database) UpdateReport(ctx context.Context, id string, input model.Wee
 		return result, err
 	}
 	result.JobID = resolved.JobID
+	model.NormalizeWeeklyReport(&result)
 	return result, nil
 }
 

@@ -146,5 +146,5 @@ func (c *WeeklyController) List(w http.ResponseWriter, r *http.Request) {
 		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Laporan tidak dapat dimuat."})
 		return
 	}
-	WriteJSON(w, http.StatusOK, map[string]any{"reports": reports, "period": period})
+	WriteJSON(w, http.StatusOK, map[string]any{"reports": reports, "groups": exportGroups(reports), "period": period})
 }

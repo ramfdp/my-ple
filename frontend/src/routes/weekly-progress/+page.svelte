@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
-	import { api, APIError, currentUser, download, session, type Report, type ReportingPeriod } from '$lib/api';
+	import { api, APIError, currentUser, download, session, type Report, type ReportingPeriod, type WeeklyRoleGroup } from '$lib/api';
 	import {subscribeChanges} from '$lib/realtime';
 	import JobPicker from '$lib/components/JobPicker.svelte';
 	import type { Job } from '$lib/api';
@@ -10,6 +10,7 @@
 	const divisions = ['Project Engineer', 'AI Dev', 'Keuangan', 'Business Development', 'HR', 'PMO'];
 	let selectedDivision = $state<number | null>(null);
 	let reports = $state<Report[]>([]);
+	let groups = $state<WeeklyRoleGroup[]>([]);
 	let loading = $state(false);
 	let error = $state('');
 	let period = $state<ReportingPeriod | null>(null);
@@ -23,17 +24,18 @@
 	let latest=$state<Report|null>(null), remoteDeleted=$state(false);
 	let pickerReport=$state<Report|null>(null);
 	let loadGeneration=0;
-	const tableRows = $derived(groupReports(reports));
+	const tableRows = $derived(groupReports(groups));
 
 	async function selectDivision(index: number, background=false) {
 		const generation=++loadGeneration;
 		selectedDivision = index;
-		if(!background){reports=[];loading=true}
+		if(!background){reports=[];groups=[];loading=true}
 		error = '';
 		try {
-			const response = await api<{ reports: Report[] | null; period: ReportingPeriod }>(`/reports?primaryDivision=${encodeURIComponent(divisions[index])}`);
+			const response = await api<{ reports: Report[] | null; groups:WeeklyRoleGroup[] | null; period: ReportingPeriod }>(`/reports?primaryDivision=${encodeURIComponent(divisions[index])}`);
 			if(generation!==loadGeneration)return;
 			reports = response.reports ?? [];
+			groups = response.groups ?? [];
 			period = response.period;
 			if(editing){
 			 const server=reports.find(r=>r.id===editing?.id);
@@ -137,7 +139,7 @@
 									<tr class="work-group-row">
 										{#if row.role}<td rowspan={row.roleRowSpan ?? 1} class="task-role">{row.role}</td>{/if}
 										{#if row.category}<td rowspan={row.categoryRowSpan ?? 1} class="task-category">{row.category}</td>{/if}
-										<td colspan="3" class="task-work-title"><div class="job-heading"><span>{row.work}</span>{#if row.pics?.length}<small>PIC: {row.pics.map(pic=>pic.name+(pic.isActive?'':' (Nonaktif)')).join(', ')}</small>{/if}</div></td>
+										<td colspan="2" class="task-work-title"><div class="job-heading"><span>{row.work}</span>{#if row.pics?.length}<small>PIC: {row.pics.map(pic=>pic.name+(pic.isActive?'':' (Nonaktif)')).join(', ')}</small>{/if}</div></td><td class="task-actions"></td>
 									</tr>
 								{:else}
 									<tr><td class="task-number">{row.displayNumber}</td><td class="task-description">{row.report.description}</td><td class="task-actions">{#if !period?.readOnly && canModifyReport($currentUser, row.report.userId)}<div class="report-row-actions"><button class="edit-report" type="button" onclick={() => { latest=null;remoteDeleted=false;editing = row.report; pickerReport=row.report; editDescription = row.report.description; }}>Edit</button><button class="delete-report" type="button" onclick={() => (deleting = row.report)}>Hapus</button></div>{:else}<span class="no-actions">—</span>{/if}</td></tr>

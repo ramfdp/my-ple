@@ -149,15 +149,32 @@ SELECT d.id,r.id,c.id,seed.name,seed.sort_order FROM (VALUES
  ('Project Engineer','QA','QA2','Pengawasan Renovasi Gudang Besar JAKG',10),
  ('Project Engineer','QA','QA2','Pengawasan Instalasi Hidran BY Manggarai',11),
  ('Project Engineer','QA','QA2','Internal',12),
- ('Project Engineer','CIHPK','JAKG','JAKG Supervising Consultant (SPMK Date: March 12, 2026)',0),
- ('Project Engineer','CIHPK','Manggarai Hydrant','Supervising Consultant for the Manggarai Balai Yasa Hydrant Installation (SPMK Date: June 8, 2026)',0),
- ('Project Engineer','CIHPK','Jember','Jember Station Area Redevelopment',0)
+ ('Project Engineer','CIHPK','JAKG','Konsultan Pengawas JAKG (Tanggal SPMK: 12 Maret 2026)',0),
+ ('Project Engineer','CIHPK','Manggarai Hydrant','Konsultan Pengawas Instalasi Hydrant Balai Yasa Manggarai (Tanggal SPMK: 08 Juni 2026)',0),
+ ('Project Engineer','CIHPK','Jember','Supervisi Penataan Kawasan Stasiun Jember (Tanggal SPMK: 30 Desember 2025)',0)
 ) AS seed(division,role,category,name,sort_order)
 JOIN divisions d ON d.name=seed.division
 LEFT JOIN report_roles r ON r.division_id=d.id AND r.name=seed.role
 JOIN job_categories c ON c.division_id=d.id AND c.role_id IS NOT DISTINCT FROM r.id AND c.name=seed.category
 ON CONFLICT DO NOTHING;
 INSERT INTO data_migrations(name) VALUES('job-master-v1');
+END IF; END $$;
+
+-- Preserve job/category IDs and references; only canonicalize the three CIHPK job labels.
+DO $$ BEGIN
+IF NOT EXISTS(SELECT 1 FROM data_migrations WHERE name='cihpk-job-labels-v2') THEN
+ UPDATE jobs j SET name=CASE j.name
+  WHEN 'Jember Station Area Redevelopment' THEN 'Supervisi Penataan Kawasan Stasiun Jember (Tanggal SPMK: 30 Desember 2025)'
+  WHEN 'Penataan Kawasan Stasiun Jember' THEN 'Supervisi Penataan Kawasan Stasiun Jember (Tanggal SPMK: 30 Desember 2025)'
+  WHEN 'JAKG Supervising Consultant (SPMK Date: March 12, 2026)' THEN 'Konsultan Pengawas JAKG (Tanggal SPMK: 12 Maret 2026)'
+  WHEN 'Pengawasan Renovasi Gudang Besar JAKG' THEN 'Konsultan Pengawas JAKG (Tanggal SPMK: 12 Maret 2026)'
+  WHEN 'Supervising Consultant for the Manggarai Balai Yasa Hydrant Installation (SPMK Date: June 8, 2026)' THEN 'Konsultan Pengawas Instalasi Hydrant Balai Yasa Manggarai (Tanggal SPMK: 08 Juni 2026)'
+  WHEN 'Pengawasan Instalasi Hidran BY Manggarai' THEN 'Konsultan Pengawas Instalasi Hydrant Balai Yasa Manggarai (Tanggal SPMK: 08 Juni 2026)'
+ END, updated_at=NOW()
+ FROM report_roles r, divisions d
+ WHERE j.role_id=r.id AND r.division_id=d.id AND r.name='CIHPK' AND d.name='Project Engineer'
+ AND j.name IN ('Jember Station Area Redevelopment','Penataan Kawasan Stasiun Jember','JAKG Supervising Consultant (SPMK Date: March 12, 2026)','Pengawasan Renovasi Gudang Besar JAKG','Supervising Consultant for the Manggarai Balai Yasa Hydrant Installation (SPMK Date: June 8, 2026)','Pengawasan Instalasi Hidran BY Manggarai');
+ INSERT INTO data_migrations(name) VALUES('cihpk-job-labels-v2');
 END IF; END $$;
 
 CREATE OR REPLACE VIEW job_context AS
@@ -169,8 +186,8 @@ CREATE OR REPLACE FUNCTION legacy_job_match(division TEXT, role_name TEXT, categ
 RETURNS INTEGER LANGUAGE sql STABLE AS $$
  SELECT CASE WHEN count(*)=1 THEN min(id) END FROM job_context j
  WHERE lower(btrim(j.division_name))=lower(btrim($1))
- AND lower(btrim(j.role_name))=lower(btrim(CASE WHEN $2 IN ('QA 1','QA 2','QA1','QA2') THEN 'QA' ELSE $2 END))
- AND lower(btrim(j.category_name))=lower(btrim(CASE $3 WHEN 'QA 1' THEN 'QA1' WHEN 'QA 2' THEN 'QA2' WHEN 'QA' THEN 'QA1' ELSE $3 END))
+ AND lower(btrim(j.role_name))=lower(btrim(CASE WHEN $2='Project Engineer' THEN 'PE' WHEN $2 IN ('Quality Assurance','QA 1','QA 2','QA1','QA2') THEN 'QA' ELSE $2 END))
+ AND ($2='CIHPK' OR lower(btrim(j.category_name))=lower(btrim(CASE $3 WHEN 'MK/Supervisi' THEN 'MK supervisi' WHEN 'Non MK/Non Supervisi' THEN 'Non-MK supervisi' WHEN 'QA 1' THEN 'QA1' WHEN 'QA 2' THEN 'QA2' WHEN 'QA' THEN 'QA1' ELSE $3 END)))
  AND lower(btrim(j.name))=lower(btrim(CASE WHEN $4='' AND $2='' THEN $3 ELSE $4 END))
 $$;
 DO $$ BEGIN

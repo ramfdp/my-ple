@@ -16,6 +16,13 @@ func scanJob(row interface{ Scan(...any) error }) (model.Job, error) {
 	return j, err
 }
 
+func normalizeJob(j model.Job) model.Job {
+	r := model.WeeklyReport{Role: j.Role, WorkDivision: j.Category, Work: j.Name}
+	model.NormalizeWeeklyReport(&r)
+	j.Role, j.Category, j.Name = r.Role, r.WorkDivision, r.Work
+	return j
+}
+
 func (db *Database) ListJobs(ctx context.Context, division, role, category *int, active *bool) ([]model.Job, error) {
 	rows, err := db.Conn.QueryContext(ctx, `SELECT `+jobColumns+` FROM job_context WHERE ($1::int IS NULL OR division_id=$1) AND ($2::int IS NULL OR COALESCE(role_id,0)=$2) AND ($3::int IS NULL OR COALESCE(job_category_id,0)=$3) AND ($4::boolean IS NULL OR is_active=$4) ORDER BY division_id,role_id NULLS FIRST,job_category_id NULLS FIRST,sort_order,id`, division, role, category, active)
 	if err != nil {
@@ -28,13 +35,14 @@ func (db *Database) ListJobs(ctx context.Context, division, role, category *int,
 		if err != nil {
 			return nil, err
 		}
-		jobs = append(jobs, j)
+		jobs = append(jobs, normalizeJob(j))
 	}
 	return jobs, rows.Err()
 }
 
 func (db *Database) Job(ctx context.Context, id int) (model.Job, error) {
-	return scanJob(db.Conn.QueryRowContext(ctx, `SELECT `+jobColumns+` FROM job_context WHERE id=$1`, id))
+	j, err := scanJob(db.Conn.QueryRowContext(ctx, `SELECT `+jobColumns+` FROM job_context WHERE id=$1`, id))
+	return normalizeJob(j), err
 }
 
 func (db *Database) JobMasters(ctx context.Context) (map[string][]model.JobMaster, error) {
@@ -53,7 +61,22 @@ func (db *Database) JobMasters(ctx context.Context) (map[string][]model.JobMaste
 		}
 		result[kind] = append(result[kind], m)
 	}
-	return result, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	roles := map[int]string{}
+	for i := range result["roles"] {
+		role, _ := model.CanonicalWeeklyRoleCategory(result["roles"][i].Name, "")
+		result["roles"][i].Name, roles[result["roles"][i].ID] = role, role
+	}
+	for i := range result["categories"] {
+		role := ""
+		if id := result["categories"][i].RoleID; id != nil {
+			role = roles[*id]
+		}
+		_, result["categories"][i].Name = model.CanonicalWeeklyRoleCategory(role, result["categories"][i].Name)
+	}
+	return result, nil
 }
 
 func (db *Database) SaveJob(ctx context.Context, id int, j model.Job, userID string) (model.Job, error) {
@@ -125,10 +148,13 @@ func resolveReportJob(ctx context.Context, tx *sql.Tx, input *model.WeeklyReport
 		return err
 	}
 	same := old != nil && old.JobID != nil && *old.JobID == id
-	if (!j.IsActive && !same) || input.PrimaryDivision != j.Division || input.Role != j.Role || input.WorkDivision != j.Category {
+	inputRole, inputCategory := model.CanonicalWeeklyRoleCategory(input.Role, input.WorkDivision)
+	jobRole, jobCategory := model.CanonicalWeeklyRoleCategory(j.Role, j.Category)
+	if (!j.IsActive && !same) || input.PrimaryDivision != j.Division || inputRole != jobRole || inputCategory != jobCategory {
 		return ErrInvalidReport
 	}
 	input.JobID = &id
+	input.Role, input.WorkDivision = j.Role, j.Category
 	input.Work = j.Name
 	_, err = tx.ExecContext(ctx, `UPDATE jobs SET used_at=COALESCE(used_at,NOW()) WHERE id=$1`, id)
 	return err

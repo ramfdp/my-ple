@@ -13,6 +13,7 @@ import (
 // A real Open Packaging Conventions document, using the standard library.
 // Rows may split across pages; no cantSplit/rowspan restrictions on long text.
 func weeklyDOCX(division string, period model.ReportingPeriod, reports []model.WeeklyReport) ([]byte, error) {
+	groups := exportGroups(reports)
 	var document strings.Builder
 	paragraph := func(value string, bold bool) string {
 		var p strings.Builder
@@ -35,32 +36,59 @@ func weeklyDOCX(division string, period model.ReportingPeriod, reports []model.W
 	document.WriteString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>`)
 	document.WriteString(paragraph("Weekly Report "+division, true))
 	document.WriteString(paragraph("Tanggal: "+period.Label, false))
-	document.WriteString(`<w:tbl><w:tblPr><w:tblW w:w="10206" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders><w:top w:val="single" w:sz="4"/><w:left w:val="single" w:sz="4"/><w:bottom w:val="single" w:sz="4"/><w:right w:val="single" w:sz="4"/><w:insideH w:val="single" w:sz="4"/><w:insideV w:val="single" w:sz="4"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="1134"/><w:gridCol w:w="2381"/><w:gridCol w:w="794"/><w:gridCol w:w="5897"/></w:tblGrid>`)
-	row := func(values []string, header, group bool) {
+	tableStart := `<w:tbl><w:tblPr><w:tblW w:w="10206" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders><w:top w:val="single" w:sz="4"/><w:left w:val="single" w:sz="4"/><w:bottom w:val="single" w:sz="4"/><w:right w:val="single" w:sz="4"/><w:insideH w:val="single" w:sz="4"/><w:insideV w:val="single" w:sz="4"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="1361"/><w:gridCol w:w="1939"/><w:gridCol w:w="794"/><w:gridCol w:w="6112"/></w:tblGrid>`
+	document.WriteString(tableStart)
+	row := func(values []string, header, group bool, roleMerge, categoryMerge string) {
 		document.WriteString("<w:tr>")
 		if header {
 			document.WriteString("<w:trPr><w:tblHeader/></w:trPr>")
 		}
-		sizes := []int{1134, 2381, 794, 5897}
+		sizes := []int{1361, 1939, 794, 6112}
 		for i, value := range values {
 			size := sizes[i]
 			span := ""
 			if group && i == 2 {
-				size = 6691
+				size = 6906
 				span = `<w:gridSpan w:val="2"/>`
 			}
-			fmt.Fprintf(&document, `<w:tc><w:tcPr><w:tcW w:w="%d" w:type="dxa"/>%s<w:vAlign w:val="top"/></w:tcPr>%s</w:tc>`, size, span, paragraph(value, header || group))
+			merge := ""
+			if !header && i == 0 {
+				merge = `<w:vMerge w:val="` + roleMerge + `"/>`
+			}
+			if !header && i == 1 {
+				merge = `<w:vMerge w:val="` + categoryMerge + `"/>`
+			}
+			fmt.Fprintf(&document, `<w:tc><w:tcPr><w:tcW w:w="%d" w:type="dxa"/>%s%s<w:vAlign w:val="center"/></w:tcPr>%s</w:tc>`, size, span, merge, paragraph(value, header || group))
 		}
 		document.WriteString("</w:tr>")
 	}
-	row([]string{"Role", "Kategori", "No", "Laporan Pekerjaan"}, true, false)
-	group := ""
-	for _, r := range documentReports(reports) {
-		if key := reportGroup(r); key != group {
-			group = key
-			row([]string{r.Role, r.WorkDivision, reportHeading(r)}, false, true)
+	row([]string{"Role", "Kategori", "No", "Laporan Pekerjaan"}, true, false, "", "")
+	renderedRole := false
+	for _, role := range groups {
+		if role.Name == "CIHPK" && renderedRole {
+			document.WriteString(`</w:tbl><w:p><w:r><w:br w:type="page"/></w:r></w:p>`)
+			document.WriteString(tableStart)
+			row([]string{"Role", "Kategori", "No", "Laporan Pekerjaan"}, true, false, "", "")
 		}
-		row([]string{r.Role, r.WorkDivision, fmt.Sprint(r.DisplayNumber), r.Description}, false, false)
+		roleFirst := true
+		for _, category := range role.Categories {
+			categoryFirst := true
+			for _, job := range category.Jobs {
+				roleMerge, categoryMerge := "continue", "continue"
+				roleName, categoryName := "", ""
+				if roleFirst {
+					roleMerge, roleName, roleFirst = "restart", role.Name, false
+				}
+				if categoryFirst {
+					categoryMerge, categoryName, categoryFirst = "restart", category.Name, false
+				}
+				row([]string{roleName, categoryName, reportHeading(job.Name, job.PICs)}, false, true, roleMerge, categoryMerge)
+				for _, progress := range job.Progress {
+					row([]string{"", "", fmt.Sprint(progress.Number), progress.Content}, false, false, "continue", "continue")
+				}
+			}
+		}
+		renderedRole = true
 	}
 	document.WriteString(`</w:tbl><w:p/><w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="850" w:right="850" w:bottom="850" w:left="850" w:header="425" w:footer="425" w:gutter="0"/></w:sectPr></w:body></w:document>`)
 	var output bytes.Buffer

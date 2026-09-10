@@ -123,10 +123,10 @@
 .no-actions { color: #737373; font-weight: 700; }
 .work-table .task-work-title { padding: 10px 14px; background: var(--his-primary-soft); color: var(--his-primary); font-weight: 800; text-align: left; }
 .work-table .work-group-row:hover .task-work-title { background: var(--his-primary-soft); }
-.current-report-table th:nth-child(1) { width: 10%; }
+.current-report-table th:nth-child(1) { width: 13%; }
 .current-report-table th:nth-child(2) { width: 17%; }
-.current-report-table th:nth-child(3) { width: 6%; }
-.current-report-table th:nth-child(4) { width: 52%; }
+.current-report-table th:nth-child(3) { width: 7%; }
+.current-report-table th:nth-child(4) { width: 48%; }
 .current-report-table th:nth-child(5) { width: 15%; }
 .history-row-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .work-table tbody tr:nth-child(even) { background: var(--his-surface); }

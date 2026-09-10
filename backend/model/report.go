@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"strings"
 	"time"
 	_ "time/tzdata"
 )
@@ -27,21 +28,73 @@ func IndonesianWeekLabel(start, next time.Time) string {
 }
 
 func NormalizeWeeklyRoleCategory(role, category string) (string, string) {
-	if role == "QA 1" || role == "QA 2" || role == "QA1" || role == "QA2" {
+	if role == "Project Engineer" {
+		role = "PE"
+	}
+	if role == "Quality Assurance" || role == "QA 1" || role == "QA 2" || role == "QA1" || role == "QA2" {
 		role = "QA"
 	}
-	if category == "QA 1" {
-		category = "QA1"
-	} else if category == "QA 2" {
-		category = "QA2"
-	} else if category == "QA" {
-		category = "QA1"
+	if role == "PE" {
+		if category == "MK/Supervisi" {
+			category = "MK supervisi"
+		}
+		if category == "Non MK/Non Supervisi" {
+			category = "Non-MK supervisi"
+		}
+	}
+	if role == "QA" {
+		if category == "QA" || category == "QA 1" {
+			category = "QA1"
+		}
+		if category == "QA 2" {
+			category = "QA2"
+		}
+	}
+	return role, category
+}
+
+func CanonicalWeeklyRoleCategory(role, category string) (string, string) {
+	switch strings.ToLower(strings.TrimSpace(role)) {
+	case "pe", "project engineer":
+		role = "Project Engineer"
+	case "qa", "qa1", "qa 1", "qa2", "qa 2", "quality assurance":
+		role = "Quality Assurance"
+	case "cihpk":
+		role = "CIHPK"
+	}
+	switch role {
+	case "Project Engineer":
+		switch strings.ToLower(strings.TrimSpace(category)) {
+		case "mk", "supervisi", "mk supervisi", "mk/supervisi":
+			category = "MK/Supervisi"
+		case "non mk", "non-mk supervisi", "non supervisi", "non-supervisory", "non mk/non supervisi":
+			category = "Non MK/Non Supervisi"
+		}
+	case "Quality Assurance":
+		switch strings.ReplaceAll(strings.ToUpper(strings.TrimSpace(category)), " ", "") {
+		case "QA", "QA1":
+			category = "QA 1"
+		case "QA2":
+			category = "QA 2"
+		}
+	case "CIHPK":
+		category = "MK/Supervisi"
 	}
 	return role, category
 }
 
 func NormalizeWeeklyReport(report *WeeklyReport) {
-	report.Role, report.WorkDivision = NormalizeWeeklyRoleCategory(report.Role, report.WorkDivision)
+	report.Role, report.WorkDivision = CanonicalWeeklyRoleCategory(report.Role, report.WorkDivision)
+	if report.Role == "CIHPK" {
+		switch report.Work {
+		case "Jember Station Area Redevelopment", "Penataan Kawasan Stasiun Jember":
+			report.Work = "Supervisi Penataan Kawasan Stasiun Jember (Tanggal SPMK: 30 Desember 2025)"
+		case "JAKG Supervising Consultant (SPMK Date: March 12, 2026)", "Pengawasan Renovasi Gudang Besar JAKG":
+			report.Work = "Konsultan Pengawas JAKG (Tanggal SPMK: 12 Maret 2026)"
+		case "Supervising Consultant for the Manggarai Balai Yasa Hydrant Installation (SPMK Date: June 8, 2026)", "Pengawasan Instalasi Hidran BY Manggarai":
+			report.Work = "Konsultan Pengawas Instalasi Hydrant Balai Yasa Manggarai (Tanggal SPMK: 08 Juni 2026)"
+		}
+	}
 }
 
 type WeeklyReportInput struct {

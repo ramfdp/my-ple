@@ -4,13 +4,19 @@ import {commentLinks} from '../src/lib/utils/comment-links.ts';
 import {groupReports} from '../src/lib/utils/report-table.ts';
 import {subscribeChanges} from '../src/lib/realtime.ts';
 
-test('display numbers close gaps within each work group without changing IDs',()=>{
- const base={primaryDivision:'PE',role:'PE',workDivision:'MK supervisi',work:'Bridge'};
- const source=[{...base,id:'c',number:7},{...base,id:'b',number:2},{...base,id:'d',work:'Road',number:9}];
- const rows=groupReports(source).filter(r=>r.type==='report');
- assert.deepEqual(rows.map(r=>[r.report.id,r.displayNumber]),[['b',1],['c',2],['d',1]]);
- assert.deepEqual(source.map(r=>r.number),[7,2,9]);
- assert.deepEqual(groupReports(source.filter(r=>r.id!=='b')).filter(r=>r.type==='report').map(r=>r.displayNumber),[1,1]);
+test('weekly preview flattens the shared server hierarchy into one table',()=>{
+ const report=(id)=>({id,userId:'u',primaryDivision:'Project Engineer',role:'',workDivision:'',work:'',number:99,version:1,description:id,completedAt:''});
+ const groups=[
+  {name:'Project Engineer',categories:[{name:'MK/Supervisi',jobs:[{key:'1',name:'PE job',pics:[{userId:'u',name:'PIC A',isActive:true}],progress:[{number:1,content:'a',report:report('a')},{number:2,content:'b',report:report('b')}]}]}]},
+  {name:'Quality Assurance',categories:[{name:'QA 1',jobs:[{key:'2',name:'QA job',progress:[{number:1,content:'q',report:report('q')}]}]}]},
+  {name:'CIHPK',categories:[{name:'MK/Supervisi',jobs:[{key:'3',name:'CIHPK job',progress:[{number:1,content:'c',report:report('c')}]}]}]}
+ ];
+ const rows=groupReports(groups);
+ assert.deepEqual(rows.filter(r=>r.type==='work').map(r=>[r.role,r.category,r.work]),[
+  ['Project Engineer','MK/Supervisi','PE job'],['Quality Assurance','QA 1','QA job'],['CIHPK','MK/Supervisi','CIHPK job']
+ ]);
+ assert.deepEqual(rows.filter(r=>r.type==='report').map(r=>[r.report.id,r.displayNumber]),[['a',1],['b',2],['q',1],['c',1]]);
+ assert.equal(rows.length,7);
 });
 
 test('comment linkification retains text and only activates safe schemes',()=>{

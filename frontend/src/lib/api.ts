@@ -19,6 +19,10 @@ export interface Report {
 	id: string; userId: string; primaryDivision: string; workDivision: string;
 	role: string; work: string; number: number; description: string; completedAt: string;
 }
+export interface WeeklyProgressGroup { number:number; content:string; report:Report }
+export interface WeeklyJobGroup { key:string; name:string; pics?:JobPIC[]; progress:WeeklyProgressGroup[] }
+export interface WeeklyCategoryGroup { name:string; jobs:WeeklyJobGroup[] }
+export interface WeeklyRoleGroup { name:string; categories:WeeklyCategoryGroup[] }
 export interface ReportingPeriod { start: string; end: string; label: string; readOnly: boolean; status?: 'active' | 'pending' | 'failed' | 'finalized' }
 export interface WeeklyArchive {
 	id: string; division: string; weekStart: string; weekEnd: string; status: 'pending' | 'finalized' | 'failed';

@@ -76,6 +76,9 @@ func scanArchive(row interface{ Scan(...any) error }) (model.WeeklyArchive, erro
 	err := row.Scan(&a.ID, &a.Division, &a.WeekStart, &a.WeekEnd, &snapshot, &a.Status, &a.FinalizedAt, &a.Filename, &a.SHA256, &a.PDFGeneratedAt, &a.ResetAt, &a.CreatedAt, &a.StorageKey)
 	if err == nil {
 		err = json.Unmarshal(snapshot, &a.Items)
+		for i := range a.Items {
+			model.NormalizeWeeklyReport(&a.Items[i].WeeklyReport)
+		}
 	}
 	return a, err
 }
