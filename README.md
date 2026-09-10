@@ -72,3 +72,89 @@ docker compose down
 
 Frontend memakai [adapter Node SvelteKit](https://svelte.dev/docs/kit/adapter-node).
 Urutan startup mengikuti [health check Compose](https://docs.docker.com/compose/how-tos/startup-order/).
+
+## ngrok dengan SDK Go (Docker di WSL)
+
+### Impor backup Custom PostgreSQL 18
+
+Compose memakai PostgreSQL 18 dan volume baru `postgres18_data`, dengan mount
+`/var/lib/postgresql` sesuai image PostgreSQL 18. Volume `postgres_data` versi 17
+yang sudah ada tetap tersimpan, tetapi tidak digunakan oleh konfigurasi ini.
+Backup versi 18 tidak dijamin kompatibel dengan server versi 17.
+
+Untuk restore pertama ke database Docker baru, jalankan dari root proyek di WSL.
+Hentikan aplikasi terlebih dahulu agar migrasi backend tidak membuat tabel sebelum
+restore. Perintah restore menggunakan satu transaksi; jika gagal, jangan lanjutkan
+ke startup aplikasi. Tidak perlu menjalankan seed akun.
+
+```sh
+docker compose -f compose.yaml -f compose.ngrok.yaml stop ngrok frontend nginx backend
+docker compose -f compose.yaml -f compose.ngrok.yaml up -d --wait db
+docker compose -f compose.yaml -f compose.ngrok.yaml exec -T db pg_restore --username=my_ple --dbname=my_ple --no-owner --no-privileges --single-transaction --exit-on-error < /mnt/c/Users/LAPI-PMO5/Downloads/DB_My_HIS.sql
+```
+
+Perintah ini untuk database tujuan kosong, tanpa menghapus tabel yang sudah ada.
+Jika berhasil, verifikasi akun kemudian jalankan aplikasi:
+
+```sh
+docker compose -f compose.yaml -f compose.ngrok.yaml exec db psql -U my_ple -d my_ple -c "SELECT username, is_active FROM users;"
+docker compose -f compose.yaml -f compose.ngrok.yaml up -d --build
+```
+
+Restore membawa skema dan data yang ada dalam backup, termasuk hash password.
+File upload dan arsip PDF di filesystem harus disalin terpisah ke volume aplikasi.
+
+### Menjalankan tunnel
+
+Service `ngrok` menjalankan `backend/cmd/ngrok` menggunakan
+[SDK Go ngrok v2](https://pkg.go.dev/golang.ngrok.com/ngrok/v2).
+Satu URL HTTPS melayani frontend, API `/api/`, upload `/api/uploads/`, dan
+WebSocket `/api/ws/notifications` melalui Nginx. Tidak perlu memasang CLI ngrok.
+
+Di WSL, pastikan `docker compose version` berhasil (aktifkan integrasi distro WSL
+di Docker Desktop jika memakai Docker Desktop). Dari root proyek, tambahkan ke
+file `.env` yang sudah ada atau buat jika belum ada:
+
+```dotenv
+NGROK_AUTHTOKEN=isi-authtoken-anda
+NGROK_URL=https://domain-anda.ngrok-free.app
+COMPOSE_PATH_SEPARATOR=;
+COMPOSE_FILE=compose.yaml;compose.ngrok.yaml
+```
+
+Ambil token dari [dashboard ngrok](https://dashboard.ngrok.com/get-started/your-authtoken)
+dan gunakan domain milik akun Anda dari [Domains](https://dashboard.ngrok.com/domains).
+Isi URL lengkap dengan `https://`, tanpa slash di akhir, path, atau query.
+Token dibaca saat container berjalan, tidak dimasukkan ke image; `.env` diabaikan Git.
+`COMPOSE_FILE` membuat perintah `docker compose` tanpa `-f` memakai mode ngrok
+secara otomatis, termasuk saat rebuild. Pemisah eksplisit berlaku di Windows dan WSL.
+
+```sh
+docker compose -f compose.yaml -f compose.ngrok.yaml config --quiet
+docker compose -f compose.yaml -f compose.ngrok.yaml up -d --build
+docker compose -f compose.yaml -f compose.ngrok.yaml logs -f ngrok
+```
+
+Buka `NGROK_URL` di browser. Mode ini mengatur origin frontend/backend dan cookie
+Secure otomatis; gunakan URL HTTPS tersebut untuk login. Frontend dibangun dengan
+API relatif `/api`, sehingga browser tidak mengakses localhost milik pengunjung.
+Backend tetap dapat diskalakan dengan menambahkan `--scale backend=3` pada perintah
+`up`; batasan realtime antar-replika di atas tetap berlaku.
+
+Verifikasi setelah startup: buka halaman login, login, unggah avatar, dan periksa
+koneksi WebSocket di browser. Health API dapat diperiksa dari WSL:
+
+```sh
+curl -fsS -H 'ngrok-skip-browser-warning: 1' https://domain-anda.ngrok-free.app/api/health
+```
+
+Jika tunnel gagal, periksa log service `ngrok` untuk kesalahan token/domain.
+Untuk menghentikan mode ini tanpa menghapus data:
+
+```sh
+docker compose -f compose.yaml -f compose.ngrok.yaml down
+```
+
+Untuk kembali ke mode HTTP lokal, jalankan perintah `down` di atas lalu
+`docker compose -f compose.yaml up -d --build`; pastikan pengaturan `backend/.env` sesuai HTTP
+seperti dijelaskan di atas.

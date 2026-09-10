@@ -64,7 +64,7 @@ export function startNotifications() {
 	};
 	const connect = () => {
 		if (stopped) return;
-		const url = new URL('/ws/notifications', apiUrl);
+		const url = new URL(`${apiUrl}/ws/notifications`, window.location.origin);
 		url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
 		socket = new WebSocket(url);
 		socket.onopen = () => { retry = 1000; void refresh(true).catch(() => {}); };

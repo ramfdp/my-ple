@@ -1,0 +1,27 @@
+services:
+  backend:
+    environment:
+      FRONTEND_ORIGIN: ${NGROK_URL:?Isi NGROK_URL di .env root}
+      COOKIE_SECURE: "true"
+
+  frontend:
+    build:
+      args:
+        VITE_API_URL: /api
+    environment:
+      ORIGIN: ${NGROK_URL:?Isi NGROK_URL di .env root}
+
+  ngrok:
+    build:
+      context: ./backend
+      args:
+        GO_PACKAGE: ./cmd/ngrok
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:?Isi NGROK_AUTHTOKEN di .env root}
+      NGROK_URL: ${NGROK_URL:?Isi NGROK_URL di .env root}
+    depends_on:
+      nginx:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    restart: unless-stopped
