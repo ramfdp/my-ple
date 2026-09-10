@@ -7,9 +7,10 @@ export type Priority=keyof typeof priorities;
 export interface Member {id:string;name:string;avatarUrl:string}
 export interface Workspace {id:number;name:string;canManage:boolean}
 export interface WorkspaceJob {id:number;name:string;label?:string;isActive:boolean;role?:string}
-export const qaStages={WAITING:'Menunggu QA',CHECKING:'Progress Checking',COMPLETE:'Done'} as const;
-export const taskStatus=(task:Pick<Task,'status'|'qaStage'>)=>task.qaStage?qaStages[task.qaStage]:statuses[task.status];
+export const qaStages={WAITING:'Menunggu QA',CHECKING:'Progress Checking',COMPLETE:'QA Validated'} as const;
+export const taskStatus=(task:Pick<Task,'status'|'qaStage'>)=>task.status==='DONE'?statuses.DONE:task.qaStage?qaStages[task.qaStage]:statuses[task.status];
 export interface Task {
+ qaValidatedAt:string|null;qaValidatedBy:string|null;qaValidatedByName:string;
  requiresQa:boolean;qaStage:''|keyof typeof qaStages;canCheckQa:boolean;
  id:string;workspaceId:number;jobId:number|null;jobName:string;title:string;description:string;relatedUrl:string;
  startDate:string;dueDate:string;status:Status;priority:Priority;createdBy:string;createdAt:string;updatedAt:string;version:number;

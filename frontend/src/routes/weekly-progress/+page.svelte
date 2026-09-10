@@ -14,6 +14,8 @@
 	let error = $state('');
 	let period = $state<ReportingPeriod | null>(null);
 	let exporting = $state(false);
+ let exportDialog:HTMLDialogElement;
+ let exportError=$state('');
 	let editing = $state<Report | null>(null);
 	let deleting = $state<Report | null>(null);
 	let editJob=$state<Job|null>(null), jobsBusy=$state(true), saving=$state(false);
@@ -45,20 +47,21 @@
 		}
 	}
 
-	async function exportPDF() {
+	async function exportReport(format:'pdf'|'docx') {
 		if (selectedDivision === null || reports.length === 0 || exporting) return;
 		exporting = true;
-		error = '';
+		exportError = '';
 		try {
-			const { blob, filename } = await download(`/reports.pdf?primaryDivision=${encodeURIComponent(divisions[selectedDivision])}`);
+			const { blob, filename } = await download(`/reports.${format}?primaryDivision=${encodeURIComponent(divisions[selectedDivision])}`);
 			const url = URL.createObjectURL(blob);
 			const link = document.createElement('a');
 			link.href = url;
 			link.download = filename;
 			link.click();
 			URL.revokeObjectURL(url);
+   exportDialog.close();
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Laporan tidak dapat diekspor.';
+			exportError = err instanceof Error ? err.message : 'Laporan tidak dapat diekspor.';
 		} finally {
 			exporting = false;
 		}
@@ -122,7 +125,7 @@
 		{#if selectedDivision !== null}
 			<section class="task-list" aria-labelledby="task-title">
 				{#if period?.readOnly}<p role="status" class="report-period">{period.status === 'finalized' ? 'Finalized' : 'Periode ditutup — arsip diproses'} — hanya baca. Laporan tetap tersedia selama Senin. Reset mulai Selasa 00:00 WIB setelah arsip dan PDF berhasil disimpan.</p>{/if}
-				<div class="task-list-header"><div><h2 id="task-title">Pekerjaan yang sudah dilakukan</h2><p>Daftar pekerjaan pada minggu berjalan.</p>{#if period}<p class="report-period">Periode: {period.label}</p>{/if}</div><div class="task-list-actions"><p class="selected-division">{divisions[selectedDivision]}</p><div class="report-actions"><button class="report-button export-button" type="button" disabled={reports.length === 0 || exporting || loading} onclick={() => void exportPDF()}>{exporting ? 'Mengekspor…' : 'Export PDF'}</button>{#if !period?.readOnly}<a class="report-button" href={`/weekly-progress/new?division=${encodeURIComponent(divisions[selectedDivision])}`}>+ Input laporan</a>{/if}</div></div></div>
+				<div class="task-list-header"><div><h2 id="task-title">Pekerjaan yang sudah dilakukan</h2><p>Daftar pekerjaan pada minggu berjalan.</p>{#if period}<p class="report-period">Periode: {period.label}</p>{/if}</div><div class="task-list-actions"><p class="selected-division">{divisions[selectedDivision]}</p><div class="report-actions"><button class="report-button export-button" type="button" disabled={reports.length === 0 || exporting || loading} onclick={() => {exportError='';exportDialog.showModal()}}>Export</button>{#if !period?.readOnly}<a class="report-button" href={`/weekly-progress/new?division=${encodeURIComponent(divisions[selectedDivision])}`}>+ Input laporan</a>{/if}</div></div></div>
 				<div class="work-table-wrap">
 					<table class="work-table current-report-table">
 						<thead><tr><th scope="col">Role</th><th scope="col">Kategori</th><th scope="col">No.</th><th scope="col">Pekerjaan yang dilakukan</th><th scope="col">Aksi</th></tr></thead>
@@ -149,6 +152,13 @@
 	</div>
 </main>
 
+<dialog bind:this={exportDialog} class="report-delete-modal" aria-labelledby="export-title" oncancel={(e)=>{if(exporting)e.preventDefault()}}>
+ <h2 id="export-title">Export Weekly Report</h2><p>Pilih format ekspor.</p>
+ {#if exportError}<p role="alert">{exportError}</p>{/if}
+ {#if exporting}<p role="status">Menyiapkan dokumen…</p>{/if}
+ <div class="delete-modal-actions"><button class="report-button" disabled={exporting} onclick={()=>exportReport('pdf')}>Export PDF</button><button class="report-button" disabled={exporting} onclick={()=>exportReport('docx')}>Export Word</button><button class="drawer-cancel" disabled={exporting} onclick={()=>exportDialog.close()}>Batal</button></div>
+</dialog>
+
 {#if editing}
 	<div class="report-drawer-layer" transition:fade={{ duration: 180 }}>
 		<button class="report-drawer-backdrop" type="button" aria-label="Tutup edit laporan" onclick={() => (editing = null)}></button>
@@ -156,7 +166,7 @@
 			<div class="report-drawer-header"><h2 id="edit-report-title">Edit laporan</h2><button class="drawer-close" type="button" aria-label="Tutup" onclick={() => (editing = null)}>×</button></div>
 			<form class="report-form report-drawer-form" onsubmit={(event) => { event.preventDefault(); void saveEdit(); }}>
 				{#key pickerReport}<JobPicker division={editing.primaryDivision} existing={pickerReport??editing} fixedDivision bind:selected={editJob} bind:busy={jobsBusy} />{/key}
-				<label>Uraian pekerjaan yang dilakukan<textarea bind:value={editDescription} rows="5" required maxlength="500"></textarea></label>
+				<label>Uraian pekerjaan yang dilakukan<textarea bind:value={editDescription} rows="8" required></textarea></label>
 				{#if latest}<section role="status"><p>Data server berubah (versi {latest.version}). Draf Anda tetap tersedia di atas.</p><p>Pekerjaan terbaru: {latest.work} · {latest.role} · {latest.workDivision}</p><p class="task-description">{latest.description}</p><button type="button" onclick={()=>{if(!latest||!editing)return;const descriptionChanged=editDescription!==editing.description;const jobChanged=editJob?.id!==editing.jobId; if(!descriptionChanged)editDescription=latest.description;if(!jobChanged)pickerReport=latest;editing=latest;latest=null;error=''}}>Sudah dibandingkan — gunakan versi terbaru sebagai dasar draf</button><button type="button" onclick={()=>{if(!latest)return;editDescription=latest.description;pickerReport=latest;editing=latest;latest=null;error=''}}>Gunakan data server</button></section>{/if}
 				{#if remoteDeleted}<p role="alert">Laporan ini sudah dihapus atau diarsipkan. Draf Anda tetap tersedia untuk disalin.</p>{/if}
 				{#if error}<p role="alert">{error}</p>{/if}
@@ -176,5 +186,8 @@
 {/if}
 
 <style>
+dialog.report-delete-modal:not([open]){display:none}
+dialog.report-delete-modal{position:fixed;border:0;max-height:calc(100dvh - 32px);overflow-y:auto}
+dialog.report-delete-modal::backdrop{background:#152a4699}
 .job-heading{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;overflow-wrap:anywhere}.job-heading span,.job-heading small{min-width:0;max-width:100%}.job-heading small{font-weight:400}
 </style>

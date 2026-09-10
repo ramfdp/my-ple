@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"my-ple-backend/model"
 )
 
@@ -12,7 +13,12 @@ func (db *Database) WorkspaceQA(ctx context.Context, userID string, division int
 	return allowed, err
 }
 
+var ErrQARequired = errors.New("Pekerjaan harus divalidasi QA sebelum menjadi Done.")
+
 func validateQATransition(old model.WorkItem, in model.WorkItemInput, checker bool) error {
+	if in.QAOnly && (in.QAStage == "COMPLETE" || in.QAStage == "CHECKING") && !checker {
+		return ErrWorkspaceForbidden
+	}
 	if old.ID == "" {
 		if in.Status != model.WorkTodo || in.QAStage != "" {
 			return ErrWorkspaceInvalid
@@ -21,29 +27,29 @@ func validateQATransition(old model.WorkItem, in model.WorkItemInput, checker bo
 	}
 	if old.RequiresQA != in.RequiresQA {
 		return ErrWorkspaceInvalid
-	} // The creation choice cannot be removed to bypass checking.
-	if !in.RequiresQA {
-		if in.QAStage != "" {
+	}
+	// Historical Done records are retained, not backfilled with fictitious approvals.
+	if in.Status == model.WorkDone && old.Status != model.WorkDone && old.QAValidatedAt == nil {
+		return ErrQARequired
+	}
+	if in.QAStage == "COMPLETE" && old.QAValidatedAt == nil && old.Status != model.WorkDone {
+		if !checker {
+			return ErrWorkspaceForbidden
+		}
+		if old.Status != model.WorkInProgress || in.Status != model.WorkInProgress {
 			return ErrWorkspaceInvalid
 		}
-		return nil
 	}
 	if in.QAStage != old.QAStage {
 		switch {
 		case old.QAStage == "" && in.QAStage == "WAITING" && old.Status == model.WorkInProgress && in.Status == model.WorkInProgress:
 		case old.QAStage == "WAITING" && in.QAStage == "CHECKING" && in.Status == model.WorkInProgress && checker:
-		case old.QAStage == "CHECKING" && in.QAStage == "COMPLETE" && in.Status == model.WorkDone && checker:
+		case in.QAStage == "COMPLETE" && old.Status == model.WorkInProgress && in.Status == model.WorkInProgress && checker:
 		default:
 			return ErrWorkspaceForbidden
 		}
 	}
-	if in.Status == model.WorkDone && in.QAStage != "COMPLETE" {
-		return ErrWorkspaceInvalid
-	}
 	if (in.QAStage == "WAITING" || in.QAStage == "CHECKING") && in.Status != model.WorkInProgress {
-		return ErrWorkspaceInvalid
-	}
-	if in.QAStage == "COMPLETE" && in.Status != model.WorkDone {
 		return ErrWorkspaceInvalid
 	}
 	return nil

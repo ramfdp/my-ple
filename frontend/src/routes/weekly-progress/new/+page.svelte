@@ -23,9 +23,9 @@
 		event.preventDefault(); error = ''; submitting = true; toast.visible = false;
 		let saved = false;
 		try {
-			const { report } = await api<{report:Report}>('/reports',{method:'POST',body:JSON.stringify({primaryDivision:division,workDivision:selected.category,role:selected.role,work:selected.name,jobId:selected.id,description:description.trim()} satisfies ReportInput)});
+			await api<{report:Report}>('/reports',{method:'POST',body:JSON.stringify({primaryDivision:division,workDivision:selected.category,role:selected.role,work:selected.name,jobId:selected.id,description:description.trim()} satisfies ReportInput)});
 			description = ''; saved = true;
-			toast = { visible: true, message: `Laporan No. ${report.number} berhasil ditambahkan.` };
+			toast = { visible: true, message: 'Laporan berhasil ditambahkan' };
 		}
 		catch (err) { error = err instanceof Error ? err.message : 'Laporan tidak dapat disimpan.'; }
 		finally { submitting = false; if (saved) { await tick(); descriptionInput?.focus(); } }
@@ -40,7 +40,7 @@
 	<form class="report-form" onsubmit={saveReport}>
 		{#if checking}<p role="status">Memeriksa periode laporan…</p>{:else if readOnly}<p role="status">Periode ditutup. Input baru dibuka Selasa 00:00 WIB setelah arsip periode sebelumnya aman. <a href="/weekly-progress/history">Lihat riwayat</a></p>{/if}
 		<JobPicker bind:division bind:selected bind:busy={jobsBusy} />
-		<label>Uraian pekerjaan yang dilakukan<textarea bind:this={descriptionInput} bind:value={description} disabled={submitting} rows="5" required maxlength="500"></textarea></label>
+		<label>Uraian pekerjaan yang dilakukan<textarea bind:this={descriptionInput} bind:value={description} disabled={submitting} rows="8" required></textarea></label>
 		{#if error}<p class="demo-note">{error}</p>{/if}<button class="report-submit" type="submit" disabled={submitting || readOnly || checking || jobsBusy || !selected}>{submitting ? 'Menyimpan…' : 'Simpan laporan'}</button>
 	</form>
 </div></main>

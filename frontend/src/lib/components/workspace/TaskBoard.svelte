@@ -13,7 +13,7 @@
  <button class="ws-drop" disabled={busy} ondragover={(e)=>e.preventDefault()} ondrop={(e)=>{e.preventDefault();drop(key as Status)}} onclick={()=>drop(key as Status)}>Pindahkan ke {label}</button>
  {#each tasks.filter(t=>t.status===key) as task (task.id)}<article class="ws-task-card">
  <button class="ws-link" draggable={task.canEdit&&!busy} ondragstart={()=>dragging=task.id} ondragend={()=>dragging=''} onclick={()=>onopen(task)}>{task.title}</button>
- <p>{task.assignees.map(a=>a.name).join(', ')||'Belum ditugaskan'}</p><p>{task.jobName}</p><small>{labelDate(task.dueDate)} · {priorities[task.priority]}</small>{#if task.requiresQa}<p>Butuh check QA · {taskStatus(task)}</p>{/if}
+ <p>{task.assignees.map(a=>a.name).join(', ')||'Belum ditugaskan'}</p><p>{task.jobName}</p><small>{labelDate(task.dueDate)} · {priorities[task.priority]}</small>{#if task.requiresQa||task.qaValidatedAt}<p>{task.qaValidatedAt?'QA':'Butuh check QA'} · {taskStatus(task)}</p>{/if}
  {#if task.canEdit}<label>Status<select value={task.status} disabled={busy} onchange={(e)=>{const next=e.currentTarget.value as Status;e.currentTarget.value=task.status;void move(task,next)}}>{#each Object.entries(statuses) as [value,text]}<option {value}>{text}</option>{/each}</select></label>{/if}
  </article>{:else}<p class="ws-muted">Belum ada pekerjaan.</p>{/each}</section>
 {/each}</div>

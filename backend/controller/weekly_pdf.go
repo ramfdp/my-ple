@@ -2,6 +2,7 @@ package controller
 
 import (
 	"bytes"
+	_ "embed"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -16,6 +17,14 @@ import (
 var unsafeFilename = regexp.MustCompile(`[^A-Za-z0-9_-]+`)
 
 func (c *WeeklyController) ExportPDF(w http.ResponseWriter, r *http.Request) {
+	c.exportReport(w, r, "pdf")
+}
+
+func (c *WeeklyController) ExportDOCX(w http.ResponseWriter, r *http.Request) {
+	c.exportReport(w, r, "docx")
+}
+
+func (c *WeeklyController) exportReport(w http.ResponseWriter, r *http.Request, format string) {
 	_, ok := middleware.GetClaims(r.Context())
 	if !ok {
 		WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Autentikasi diperlukan."})
@@ -49,14 +58,18 @@ func (c *WeeklyController) ExportPDF(w http.ResponseWriter, r *http.Request) {
 		WriteJSON(w, http.StatusConflict, map[string]string{"error": "Belum ada laporan pekerjaan untuk periode ini."})
 		return
 	}
-	data, err := weeklyPDF(division, period, reports)
+	render, contentType := weeklyPDF, "application/pdf"
+	if format == "docx" {
+		render, contentType = weeklyDOCX, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+	}
+	data, err := render(division, period, reports)
 	if err != nil {
 		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Laporan tidak dapat diekspor."})
 		return
 	}
 	filenameDivision := strings.Trim(unsafeFilename.ReplaceAllString(strings.ReplaceAll(division, " ", "_"), "_"), "_")
-	filename := fmt.Sprintf("Weekly_Report_%s_%s_%s.pdf", filenameDivision, period.Start.Format("2006-01-02"), period.End.Format("2006-01-02"))
-	w.Header().Set("Content-Type", "application/pdf")
+	filename := fmt.Sprintf("Weekly_Report_%s_%s_%s.%s", filenameDivision, period.Start.Format("2006-01-02"), period.End.Format("2006-01-02"), format)
+	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
 	w.Write(data)
 }
@@ -65,194 +78,141 @@ func weeklyPDF(division string, period model.ReportingPeriod, reports []model.We
 	return weeklyPDFDocument(division, period, reports, true)
 }
 
-func weeklyPDFDocument(division string, period model.ReportingPeriod, reports []model.WeeklyReport, compression bool) ([]byte, error) {
+//go:embed fonts/DejaVuSansCondensed.ttf
+var reportFont []byte
+
+//go:embed fonts/DejaVuSansCondensed-Bold.ttf
+var reportBoldFont []byte
+
+// Shared preparation: never mutate the query result or maintain renderer-specific numbering.
+func documentReports(reports []model.WeeklyReport) []model.WeeklyReport {
 	reports = append([]model.WeeklyReport(nil), reports...)
 	for i := range reports {
 		model.NormalizeWeeklyReport(&reports[i])
 	}
 	db.SortReports(reports)
+	return reports
+}
+
+func reportGroup(r model.WeeklyReport) string {
+	return r.PrimaryDivision + "\x00" + r.Role + "\x00" + r.WorkDivision + "\x00" + r.Work
+}
+func reportHeading(r model.WeeklyReport) string {
+	names := []string{}
+	for _, pic := range r.PICs {
+		name := pic.Name
+		if !pic.IsActive {
+			name += " (Nonaktif)"
+		}
+		names = append(names, name)
+	}
+	heading := r.Work
+	if len(names) > 0 {
+		heading += "    PIC: " + strings.Join(names, ", ")
+	}
+	return heading
+}
+
+func weeklyPDFDocument(division string, period model.ReportingPeriod, reports []model.WeeklyReport, compression bool) ([]byte, error) {
+	reports = documentReports(reports)
 	pdf := fpdf.New("P", "mm", "A4", "")
 	pdf.SetCompression(compression)
-	text := pdf.UnicodeTranslatorFromDescriptor("")
-	const left, roleWidth, categoryWidth, numberWidth, reportWidth = 15.0, 20.0, 42.0, 14.0, 104.0
+	pdf.AddUTF8FontFromBytes("Report", "", reportFont)
+	pdf.AddUTF8FontFromBytes("Report", "B", reportBoldFont)
+	const left, bottom, lineHeight = 15.0, 282.0, 5.0
+	widths := []float64{20, 42, 14, 104}
 	pdf.SetMargins(left, 15, left)
 	pdf.SetAutoPageBreak(false, 15)
-	sectionLabel := "Weekly Report"
 	pdf.SetHeaderFunc(func() {
 		pdf.SetXY(left, 15)
-		pdf.SetFont("Helvetica", "", 8)
-		pdf.SetTextColor(100, 116, 139)
-		pdf.CellFormat(90, 5, "Weekly Report", "", 0, "L", false, 0, "")
-		pdf.CellFormat(90, 5, sectionLabel, "", 1, "R", false, 0, "")
-		pdf.Ln(6)
 		pdf.SetTextColor(16, 42, 67)
-		pdf.SetFont("Helvetica", "B", 17)
-		pdf.CellFormat(180, 9, text("Weekly Report "+division), "", 1, "L", false, 0, "")
-		pdf.SetFont("Helvetica", "", 10)
-		pdf.CellFormat(180, 8, text("Tanggal: "+period.Label), "", 1, "L", false, 0, "")
+		pdf.SetFont("Report", "B", 16)
+		pdf.MultiCell(180, 8, "Weekly Report "+division, "", "L", false)
+		pdf.SetFont("Report", "", 10)
+		pdf.MultiCell(180, 7, "Tanggal: "+period.Label, "", "L", false)
 		pdf.Ln(4)
 		pdf.SetFillColor(18, 58, 90)
 		pdf.SetTextColor(255, 255, 255)
-		pdf.SetFont("Helvetica", "B", 9)
-		pdf.CellFormat(roleWidth, 9, "Role", "1", 0, "C", true, 0, "")
-		pdf.CellFormat(categoryWidth, 9, "Kategori", "1", 0, "C", true, 0, "")
-		pdf.CellFormat(numberWidth, 9, "No", "1", 0, "C", true, 0, "")
-		pdf.CellFormat(reportWidth, 9, "Laporan Pekerjaan", "1", 1, "C", true, 0, "")
+		pdf.SetFont("Report", "B", 9)
+		for i, label := range []string{"Role", "Kategori", "No", "Laporan Pekerjaan"} {
+			pdf.CellFormat(widths[i], 9, label, "1", 0, "C", true, 0, "")
+		}
+		pdf.Ln(9)
 		pdf.SetTextColor(41, 70, 93)
 	})
-	for index := range reports {
-		model.NormalizeWeeklyReport(&reports[index])
-	}
-
-	itemHeight := func(description string) float64 {
-		height := float64(len(pdf.SplitLines([]byte(text(description)), reportWidth-4)))*5 + 4
-		if height < 10 {
-			return 10
+	// PDF-specific physical rows, without rowspans. Each column can continue on
+	// another page, including an individual entry taller than the entire page.
+	row := func(values []string, sizes []float64, bold bool) {
+		style := ""
+		if bold {
+			style = "B"
 		}
-		return height
-	}
-	renderReports := func(reports []model.WeeklyReport) {
-		pdf.AddPage()
-		for roleStart := 0; roleStart < len(reports); {
-			roleEnd := roleStart + 1
-			for roleEnd < len(reports) && reports[roleEnd].Role == reports[roleStart].Role {
-				roleEnd++
+		pdf.SetFont("Report", style, 9)
+		lines := make([][]string, len(values))
+		total := 1
+		for i, value := range values {
+			for _, paragraph := range strings.Split(strings.ReplaceAll(value, "\r\n", "\n"), "\n") {
+				if paragraph == "" {
+					lines[i] = append(lines[i], "")
+				} else {
+					lines[i] = append(lines[i], pdf.SplitText(paragraph, sizes[i]-4)...)
+				}
 			}
-			role, roleSegmentStart, showRole := reports[roleStart].Role, pdf.GetY(), true
-			finishRoleSegment := func() {
-				endY, height := pdf.GetY(), pdf.GetY()-roleSegmentStart
-				if height <= 0 {
-					return
-				}
-				pdf.Rect(left, roleSegmentStart, roleWidth, height, "D")
-				if showRole {
-					lines := pdf.SplitLines([]byte(text(role)), roleWidth-4)
-					pdf.SetXY(left+2, roleSegmentStart+(height-float64(len(lines))*5)/2)
-					pdf.SetFont("Helvetica", "", 9)
-					pdf.MultiCell(roleWidth-4, 5, text(role), "", "C", false)
-					showRole = false
-				}
-				pdf.SetXY(left, endY)
-			}
-			for categoryStart := roleStart; categoryStart < roleEnd; {
-				categoryEnd := categoryStart + 1
-				for categoryEnd < roleEnd && reports[categoryEnd].WorkDivision == reports[categoryStart].WorkDivision {
-					categoryEnd++
-				}
-				category := reports[categoryStart].WorkDivision
-				categorySegmentStart, showCategory := pdf.GetY(), true
-				finishCategorySegment := func() {
-					endY, height := pdf.GetY(), pdf.GetY()-categorySegmentStart
-					if height <= 0 {
-						return
-					}
-					pdf.Rect(left+roleWidth, categorySegmentStart, categoryWidth, height, "D")
-					if showCategory {
-						lines := pdf.SplitLines([]byte(text(category)), categoryWidth-4)
-						pdf.SetXY(left+roleWidth+2, categorySegmentStart+(height-float64(len(lines))*5)/2)
-						pdf.SetFont("Helvetica", "", 9)
-						pdf.MultiCell(categoryWidth-4, 5, text(category), "", "C", false)
-						showCategory = false
-					}
-					pdf.SetXY(left, endY)
-				}
-				newPage := func() {
-					finishCategorySegment()
-					finishRoleSegment()
-					pdf.AddPage()
-					roleSegmentStart, categorySegmentStart = pdf.GetY(), pdf.GetY()
-				}
-				group := ""
-				for index := categoryStart; index < categoryEnd; index++ {
-					report := reports[index]
-					key := report.PrimaryDivision + "\x00" + report.WorkDivision + "\x00" + report.Role + "\x00" + report.Work
-					if key != group {
-						group = key
-						heading := report.Work
-						names := []string{}
-						for _, pic := range report.PICs {
-							name := pic.Name
-							if !pic.IsActive {
-								name += " (Nonaktif)"
-							}
-							names = append(names, name)
-						}
-						if len(names) > 0 {
-							heading += "    PIC: " + strings.Join(names, ", ")
-						}
-						pdf.SetFont("Helvetica", "B", 9)
-						lines := pdf.SplitLines([]byte(text(heading)), numberWidth+reportWidth-4)
-						headerHeight := float64(len(lines))*5 + 4
-						if pdf.GetY()+headerHeight+itemHeight(report.Description) > 282 {
-							newPage()
-						}
-						for len(lines) > 0 {
-							count := int((282 - pdf.GetY() - 4) / 5)
-							if count < 1 {
-								newPage()
-								continue
-							}
-							if count > len(lines) {
-								count = len(lines)
-							}
-							height := float64(count)*5 + 4
-							x, y := left+roleWidth+categoryWidth, pdf.GetY()
-							pdf.SetFillColor(223, 242, 235)
-							pdf.SetFont("Helvetica", "B", 9)
-							pdf.Rect(x, y, numberWidth+reportWidth, height, "DF")
-							for lineIndex, line := range lines[:count] {
-								pdf.SetXY(x+2, y+2+float64(lineIndex)*5)
-								pdf.CellFormat(numberWidth+reportWidth-4, 5, string(line), "", 0, "L", false, 0, "")
-							}
-							pdf.SetXY(left, y+height)
-							lines = lines[count:]
-							if len(lines) > 0 {
-								newPage()
-							}
-						}
-					}
-					height := itemHeight(report.Description)
-					if pdf.GetY()+height > 282 {
-						newPage()
-					}
-					x, y := left+roleWidth+categoryWidth, pdf.GetY()
-					pdf.SetFont("Helvetica", "", 9)
-					pdf.SetXY(x, y)
-					pdf.CellFormat(numberWidth, height, fmt.Sprint(report.DisplayNumber), "1", 0, "C", false, 0, "")
-					pdf.SetXY(x+numberWidth, y)
-					pdf.Rect(x+numberWidth, y, reportWidth, height, "D")
-					pdf.SetXY(x+numberWidth+2, y+2)
-					pdf.MultiCell(reportWidth-4, 5, text(report.Description), "", "L", false)
-					pdf.SetXY(left, y+height)
-				}
-				finishCategorySegment()
-				categoryStart = categoryEnd
-			}
-			finishRoleSegment()
-			roleStart = roleEnd
+			total = max(total, len(lines[i]))
 		}
-	}
-	if division == "Project Engineer" {
-		peQA, cihpk := make([]model.WeeklyReport, 0, len(reports)), make([]model.WeeklyReport, 0, len(reports))
-		for _, report := range reports {
-			if report.Role == "CIHPK" {
-				cihpk = append(cihpk, report)
-			} else {
-				peQA = append(peQA, report)
+		for offset := 0; offset < total; {
+			available := int((bottom - pdf.GetY() - 4) / lineHeight)
+			if available < 1 {
+				pdf.AddPage()
+				continue
+			}
+			count := min(available, total-offset)
+			height := float64(count)*lineHeight + 4
+			x, y := left, pdf.GetY()
+			pdf.SetFont("Report", style, 9)
+			for i, column := range lines {
+				pdf.SetFillColor(223, 242, 235)
+				fill := "D"
+				if bold {
+					fill = "DF"
+				}
+				pdf.Rect(x, y, sizes[i], height, fill)
+				// Repeat short identifying cells on continuation pages; long cells split.
+				start := offset
+				if i < len(lines)-1 && offset >= len(column) {
+					start = 0
+				}
+				for n := 0; n < count && start+n < len(column); n++ {
+					pdf.SetXY(x+2, y+2+float64(n)*lineHeight)
+					pdf.CellFormat(sizes[i]-4, lineHeight, column[start+n], "", 0, "L", false, 0, "")
+				}
+				x += sizes[i]
+			}
+			pdf.SetXY(left, y+height)
+			offset += count
+			if offset < total {
+				pdf.AddPage()
 			}
 		}
-		if len(peQA) > 0 {
-			sectionLabel = "PE & QA"
-			renderReports(peQA)
-		}
-		if len(cihpk) > 0 {
-			sectionLabel = "CIHPK"
-			renderReports(cihpk)
-		}
-	} else {
-		renderReports(reports)
 	}
-
+	pdf.AddPage()
+	group := ""
+	previousRole := ""
+	for _, report := range reports {
+		if division == "Project Engineer" && report.Role == "CIHPK" && previousRole != "" && previousRole != "CIHPK" {
+			pdf.AddPage()
+		}
+		previousRole = report.Role
+		if key := reportGroup(report); key != group {
+			group = key
+			// Reserve only the next line, never the full height of an arbitrarily long entry.
+			if bottom-pdf.GetY() < 23 {
+				pdf.AddPage()
+			}
+			row([]string{report.Role, report.WorkDivision, reportHeading(report)}, []float64{20, 42, 118}, true)
+		}
+		row([]string{report.Role, report.WorkDivision, fmt.Sprint(report.DisplayNumber), report.Description}, widths, false)
+	}
 	var output bytes.Buffer
 	err := pdf.Output(&output)
 	return output.Bytes(), err

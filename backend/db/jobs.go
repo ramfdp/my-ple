@@ -91,7 +91,7 @@ func (db *Database) DeleteJob(ctx context.Context, id int) error {
 // Resolve at the write boundary, inside the report transaction. Locking serializes
 // selection with deactivation, relocation and deletion. Legacy clients resolve by full context.
 func resolveReportJob(ctx context.Context, tx *sql.Tx, input *model.WeeklyReportInput, old *model.WeeklyReport) error {
-	if strings.TrimSpace(input.Description) == "" || len(input.Description) > 500 {
+	if strings.TrimSpace(input.Description) == "" {
 		return ErrInvalidReport
 	}
 	input.Role, input.WorkDivision = model.NormalizeWeeklyRoleCategory(input.Role, input.WorkDivision)

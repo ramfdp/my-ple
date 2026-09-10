@@ -70,6 +70,7 @@ func workspaceUUID(s string) bool {
 
 const workJSON = `jsonb_build_object('id',t.id,'workspaceId',t.division_id,'jobId',t.job_id,'jobName',COALESCE(j.name,''),
  'requiresQa',t.requires_qa,'qaStage',t.qa_stage,
+ 'qaValidatedAt',t.qa_validated_at,'qaValidatedBy',t.qa_validated_by,'qaValidatedByName',COALESCE((SELECT name FROM users WHERE id=t.qa_validated_by),''),
  'title',t.title,'description',t.description,'relatedUrl',t.related_url,'startDate',COALESCE(t.start_date::text,''),'dueDate',COALESCE(t.due_date::text,''),
  'status',t.status,'priority',t.priority,'createdBy',t.created_by,'createdAt',t.created_at,'updatedAt',t.updated_at,'version',t.version,
  'assignees',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',u.id,'name',u.name,'avatarUrl',u.avatar_url) ORDER BY u.name,u.id)
@@ -189,6 +190,10 @@ func recordWorkActivity(ctx context.Context, tx *sql.Tx, id, actor, action, fiel
 }
 func (db *Database) SaveWorkItem(ctx context.Context, userID string, division int, id string, in model.WorkItemInput) (model.WorkItem, error) {
 	var empty model.WorkItem
+	if id == "" {
+		in.RequiresQA = true
+	}
+	assignmentsProvided := in.AssigneeIDs != nil
 	if err := ValidateWorkItem(&in); err != nil {
 		return empty, err
 	}
@@ -202,20 +207,21 @@ func (db *Database) SaveWorkItem(ctx context.Context, userID string, division in
 		if err != nil {
 			return empty, err
 		}
-		if old.WorkspaceID != division || (!old.CanEdit && !in.PriorityOnly && !(in.QAOnly && old.CanCheckQA)) {
+		if old.WorkspaceID != division || (!old.CanEdit && !in.PriorityOnly && !in.AssigneesOnly && !(in.QAOnly && old.CanCheckQA)) {
 			return empty, ErrWorkspaceForbidden
 		}
-		if in.PriorityOnly || in.QAOnly {
+		if in.PriorityOnly || in.QAOnly || in.AssigneesOnly {
 			// Internal flags are never accepted from JSON; guard other fields here too.
 			a, b := in, model.WorkItemInput{Title: old.Title, Description: old.Description, RelatedURL: old.RelatedURL, JobID: old.JobID, StartDate: old.StartDate, DueDate: old.DueDate, Status: old.Status, Priority: old.Priority, RequiresQA: old.RequiresQA, QAStage: old.QAStage}
 			a.Version = 0
 			a.PriorityOnly = false
+			a.AssigneesOnly = false
 			a.QAOnly = false
 			a.AssigneeIDs = nil
 			a.RequestID = ""
 			if in.PriorityOnly {
 				a.Priority = b.Priority
-			} else {
+			} else if in.QAOnly {
 				a.Status = b.Status
 				a.QAStage = b.QAStage
 			}
@@ -243,18 +249,6 @@ func (db *Database) SaveWorkItem(ctx context.Context, userID string, division in
 	previous := []string{}
 	for _, a := range old.Assignees {
 		previous = append(previous, a.ID)
-	}
-	if !manager {
-		for _, a := range in.AssigneeIDs {
-			if a != userID && !slices.Contains(previous, a) {
-				return empty, ErrWorkspaceForbidden
-			}
-		}
-		for _, a := range previous {
-			if a != userID && !slices.Contains(in.AssigneeIDs, a) {
-				return empty, ErrWorkspaceForbidden
-			}
-		}
 	}
 	tx, err := db.Conn.BeginTx(ctx, nil)
 	if err != nil {
@@ -297,7 +291,7 @@ func (db *Database) SaveWorkItem(ctx context.Context, userID string, division in
 		}
 	}
 	for _, a := range in.AssigneeIDs {
-		if slices.Contains(previous, a) {
+		if slices.Contains(previous, a) && !assignmentsProvided {
 			continue
 		} // Existing assignments survive transfers; no new out-of-division assignment is allowed.
 		var ok bool
@@ -317,6 +311,14 @@ func (db *Database) SaveWorkItem(ctx context.Context, userID string, division in
 	}
 	if err != nil {
 		return empty, err
+	}
+	if in.QAStage == "COMPLETE" && old.QAValidatedAt == nil && old.Status != model.WorkDone {
+		if _, err = tx.ExecContext(ctx, `UPDATE work_items SET qa_validated_at=NOW(),qa_validated_by=$2 WHERE id=$1`, id, userID); err != nil {
+			return empty, err
+		}
+		if err = recordWorkActivity(ctx, tx, id, userID, "UPDATE", "qaStage", old.QAStage, "COMPLETE"); err != nil {
+			return empty, err
+		}
 	}
 	for _, a := range previous {
 		if !slices.Contains(in.AssigneeIDs, a) {
@@ -340,7 +342,7 @@ func (db *Database) SaveWorkItem(ctx context.Context, userID string, division in
 			added = append(added, a)
 		}
 	}
-	fieldsChanged := false
+	fieldsChanged := in.QAStage == "COMPLETE" && old.QAValidatedAt == nil && old.Status != model.WorkDone
 	if old.ID == "" {
 		err = recordWorkActivity(ctx, tx, id, userID, "CREATE", "", nil, in.Title)
 	} else {

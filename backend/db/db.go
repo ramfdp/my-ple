@@ -44,6 +44,9 @@ var emailDeliverySQL string
 //go:embed collaboration.sql
 var collaborationSQL string
 
+//go:embed qa_validation.sql
+var qaValidationSQL string
+
 type Database struct {
 	Conn *sql.DB
 	Now  func() time.Time
@@ -71,7 +74,7 @@ func (db *Database) Migrate(ctx context.Context) error {
 	if _, err = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(71260402)`); err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, schemaSQL+weeklyArchiveSQL+jobsSQL+reportNumberingSQL+jobPICsSQL+workspaceSQL+leaveSQL+emailDeliverySQL+collaborationSQL); err != nil {
+	if _, err = tx.ExecContext(ctx, schemaSQL+weeklyArchiveSQL+jobsSQL+reportNumberingSQL+jobPICsSQL+workspaceSQL+leaveSQL+emailDeliverySQL+collaborationSQL+qaValidationSQL); err != nil {
 		return err
 	}
 	var unmatched int
@@ -534,7 +537,7 @@ func (db *Database) UpdateReport(ctx context.Context, id string, input model.Wee
 	if input.JobID != nil {
 		resolved.JobID = input.JobID
 	}
-	if resolved.Description == "" || len(resolved.Description) > 500 {
+	if resolved.Description == "" {
 		return result, ErrInvalidReport
 	}
 	if err := resolveReportJob(ctx, tx, &resolved, &old); err != nil {

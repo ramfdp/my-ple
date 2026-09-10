@@ -26,7 +26,7 @@ func TestQATransitions(t *testing.T) {
 	}
 	old.QAStage = "CHECKING"
 	in.QAStage = "COMPLETE"
-	in.Status = model.WorkDone
+	in.Status = model.WorkInProgress
 	if err := validateQATransition(old, in, true); err != nil {
 		t.Fatal(err)
 	}

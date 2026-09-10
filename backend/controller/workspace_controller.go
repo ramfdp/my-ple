@@ -27,6 +27,9 @@ func workspaceError(w http.ResponseWriter, err error) {
 	case errors.Is(err, db.ErrWorkspaceInvalid):
 		status = 400
 		message = err.Error()
+	case errors.Is(err, db.ErrQARequired):
+		status = 400
+		message = err.Error()
 	case errors.Is(err, db.ErrWorkspaceConflict):
 		status = 409
 		message = err.Error()
@@ -319,7 +322,7 @@ func (c *WorkspaceController) task(w http.ResponseWriter, r *http.Request, userI
 			return
 		}
 	}
-	if len(path) == 2 && (path[1] == "priority" || path[1] == "qa") && r.Method == "PATCH" {
+	if len(path) == 2 && (path[1] == "priority" || path[1] == "qa" || path[1] == "assignees") && r.Method == "PATCH" {
 		in := model.WorkItemInput{Title: t.Title, Description: t.Description, RelatedURL: t.RelatedURL, JobID: t.JobID, StartDate: t.StartDate, DueDate: t.DueDate, Status: t.Status, Priority: t.Priority, RequiresQA: t.RequiresQA, QAStage: t.QAStage}
 		if path[1] == "priority" {
 			var patch struct {
@@ -332,6 +335,21 @@ func (c *WorkspaceController) task(w http.ResponseWriter, r *http.Request, userI
 			in.Priority = patch.Priority
 			in.Version = patch.Version
 			in.PriorityOnly = true
+		} else if path[1] == "assignees" {
+			var patch struct {
+				AssigneeIDs []string `json:"assigneeIds"`
+				Version     int      `json:"version"`
+			}
+			if !DecodeStrictJSON(w, r, &patch) {
+				return
+			}
+			if patch.AssigneeIDs == nil {
+				workspaceError(w, db.ErrWorkspaceInvalid)
+				return
+			}
+			in.AssigneeIDs = patch.AssigneeIDs
+			in.Version = patch.Version
+			in.AssigneesOnly = true
 		} else {
 			var patch struct {
 				Stage   string `json:"qaStage"`
@@ -343,9 +361,6 @@ func (c *WorkspaceController) task(w http.ResponseWriter, r *http.Request, userI
 			in.QAStage = patch.Stage
 			in.Version = patch.Version
 			in.QAOnly = true
-			if patch.Stage == "COMPLETE" {
-				in.Status = model.WorkDone
-			}
 		}
 		updated, e := c.DB.SaveWorkItem(r.Context(), userID, t.WorkspaceID, t.ID, in)
 		if e != nil {

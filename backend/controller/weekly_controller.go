@@ -44,7 +44,7 @@ func (c *WeeklyController) Create(w http.ResponseWriter, r *http.Request) {
 	input.Role = strings.TrimSpace(input.Role)
 	input.Work = strings.TrimSpace(input.Work)
 	input.Role, input.WorkDivision = model.NormalizeWeeklyRoleCategory(input.Role, input.WorkDivision)
-	if input.Description == "" || len(input.Description) > 500 {
+	if input.Description == "" {
 		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Data laporan tidak valid."})
 		return
 	}
