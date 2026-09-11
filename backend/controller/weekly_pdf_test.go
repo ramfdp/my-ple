@@ -94,10 +94,13 @@ func TestDocumentsIncludePageNumbersAndMatchingHeader(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, value := range []string{"Page 1 / 1", "Weekly Report Project Engineer", "Test period"} {
+	for _, value := range []string{"Weekly Report Project Engineer", "Test period"} {
 		if !bytes.Contains(pdf, utf16BE(value)) {
 			t.Fatalf("PDF is missing %q", value)
 		}
+	}
+	if bytes.Contains(pdf, utf16BE("Page 1 / 1")) {
+		t.Fatal("PDF page number still includes label and total")
 	}
 	docx, err := weeklyDOCX("Project Engineer", period, reports)
 	if err != nil {
@@ -105,7 +108,7 @@ func TestDocumentsIncludePageNumbersAndMatchingHeader(t *testing.T) {
 	}
 	for part, values := range map[string][]string{
 		"word/header.xml": {"Weekly Report", "PE &amp; QA", "Weekly Report Project Engineer", "Test period"},
-		"word/footer.xml": {`w:instrText xml:space="preserve"> PAGE `, `w:instrText xml:space="preserve"> NUMPAGES `},
+		"word/footer.xml": {`w:instrText xml:space="preserve"> PAGE `},
 	} {
 		data := docxPart(t, docx, part)
 		for _, value := range values {
@@ -113,6 +116,9 @@ func TestDocumentsIncludePageNumbersAndMatchingHeader(t *testing.T) {
 				t.Fatalf("%s is missing %q", part, value)
 			}
 		}
+	}
+	if bytes.Contains(docxPart(t, docx, "word/footer.xml"), []byte("NUMPAGES")) {
+		t.Fatal("DOCX page number still includes total")
 	}
 	document := docxDocument(t, docx)
 	for _, value := range []string{`w:headerReference w:type="default" r:id="rId1"`, `w:footerReference w:type="default" r:id="rId2"`, `w:fill="123A5A"`} {
@@ -138,6 +144,15 @@ func TestDocumentsGroupRepeatedRoleCategoryAndJobLabels(t *testing.T) {
 		t.Fatal(err)
 	}
 	document := docxDocument(t, docx)
+	marker := bytes.Index(document, []byte(">Same job<"))
+	if marker < 0 {
+		t.Fatal("DOCX job heading is missing")
+	}
+	start := bytes.LastIndex(document[:marker], []byte("<w:tc>"))
+	end := marker + bytes.Index(document[marker:], []byte("</w:tc>"))
+	if start < 0 || end < marker || bytes.Contains(document[start:end], []byte(`<w:jc w:val="center"/>`)) {
+		t.Fatal("DOCX job heading is not left aligned")
+	}
 	for label, counts := range map[string][2]int{"Project Engineer": {1, 1}, "MK/Supervisi": {1, 1}} {
 		pdfCount, docxCount := bytes.Count(pdf, utf16BE(label)), bytes.Count(document, []byte(label))
 		if pdfCount != counts[0] || docxCount != counts[1] {
@@ -236,9 +251,12 @@ func TestCIHPKStartsOnNewPageOnlyAfterOtherRoles(t *testing.T) {
 		t.Fatal(err)
 	}
 	document := docxDocument(t, docx)
-	pageBreak := []byte(`<w:br w:type="page"/>`)
+	pageBreak := []byte(`<w:type w:val="nextPage"/>`)
 	if bytes.Count(document, pageBreak) != 1 || bytes.Index(document, []byte("QAMARKER")) > bytes.Index(document, pageBreak) || bytes.Index(document, pageBreak) > bytes.Index(document, []byte("CIHPKMARKER")) {
 		t.Fatal("DOCX page break is not exactly between QA and CIHPK")
+	}
+	if !bytes.Contains(docxPart(t, docx, "word/header-cihpk.xml"), []byte("CIHPK")) || !bytes.Contains(document, []byte(`r:id="rId3"`)) {
+		t.Fatal("DOCX CIHPK section is missing its CIHPK header")
 	}
 	for name, reports := range map[string][]model.WeeklyReport{
 		"only CIHPK": {report("cihpk", "CIHPK", "Jember", "ONLYCIHPK")},
