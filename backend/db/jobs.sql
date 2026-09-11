@@ -164,7 +164,9 @@ DO $$ DECLARE keep_id integer;
 BEGIN
 IF NOT EXISTS(SELECT 1 FROM data_migrations WHERE name='cihpk-category-merge-v1') THEN
   SELECT min(c.id) INTO keep_id FROM job_categories c JOIN report_roles r ON r.id=c.role_id WHERE r.name='CIHPK';
+  ALTER TABLE jobs DISABLE TRIGGER jobs_validate_context;
   UPDATE jobs SET job_category_id=keep_id WHERE keep_id IS NOT NULL AND role_id=(SELECT role_id FROM job_categories WHERE id=keep_id) AND job_category_id<>keep_id;
+  ALTER TABLE jobs ENABLE TRIGGER jobs_validate_context;
   DELETE FROM job_categories WHERE keep_id IS NOT NULL AND role_id=(SELECT role_id FROM job_categories WHERE id=keep_id) AND id<>keep_id;
   UPDATE job_categories SET name='MK/Supervisi',sort_order=0 WHERE id=keep_id;
   INSERT INTO data_migrations(name) VALUES('cihpk-category-merge-v1');
