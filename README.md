@@ -11,6 +11,39 @@ Frontend: http://localhost:5173. Backend: http://localhost:3000
 (health check: `/health`). Compose menjalankan PostgreSQL baru; skema dibuat
 otomatis oleh backend. Data database lokal yang sudah ada tidak diimpor otomatis.
 
+## Deployment production (VPS)
+
+Simpan konfigurasi production di `.env.production` pada root proyek, lalu selalu
+sertakan file tersebut pada setiap perintah Compose:
+
+```sh
+git pull
+docker compose --env-file .env.production build
+docker compose --env-file .env.production up -d --scale backend=3 --wait
+docker compose --env-file .env.production ps
+```
+
+Jangan menjalankan build production tanpa `--env-file .env.production`.
+`VITE_API_URL` dimasukkan ke bundle frontend saat proses build; jika argumen
+tersebut tidak terbaca, browser akan mencoba mengakses `localhost:3000`.
+
+Setelah mengubah `VITE_API_URL`, paksa rebuild frontend dan recreate hanya
+container frontend tanpa mengganggu backend:
+
+```sh
+docker compose --env-file .env.production build --no-cache frontend
+docker compose --env-file .env.production up -d --no-deps --force-recreate frontend
+```
+
+Verifikasi bundle dan endpoint production:
+
+```sh
+docker compose --env-file .env.production exec -T frontend \
+  grep -Roh 'https://myhis.dpdns.org/api' /app/build/client
+curl -I https://myhis.dpdns.org/
+curl -I https://myhis.dpdns.org/api/health
+```
+
 Nginx menerima trafik backend pada port `3000` dan membaginya secara round-robin.
 Frontend tetap satu container pada port `5173`. Untuk menjalankan tiga backend:
 
