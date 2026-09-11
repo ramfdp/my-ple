@@ -70,7 +70,7 @@
 	onMount(loadProfile);
 </script>
 
-<svelte:head><title>My Profile | my HIS</title></svelte:head>
+<svelte:head><title>My Profile | MyHIS</title></svelte:head>
 
 <main class="profile-page">
 	<div class="page-intro">

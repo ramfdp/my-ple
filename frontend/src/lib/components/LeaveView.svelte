@@ -40,7 +40,7 @@
   finally{busy=false}
  }
 </script>
-<svelte:head><title>{review?'Persetujuan Izin & Cuti':'Izin & Cuti'} | my HIS</title></svelte:head>
+<svelte:head><title>{review?'Persetujuan Izin & Cuti':'Izin & Cuti'} | MyHIS</title></svelte:head>
 <main class="workspace-page leave-page">
  <header class="ws-row"><div><p class="dashboard-kicker">PENGAJUAN KARYAWAN</p><h1>{review?'Persetujuan Izin & Cuti':'Izin & Cuti'}</h1><p>{review?'Tinjau pengajuan dan riwayat keputusan.':'Ajukan izin atau cuti dan pantau persetujuannya.'}</p></div><NotificationBell/></header>
  {#if !authorized}<p role="alert">Halaman persetujuan hanya tersedia untuk Admin dan Management.</p>

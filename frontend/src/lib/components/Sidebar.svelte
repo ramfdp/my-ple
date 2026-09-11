@@ -93,8 +93,8 @@
 		{/if}
 	</button>
 	<div class="mobile-brand">
-		<img src="/harmoni%20insan%20phooto.webp" alt="my HIS" class="mobile-logo-img" />
-		<span class="brand-text">my HIS</span>
+		<img src="/harmoni%20insan%20phooto.webp" alt="MyHIS" class="mobile-logo-img" />
+		<span class="brand-text">MyHIS</span>
 	</div>
 </div>
 
@@ -110,10 +110,10 @@
 		<button type="button" class="drawer-close-button" aria-label="Tutup navigasi" onclick={() => mobileOpen = false}>×</button>
 		<a href="/dashboard" class="logo-link" onclick={() => (mobileOpen = false)}>
 			<div class="logo-circle">
-				<img src="/harmoni%20insan%20phooto.webp" alt="my HIS" class="sidebar-logo" />
+				<img src="/harmoni%20insan%20phooto.webp" alt="MyHIS" class="sidebar-logo" />
 			</div>
 			<div class="brand-details">
-				<span class="brand-title">my HIS</span>
+				<span class="brand-title">MyHIS</span>
 			</div>
 		</a>
 	</div>

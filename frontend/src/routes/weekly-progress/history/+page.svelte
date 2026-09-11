@@ -35,7 +35,7 @@
 	onMount(() => { void load();const stop=subscribeChanges(['reports.changed'],()=>load(page,true));return()=>{generation++;stop()}; });
 </script>
 
-<svelte:head><title>Weekly Report History | my HIS</title></svelte:head>
+<svelte:head><title>Weekly Report History | MyHIS</title></svelte:head>
 <main class="weekly-progress-page"><div class="weekly-progress-shell">
 	<a class="back-link" href="/weekly-progress">← Weekly Progress</a>
 	<header class="weekly-header"><p class="weekly-kicker">WEEKLY REPORT</p><h1>Weekly Report History</h1><p>Arsip permanen laporan mingguan. Semua tanggal menggunakan WIB.</p></header>

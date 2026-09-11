@@ -45,7 +45,7 @@
  function changeView(v:string){view=v;offset=0;void refresh()}
  function navigate(n:number){if(scale==='week'&&view==='Timeline')anchor=addDays(anchor,n*7);else{const d=dateValue(anchor);anchor=dateString(new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+n,1)))}offset=0;void refresh()}
 </script>
-<svelte:head><title>{workspace?.name??'Division'} Workspace | my HIS</title></svelte:head>
+<svelte:head><title>{workspace?.name??'Division'} Workspace | MyHIS</title></svelte:head>
 <main class="workspace-page">
  <a href="/workspace">← Semua workspace</a>
  <a class="back-link" href="/dashboard">← Kembali ke Dashboard</a>

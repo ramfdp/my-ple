@@ -22,20 +22,20 @@
 </script>
 
 <svelte:head>
-	<title>Masuk | my HIS</title>
+	<title>Masuk | MyHIS</title>
 	<meta
 		name="description"
-		content="Masuk ke ruang kerja my HIS untuk melanjutkan pekerjaan Anda."
+		content="Masuk ke ruang kerja MyHIS untuk melanjutkan pekerjaan Anda."
 	/>
 </svelte:head>
 
 <main class="login-page">
 	<section class="login-panel" aria-labelledby="login-title">
 		<div class="login-content">
-			<img class="brand-logo" src="/harmoni%20insan%20phooto.webp" alt="my HIS" />
+			<img class="brand-logo" src="/harmoni%20insan%20phooto.webp" alt="MyHIS" />
 
 			<div class="login-heading">
-				<p class="eyebrow">my HIS WORKSPACE</p>
+				<p class="eyebrow">MyHIS WORKSPACE</p>
 				<h1 id="login-title">Selamat datang kembali.</h1>
 				<p>Masuk untuk melanjutkan pekerjaan Anda.</p>
 			</div>
@@ -61,7 +61,7 @@
 		</div>
 	</section>
 
-	<aside class="showcase-panel" aria-label="Tentang my HIS">
+	<aside class="showcase-panel" aria-label="Tentang MyHIS">
 		<div class="grid-pattern" aria-hidden="true"></div>
 		<div class="showcase-content">
 			<p class="eyebrow">WORK WITH CLARITY</p>

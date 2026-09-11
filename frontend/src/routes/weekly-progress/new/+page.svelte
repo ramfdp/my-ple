@@ -33,7 +33,7 @@
 	}
 </script>
 
-<svelte:head><title>Input Laporan | my HIS</title><meta name="description" content="Input laporan pekerjaan mingguan." /></svelte:head>
+<svelte:head><title>Input Laporan | MyHIS</title><meta name="description" content="Input laporan pekerjaan mingguan." /></svelte:head>
 <svelte:window onfocus={() => { if (mounted) void checkPeriod(division); }} />
 <main class="weekly-progress-page"><div class="weekly-progress-shell report-shell">
 	<a class="back-link" href="/weekly-progress">← Kembali ke weekly progress</a>

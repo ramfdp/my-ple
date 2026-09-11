@@ -8,7 +8,7 @@
 </script>
 
 <svelte:head>
-	<title>Redirecting to My Profile... | my HIS</title>
+	<title>Redirecting to My Profile... | MyHIS</title>
 </svelte:head>
 
 <div style="padding: 40px; text-align: center; color: var(--his-muted);">

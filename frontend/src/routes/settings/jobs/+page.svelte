@@ -47,7 +47,7 @@
  $effect(()=>{if(deleting)dialog?.showModal();else dialog?.close();});
 </script>
 
-<svelte:head><title>Pengaturan Pekerjaan | my HIS</title></svelte:head>
+<svelte:head><title>Pengaturan Pekerjaan | MyHIS</title></svelte:head>
 <main class="weekly-progress-page"><div class="weekly-progress-shell">
  <header class="weekly-header"><p class="weekly-kicker">SETTINGS</p><h1>Pengaturan Pekerjaan</h1><p>Kelola pekerjaan per divisi, role, dan kategori.</p></header>
  {#if !allowed}<p role="alert">Silakan masuk untuk mengelola pekerjaan.</p>{:else}

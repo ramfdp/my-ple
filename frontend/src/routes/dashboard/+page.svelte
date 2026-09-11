@@ -7,8 +7,8 @@
 </script>
 
 <svelte:head>
-	<title>Dashboard | my HIS</title>
-	<meta name="description" content="Dashboard kerja my HIS." />
+	<title>Dashboard | MyHIS</title>
+	<meta name="description" content="Dashboard kerja MyHIS." />
 </svelte:head>
 
 <main class="dashboard-page">

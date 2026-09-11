@@ -7,7 +7,7 @@
  async function load(){loading=true;error='';try{workspaces=(await api<{workspaces:typeof workspaces}>('/workspaces')).workspaces}catch(e){error=(e as Error).message}finally{loading=false}}
  onMount(()=>{void load();return subscribeChanges(['workspace.changed'],load)});
 </script>
-<svelte:head><title>Team Workspace | my HIS</title></svelte:head>
+<svelte:head><title>Team Workspace | MyHIS</title></svelte:head>
 <main class="workspace-page">
  <a class="back-link" href="/dashboard">← Kembali ke Dashboard</a>
  <header><p class="dashboard-kicker">TEAM WORKSPACE</p><h1>Pilih Workspace Divisi</h1><p>Catatan, timeline, dan koordinasi pekerjaan tim.</p></header>

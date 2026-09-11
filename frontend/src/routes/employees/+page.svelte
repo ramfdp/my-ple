@@ -40,7 +40,7 @@
 	}
 </script>
 
-<svelte:head><title>Manage Employees | my HIS</title></svelte:head>
+<svelte:head><title>Manage Employees | MyHIS</title></svelte:head>
 <main class="page">
 	{#if !loading && !allowed}
 		<h1>Access denied</h1><p>Manage Employees is only available to Admin, Management, and HR.</p>
