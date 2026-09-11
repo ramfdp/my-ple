@@ -169,6 +169,13 @@ func weeklyPDFDocument(division string, period model.ReportingPeriod, reports []
 	}
 	pdf.SetMargins(left, 15, left)
 	pdf.SetAutoPageBreak(false, 15)
+	pdf.AliasNbPages("{nb}")
+	pdf.SetFooterFunc(func() {
+		pdf.SetY(-10)
+		pdf.SetTextColor(91, 111, 128)
+		pdf.SetFont("Report", "", 8)
+		pdf.CellFormat(180, 5, fmt.Sprintf("Page %d / {nb}", pdf.PageNo()), "", 0, "C", false, 0, "")
+	})
 	pdf.SetHeaderFunc(func() {
 		pdf.SetXY(left, 8)
 		pdf.SetTextColor(91, 111, 128)

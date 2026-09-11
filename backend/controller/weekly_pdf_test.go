@@ -87,6 +87,41 @@ func TestPDFIncludesWebsiteTopHeader(t *testing.T) {
 	}
 }
 
+func TestDocumentsIncludePageNumbersAndMatchingHeader(t *testing.T) {
+	reports := []model.WeeklyReport{{ID: "x", Role: "PE", WorkDivision: "MK supervisi", Work: "Task", Description: "Progress"}}
+	period := model.ReportingPeriod{Label: "Test period"}
+	pdf, err := weeklyPDFDocument("Project Engineer", period, reports, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, value := range []string{"Page 1 / 1", "Weekly Report Project Engineer", "Test period"} {
+		if !bytes.Contains(pdf, utf16BE(value)) {
+			t.Fatalf("PDF is missing %q", value)
+		}
+	}
+	docx, err := weeklyDOCX("Project Engineer", period, reports)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for part, values := range map[string][]string{
+		"word/header.xml": {"Weekly Report", "PE &amp; QA", "Weekly Report Project Engineer", "Test period"},
+		"word/footer.xml": {`w:instrText xml:space="preserve"> PAGE `, `w:instrText xml:space="preserve"> NUMPAGES `},
+	} {
+		data := docxPart(t, docx, part)
+		for _, value := range values {
+			if !bytes.Contains(data, []byte(value)) {
+				t.Fatalf("%s is missing %q", part, value)
+			}
+		}
+	}
+	document := docxDocument(t, docx)
+	for _, value := range []string{`w:headerReference w:type="default" r:id="rId1"`, `w:footerReference w:type="default" r:id="rId2"`, `w:fill="123A5A"`} {
+		if !bytes.Contains(document, []byte(value)) {
+			t.Fatalf("DOCX template is missing %q", value)
+		}
+	}
+}
+
 func TestDocumentsGroupRepeatedRoleCategoryAndJobLabels(t *testing.T) {
 	reports := []model.WeeklyReport{
 		{ID: "a", PrimaryDivision: "Project Engineer", Role: "PE", WorkDivision: "MK supervisi", Work: "Same job", Number: 1, Description: "Progress one"},
@@ -103,7 +138,7 @@ func TestDocumentsGroupRepeatedRoleCategoryAndJobLabels(t *testing.T) {
 		t.Fatal(err)
 	}
 	document := docxDocument(t, docx)
-	for label, counts := range map[string][2]int{"Project Engineer": {1, 2}, "MK/Supervisi": {1, 1}} {
+	for label, counts := range map[string][2]int{"Project Engineer": {1, 1}, "MK/Supervisi": {1, 1}} {
 		pdfCount, docxCount := bytes.Count(pdf, utf16BE(label)), bytes.Count(document, []byte(label))
 		if pdfCount != counts[0] || docxCount != counts[1] {
 			t.Fatalf("%q was not grouped in the table: PDF=%d DOCX=%d", label, pdfCount, docxCount)
@@ -282,13 +317,17 @@ func pdfTextY(t *testing.T, data []byte, marker string) float64 {
 }
 
 func docxDocument(t *testing.T, data []byte) []byte {
+	return docxPart(t, data, "word/document.xml")
+}
+
+func docxPart(t *testing.T, data []byte, name string) []byte {
 	t.Helper()
 	archive, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, file := range archive.File {
-		if file.Name == "word/document.xml" {
+		if file.Name == name {
 			reader, err := file.Open()
 			if err != nil {
 				t.Fatal(err)
@@ -301,7 +340,7 @@ func docxDocument(t *testing.T, data []byte) []byte {
 			return document
 		}
 	}
-	t.Fatal("word/document.xml missing")
+	t.Fatalf("%s missing", name)
 	return nil
 }
 
@@ -334,7 +373,7 @@ func TestLongDocuments(t *testing.T) {
 	}
 	for _, position := range positions {
 		y, _ := strconv.ParseFloat(string(position[2]), 64)
-		if y < 42 || y > 825 {
+		if y < 18 || y > 825 {
 			t.Fatalf("PDF text outside printable page: %v", y)
 		}
 	}
