@@ -160,6 +160,17 @@ ON CONFLICT DO NOTHING;
 INSERT INTO data_migrations(name) VALUES('job-master-v1');
 END IF; END $$;
 
+DO $$ DECLARE keep_id integer;
+BEGIN
+IF NOT EXISTS(SELECT 1 FROM data_migrations WHERE name='cihpk-category-merge-v1') THEN
+  SELECT min(c.id) INTO keep_id FROM job_categories c JOIN report_roles r ON r.id=c.role_id WHERE r.name='CIHPK';
+  UPDATE jobs SET job_category_id=keep_id WHERE keep_id IS NOT NULL AND role_id=(SELECT role_id FROM job_categories WHERE id=keep_id) AND job_category_id<>keep_id;
+  DELETE FROM job_categories WHERE keep_id IS NOT NULL AND role_id=(SELECT role_id FROM job_categories WHERE id=keep_id) AND id<>keep_id;
+  UPDATE job_categories SET name='MK/Supervisi',sort_order=0 WHERE id=keep_id;
+  INSERT INTO data_migrations(name) VALUES('cihpk-category-merge-v1');
+END IF;
+END $$;
+
 -- Preserve job/category IDs and references; only canonicalize the three CIHPK job labels.
 DO $$ BEGIN
 IF NOT EXISTS(SELECT 1 FROM data_migrations WHERE name='cihpk-job-labels-v2') THEN

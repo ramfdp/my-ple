@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import {subscribeChanges} from '$lib/realtime';
-	import { api, download, type WeeklyArchive } from '$lib/api';
+	import { api, currentUser, download, type WeeklyArchive } from '$lib/api';
 	let division = $state(''), date = $state(''), page = $state(1);
 	let archives = $state<WeeklyArchive[]>([]), detail = $state<WeeklyArchive | null>(null);
 	let loading = $state(true), hasMore = $state(false), error = $state(''), downloading = $state('');
 	let generation=0;
-	const divisions = ['Project Engineer', 'AI Dev', 'Keuangan', 'Business Development', 'HR', 'PMO'];
+	const allDivisions = ['Project Engineer', 'AI Dev', 'Keuangan', 'Business Development', 'HR', 'PMO'];
+	const roleDivision:Record<string,string>={'Project Engineer':'Project Engineer','IT':'AI Dev','Finance':'Keuangan','Business Development':'Business Development','HR':'HR','PMO':'PMO'};
+	const divisions=$derived(['Admin','Management'].includes($currentUser?.role??'')?allDivisions:allDivisions.filter(d=>d===roleDivision[$currentUser?.role??'']));
 	const formatDate = (value: string) => new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value));
 	const period = (a: WeeklyArchive) => `${formatDate(a.weekStart)} – ${formatDate(new Date(new Date(a.weekEnd).getTime() - 1).toISOString())}`;
 	async function load(next = 1, background=false) {
@@ -40,7 +42,7 @@
 	<a class="back-link" href="/weekly-progress">← Weekly Progress</a>
 	<header class="weekly-header"><p class="weekly-kicker">WEEKLY REPORT</p><h1>Weekly Report History</h1><p>Arsip permanen laporan mingguan. Semua tanggal menggunakan WIB.</p></header>
 	<form class="report-form" onsubmit={(event) => { event.preventDefault(); void load(); }}>
-		<label>Divisi<select bind:value={division}><option value="">Semua divisi</option>{#each divisions as item}<option>{item}</option>{/each}</select></label>
+		<label>Divisi<select bind:value={division}>{#if divisions.length>1}<option value="">Semua divisi</option>{/if}{#each divisions as item}<option>{item}</option>{/each}</select></label>
 		<label>Tanggal dalam periode<input type="date" bind:value={date} /></label>
 		<button class="report-submit" disabled={loading}>Tampilkan</button>
 	</form>

@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-pdf/fpdf"
 	"my-ple-backend/db"
-	"my-ple-backend/middleware"
 	"my-ple-backend/model"
 )
 
@@ -25,14 +24,12 @@ func (c *WeeklyController) ExportDOCX(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *WeeklyController) exportReport(w http.ResponseWriter, r *http.Request, format string) {
-	_, ok := middleware.GetClaims(r.Context())
-	if !ok {
-		WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Autentikasi diperlukan."})
-		return
-	}
 	division := strings.TrimSpace(r.URL.Query().Get("primaryDivision"))
 	if division == "" || len(division) > 100 {
 		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Divisi utama tidak valid."})
+		return
+	}
+	if !requireWeeklyDivision(w, r, division) {
 		return
 	}
 	var valid bool

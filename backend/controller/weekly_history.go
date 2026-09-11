@@ -11,10 +11,9 @@ import (
 	"time"
 )
 
-// Weekly reports currently permit all authenticated users to read all divisions.
-// History deliberately keeps that same backend authorization scope.
 func (c *WeeklyController) History(w http.ResponseWriter, r *http.Request) {
-	if _, ok := middleware.GetClaims(r.Context()); !ok {
+	claims, ok := middleware.GetClaims(r.Context())
+	if !ok {
 		WriteJSON(w, 401, map[string]string{"error": "Autentikasi diperlukan."})
 		return
 	}
@@ -31,6 +30,16 @@ func (c *WeeklyController) History(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		division, date := strings.TrimSpace(r.URL.Query().Get("division")), r.URL.Query().Get("date")
+		if own := weeklyDivision(claims.RoleName); own != "" {
+			if division != "" && division != own {
+				WriteJSON(w, http.StatusForbidden, map[string]string{"error": "Laporan divisi lain tidak dapat diakses."})
+				return
+			}
+			division = own
+		} else if claims.RoleName != "Admin" && claims.RoleName != "Management" {
+			WriteJSON(w, http.StatusForbidden, map[string]string{"error": "Weekly report tidak tersedia untuk role ini."})
+			return
+		}
 		if len(division) > 100 {
 			WriteJSON(w, 400, map[string]string{"error": "Divisi tidak valid."})
 			return
@@ -65,6 +74,10 @@ func (c *WeeklyController) History(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		WriteJSON(w, 500, map[string]string{"error": "Arsip tidak dapat dimuat."})
+		return
+	}
+	if !canViewWeekly(claims, a.Division) {
+		WriteJSON(w, http.StatusForbidden, map[string]string{"error": "Laporan divisi lain tidak dapat diakses."})
 		return
 	}
 	if len(parts) == 1 {

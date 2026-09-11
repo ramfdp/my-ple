@@ -19,6 +19,27 @@ type WeeklyController struct {
 	Now func() time.Time
 }
 
+func weeklyDivision(role string) string {
+	return map[string]string{"Project Engineer": "Project Engineer", "IT": "AI Dev", "Finance": "Keuangan", "Business Development": "Business Development", "HR": "HR", "PMO": "PMO"}[role]
+}
+
+func canViewWeekly(claims model.Claims, division string) bool {
+	return claims.RoleName == "Admin" || claims.RoleName == "Management" || weeklyDivision(claims.RoleName) == division
+}
+
+func requireWeeklyDivision(w http.ResponseWriter, r *http.Request, division string) bool {
+	claims, ok := middleware.GetClaims(r.Context())
+	if !ok {
+		WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Autentikasi diperlukan."})
+		return false
+	}
+	if !canViewWeekly(claims, division) {
+		WriteJSON(w, http.StatusForbidden, map[string]string{"error": "Laporan divisi lain tidak dapat diakses."})
+		return false
+	}
+	return true
+}
+
 func NewWeeklyController(database *db.Database) *WeeklyController {
 	return &WeeklyController{DB: database, Now: time.Now}
 }
@@ -132,6 +153,9 @@ func (c *WeeklyController) List(w http.ResponseWriter, r *http.Request) {
 	division := strings.TrimSpace(r.URL.Query().Get("primaryDivision"))
 	if division == "" || len(division) > 100 {
 		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Divisi utama wajib diisi."})
+		return
+	}
+	if !requireWeeklyDivision(w, r, division) {
 		return
 	}
 	period, err := c.currentPeriod(r.Context(), division)

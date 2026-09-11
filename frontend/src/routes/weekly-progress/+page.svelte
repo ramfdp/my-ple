@@ -7,7 +7,9 @@
 	import type { Job } from '$lib/api';
 	import { canModifyReport, capitalizeReportDescription, groupReports } from '$lib/utils/report-table';
 
-	const divisions = ['Project Engineer', 'AI Dev', 'Keuangan', 'Business Development', 'HR', 'PMO'];
+	const allDivisions = ['Project Engineer', 'AI Dev', 'Keuangan', 'Business Development', 'HR', 'PMO'];
+	const roleDivision:Record<string,string>={'Project Engineer':'Project Engineer','IT':'AI Dev','Finance':'Keuangan','Business Development':'Business Development','HR':'HR','PMO':'PMO'};
+	const divisions=$derived(['Admin','Management'].includes($currentUser?.role??'')?allDivisions:allDivisions.filter(d=>d===roleDivision[$currentUser?.role??'']));
 	let selectedDivision = $state<number | null>(null);
 	let reports = $state<Report[]>([]);
 	let groups = $state<WeeklyRoleGroup[]>([]);
