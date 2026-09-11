@@ -127,7 +127,7 @@ type DueWeek struct {
 
 func (db *Database) DueWeeks(ctx context.Context, now time.Time) ([]DueWeek, error) {
 	start, _ := model.ReportingWeek(now)
-	rows, err := db.Conn.QueryContext(ctx, `SELECT primary_division, date_trunc('week',completed_at AT TIME ZONE 'Asia/Jakarta') AT TIME ZONE 'Asia/Jakarta' AS week_start FROM reports WHERE completed_at<$1 GROUP BY 1,2 UNION SELECT primary_division,week_start FROM weekly_report_archives WHERE reset_at IS NULL OR status<>'finalized' ORDER BY 2,1`, start)
+	rows, err := db.Conn.QueryContext(ctx, `SELECT primary_division, date_trunc('week',completed_at AT TIME ZONE 'Asia/Jakarta') AT TIME ZONE 'Asia/Jakarta' AS week_start FROM reports WHERE completed_at<$1 AND $2 GROUP BY 1,2 UNION SELECT primary_division,week_start FROM weekly_report_archives WHERE reset_at IS NULL OR status<>'finalized' ORDER BY 2,1`, start, weeklyRolloverReady(now))
 	if err != nil {
 		return nil, err
 	}
@@ -141,6 +141,11 @@ func (db *Database) DueWeeks(ctx context.Context, now time.Time) ([]DueWeek, err
 		result = append(result, w)
 	}
 	return result, rows.Err()
+}
+
+func weeklyRolloverReady(now time.Time) bool {
+	start, _ := model.ReportingWeek(now)
+	return !now.Before(start.AddDate(0, 0, 1))
 }
 
 func (db *Database) SnapshotWeek(ctx context.Context, w DueWeek) (model.WeeklyArchive, error) {
