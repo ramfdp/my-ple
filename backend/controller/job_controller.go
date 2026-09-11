@@ -96,10 +96,6 @@ func (c *JobController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		WriteJSON(w, 200, map[string]any{"pics": job.PICs})
 		return
 	}
-	if r.Method != http.MethodGet && !strings.EqualFold(claims.RoleName, "Admin") && !strings.EqualFold(claims.RoleName, "Management") {
-		WriteJSON(w, 403, map[string]string{"error": "Hanya Admin dan Management dapat mengelola master pekerjaan."})
-		return
-	}
 	if r.URL.Path == "/jobs/masters" && r.Method == http.MethodGet {
 		result, err := c.DB.JobMasters(r.Context())
 		if err != nil {

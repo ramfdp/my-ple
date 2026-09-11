@@ -4,7 +4,6 @@
  import {subscribeChanges} from '$lib/realtime';
  import { api, currentUser, type Job, type JobMasters } from '$lib/api';
  let allowed=$derived(!!$currentUser);
- let canManage=$derived(['admin','management'].includes($currentUser?.role.toLowerCase() ?? ''));
  let masters=$state<JobMasters>({divisions:[],roles:[],categories:[]});
  let divisionId=$state(0),roleId=$state<number|null>(null),categoryId=$state<number|null>(null);
  let jobs=$state<Job[]>([]),loading=$state(true),busy=$state(false),error=$state(''),success=$state(''),search=$state('');
@@ -61,7 +60,7 @@
  </div>
  {#if error}<p role="alert">{error} {#if !showForm && !deleting}<button type="button" onclick={()=>void (divisionId?load():initialize())}>Coba lagi</button>{/if}</p>{/if}
  {#if success}<p role="status">{success}</p>{/if}
- {#if canManage}
+ {#if allowed}
  {#if showForm}
  <form class="report-form job-form" onsubmit={save}>
   <h2>{editing?'Edit pekerjaan':'Tambah pekerjaan'}</h2><p>Divisi, role, dan kategori mengikuti pilihan di atas.{editing?.referenced?' Konteks pekerjaan terkunci karena sudah digunakan.':''}</p>
@@ -74,8 +73,8 @@
  {:else}<button class="report-button" type="button" disabled={busy || loading || !divisionId} onclick={()=>openForm(null)}>+ Tambah Pekerjaan</button>{/if}
  {/if}
  {#if loading}<p role="status">Memuat pekerjaan…</p>{:else if !visible.length}<p role="status">{search?'Tidak ada pekerjaan yang cocok.':'Belum ada pekerjaan pada kategori ini.'}</p>{:else}
- <div class="work-table-wrap"><table class="work-table"><thead><tr><th>Pekerjaan</th><th>Divisi</th><th>Role</th><th>Kategori</th><th>Status</th>{#if canManage}<th>Aksi</th>{/if}</tr></thead><tbody>
- {#each visible as job (job.id)}<tr><td>{job.name}<JobPICEditor jobId={job.id} pics={job.pics ?? []} onchange={(pics)=>job.pics=pics} /></td><td>{job.division}</td><td>{job.role || '—'}</td><td>{job.category || '—'}</td><td>{#if canManage}<button type="button" role="switch" aria-checked={job.isActive} aria-label={`Status ${job.name}`} disabled={busy} onclick={()=>void toggle(job)}>{job.isActive?'Aktif':'Nonaktif'}</button>{:else}{job.isActive?'Aktif':'Nonaktif'}{/if}</td>{#if canManage}<td><div class="actions"><button class="edit-report" type="button" disabled={busy} onclick={()=>openForm(job)}>Edit</button><button class="delete-report" type="button" disabled={busy} onclick={()=>{error='';deleting=job;}}>Hapus</button></div></td>{/if}</tr>{/each}
+ <div class="work-table-wrap"><table class="work-table"><thead><tr><th>Pekerjaan</th><th>Divisi</th><th>Role</th><th>Kategori</th><th>Status</th>{#if allowed}<th>Aksi</th>{/if}</tr></thead><tbody>
+ {#each visible as job (job.id)}<tr><td>{job.name}<JobPICEditor jobId={job.id} pics={job.pics ?? []} onchange={(pics)=>job.pics=pics} /></td><td>{job.division}</td><td>{job.role || '—'}</td><td>{job.category || '—'}</td><td>{#if allowed}<button type="button" role="switch" aria-checked={job.isActive} aria-label={`Status ${job.name}`} disabled={busy} onclick={()=>void toggle(job)}>{job.isActive?'Aktif':'Nonaktif'}</button>{:else}{job.isActive?'Aktif':'Nonaktif'}{/if}</td>{#if allowed}<td><div class="actions"><button class="edit-report" type="button" disabled={busy} onclick={()=>openForm(job)}>Edit</button><button class="delete-report" type="button" disabled={busy} onclick={()=>{error='';deleting=job;}}>Hapus</button></div></td>{/if}</tr>{/each}
  </tbody></table></div>{/if}
  </section>{/if}
 </div></main>
