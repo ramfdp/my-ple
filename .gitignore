@@ -5,3 +5,4 @@
 /. tmp-go-cache
 /tasks
 /.env
+/.env.production

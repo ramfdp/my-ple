@@ -17,7 +17,7 @@ services:
   backend:
     build: ./backend
     env_file:
-      - path: ./backend/.env
+      - path: ${BACKEND_ENV_FILE:-./backend/.env}
         required: false
     environment:
       DATABASE_URL: "host=db port=5432 user=my_ple password=${POSTGRES_PASSWORD:-my_ple_local} dbname=my_ple sslmode=disable"
