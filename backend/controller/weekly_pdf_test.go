@@ -77,6 +77,16 @@ func TestPDFWithoutWatermark(t *testing.T) {
 	}
 }
 
+func TestPDFIncludesWebsiteTopHeader(t *testing.T) {
+	pdf, err := weeklyPDFDocument("Project Engineer", model.ReportingPeriod{Label: "Test"}, []model.WeeklyReport{{ID: "x", Role: "PE", WorkDivision: "MK supervisi", Work: "Task", Description: "Progress"}}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(pdf, utf16BE("PE & QA")) {
+		t.Fatal("PDF is missing the website top header")
+	}
+}
+
 func TestDocumentsGroupRepeatedRoleCategoryAndJobLabels(t *testing.T) {
 	reports := []model.WeeklyReport{
 		{ID: "a", PrimaryDivision: "Project Engineer", Role: "PE", WorkDivision: "MK supervisi", Work: "Same job", Number: 1, Description: "Progress one"},
@@ -111,13 +121,13 @@ func TestExportGroupsRequiredHierarchy(t *testing.T) {
 	picsA := model.JobPICs{{UserID: "u1", Name: "mingse", IsActive: true}, {UserID: "u2", Name: "nasfa", IsActive: true}}
 	picsB := model.JobPICs{{UserID: "u1", Name: "mingse", IsActive: true}}
 	reports := []model.WeeklyReport{}
-	for i, content := range []string{"aaaaaaaaaa", "dwkadwad;laksadlawdaldwalda", "aaaasss", "test", "tes"} {
+	for i, content := range []string{"PROGRESS-A", "PROGRESS-B", "PROGRESS-C", "PROGRESS-D", "PROGRESS-E"} {
 		reports = append(reports, model.WeeklyReport{ID: fmt.Sprint("a", i), JobID: &jobA, PrimaryDivision: "Project Engineer", Role: "PE", WorkDivision: "MK supervisi", Work: "Penataan Kawasan Stasiun Jember", Number: i + 10, PICs: picsA, Description: content})
 	}
 	reports = append(reports,
-		model.WeeklyReport{ID: "b", JobID: &jobB, PrimaryDivision: "Project Engineer", Role: "PE", WorkDivision: "MK supervisi", Work: "Pengawasan Renovasi Gudang Besar JAKG", Number: 40, PICs: picsB, Description: "test 1"},
-		model.WeeklyReport{ID: "pit", JobID: &pit, PrimaryDivision: "Project Engineer", Role: "PE", WorkDivision: "Non-MK supervisi", Work: "MPS PIT", Number: 50, Description: "pit progress"},
-		model.WeeklyReport{ID: "sgr", JobID: &sgr, PrimaryDivision: "Project Engineer", Role: "PE", WorkDivision: "Non-MK supervisi", Work: "MPS SGR", Number: 60, Description: "sgr progress"},
+		model.WeeklyReport{ID: "b", JobID: &jobB, PrimaryDivision: "Project Engineer", Role: "PE", WorkDivision: "MK supervisi", Work: "Pengawasan Renovasi Gudang Besar JAKG", Number: 40, PICs: picsB, Description: "JOB-B-PROGRESS"},
+		model.WeeklyReport{ID: "pit", JobID: &pit, PrimaryDivision: "Project Engineer", Role: "PE", WorkDivision: "Non-MK supervisi", Work: "MPS PIT", Number: 50, Description: "PIT-PROGRESS"},
+		model.WeeklyReport{ID: "sgr", JobID: &sgr, PrimaryDivision: "Project Engineer", Role: "PE", WorkDivision: "Non-MK supervisi", Work: "MPS SGR", Number: 60, Description: "SGR-PROGRESS"},
 	)
 	groups := exportGroups(reports)
 	if len(groups) != 1 || groups[0].Name != "Project Engineer" || len(groups[0].Categories) != 2 {
@@ -133,12 +143,25 @@ func TestExportGroupsRequiredHierarchy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if dir := os.Getenv("DOCUMENT_TEST_OUTPUT"); dir != "" {
+		if err := os.WriteFile(filepath.Join(dir, "weekly-report-layout.pdf"), pdf, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	positions := map[float64]string{}
+	for _, marker := range []string{"PROGRESS-A", "PROGRESS-D", "PROGRESS-E", "JOB-B-PROGRESS", "PIT-PROGRESS", "SGR-PROGRESS"} {
+		y := pdfTextY(t, pdf, marker)
+		if previous := positions[y]; previous != "" {
+			t.Fatalf("PDF rows overlap: %q and %q share y=%v", previous, marker, y)
+		}
+		positions[y] = marker
+	}
 	docx, err := weeklyDOCX("Project Engineer", model.ReportingPeriod{Label: "Test"}, reports)
 	if err != nil {
 		t.Fatal(err)
 	}
 	document := docxDocument(t, docx)
-	for _, value := range []string{"MK/Supervisi", "Penataan Kawasan Stasiun Jember", "Pengawasan Renovasi Gudang Besar JAKG", "MPS PIT", "MPS SGR", "nasfa", "pit progress", "sgr progress"} {
+	for _, value := range []string{"MK/Supervisi", "Penataan Kawasan Stasiun Jember", "Pengawasan Renovasi Gudang Besar JAKG", "MPS PIT", "MPS SGR", "nasfa", "PIT-PROGRESS", "SGR-PROGRESS"} {
 		if !bytes.Contains(pdf, utf16BE(value)) || !bytes.Contains(document, []byte(value)) {
 			t.Fatalf("PDF/DOCX mismatch: missing %q", value)
 		}
@@ -162,8 +185,16 @@ func TestCIHPKStartsOnNewPageOnlyAfterOtherRoles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if dir := os.Getenv("DOCUMENT_TEST_OUTPUT"); dir != "" {
+		if err := os.WriteFile(filepath.Join(dir, "weekly-report-cihpk.pdf"), pdf, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if pe, qa, cihpk := pdfPageOf(pdf, "PEMARKER"), pdfPageOf(pdf, "QAMARKER"), pdfPageOf(pdf, "CIHPKMARKER"); pe != qa || cihpk != qa+1 {
 		t.Fatalf("wrong PDF role pages: PE=%d QA=%d CIHPK=%d", pe, qa, cihpk)
+	}
+	if page, y := pdfPageOf(pdf, "CIHPK"), pdfTextY(t, pdf, "CIHPK"); page != 2 || y < 800 {
+		t.Fatalf("CIHPK page header missing: page=%d y=%v", page, y)
 	}
 	docx, err := weeklyDOCX("Project Engineer", period, all)
 	if err != nil {
@@ -233,6 +264,23 @@ func pdfPageOf(data []byte, marker string) int {
 	return bytes.Count(data[:position], []byte("/Type /Page\n"))
 }
 
+func pdfTextY(t *testing.T, data []byte, marker string) float64 {
+	t.Helper()
+	position := bytes.Index(data, utf16BE(marker))
+	if position < 0 {
+		t.Fatalf("PDF marker missing: %q", marker)
+	}
+	matches := regexp.MustCompile(`([0-9.]+) ([0-9.]+) Td`).FindAllSubmatch(data[:position], -1)
+	if len(matches) == 0 {
+		t.Fatalf("PDF position missing: %q", marker)
+	}
+	y, err := strconv.ParseFloat(string(matches[len(matches)-1][2]), 64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return y
+}
+
 func docxDocument(t *testing.T, data []byte) []byte {
 	t.Helper()
 	archive, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
@@ -286,7 +334,7 @@ func TestLongDocuments(t *testing.T) {
 	}
 	for _, position := range positions {
 		y, _ := strconv.ParseFloat(string(position[2]), 64)
-		if y < 42 || y > 800 {
+		if y < 42 || y > 825 {
 			t.Fatalf("PDF text outside printable page: %v", y)
 		}
 	}

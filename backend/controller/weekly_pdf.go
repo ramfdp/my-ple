@@ -163,9 +163,18 @@ func weeklyPDFDocument(division string, period model.ReportingPeriod, reports []
 	pdf.AddUTF8FontFromBytes("Report", "B", reportBoldFont)
 	const left, bottom, lineHeight = 15.0, 282.0, 5.0
 	widths := []float64{24, 34, 14, 108}
+	headerLabel := "PE & QA"
+	if len(groups) > 0 && groups[0].Name == "CIHPK" {
+		headerLabel = "CIHPK"
+	}
 	pdf.SetMargins(left, 15, left)
 	pdf.SetAutoPageBreak(false, 15)
 	pdf.SetHeaderFunc(func() {
+		pdf.SetXY(left, 8)
+		pdf.SetTextColor(91, 111, 128)
+		pdf.SetFont("Report", "", 9)
+		pdf.CellFormat(90, 5, "Weekly Report", "", 0, "L", false, 0, "")
+		pdf.CellFormat(90, 5, headerLabel, "", 0, "R", false, 0, "")
 		pdf.SetXY(left, 15)
 		pdf.SetTextColor(16, 42, 67)
 		pdf.SetFont("Report", "B", 16)
@@ -202,6 +211,7 @@ func weeklyPDFDocument(division string, period model.ReportingPeriod, reports []
 		y := pdf.GetY()
 		pdf.Line(left+widths[0], y, left+widths[0]+widths[1], y)
 		drawMergedText(left+widths[0], categoryStart, y, widths[1], activeCategory)
+		pdf.SetXY(left, y)
 		activeCategory = ""
 	}
 	closeRole := func() {
@@ -211,6 +221,7 @@ func weeklyPDFDocument(division string, period model.ReportingPeriod, reports []
 		y := pdf.GetY()
 		pdf.Line(left, y, left+widths[0], y)
 		drawMergedText(left, roleStart, y, widths[0], activeRole)
+		pdf.SetXY(left, y)
 		activeRole = ""
 	}
 	beginRole := func(value string) {
@@ -306,6 +317,7 @@ func weeklyPDFDocument(division string, period model.ReportingPeriod, reports []
 	renderedRole := false
 	for _, role := range groups {
 		if role.Name == "CIHPK" && renderedRole {
+			headerLabel = "CIHPK"
 			pdf.AddPage()
 		}
 		beginRole(role.Name)
