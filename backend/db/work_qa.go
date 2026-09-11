@@ -16,9 +16,6 @@ func (db *Database) WorkspaceQA(ctx context.Context, userID string, division int
 var ErrQARequired = errors.New("Pekerjaan harus divalidasi QA sebelum menjadi Done.")
 
 func validateQATransition(old model.WorkItem, in model.WorkItemInput, checker bool) error {
-	if in.QAOnly && (in.QAStage == "COMPLETE" || in.QAStage == "CHECKING") && !checker {
-		return ErrWorkspaceForbidden
-	}
 	if old.ID == "" {
 		if in.Status != model.WorkTodo || in.QAStage != "" {
 			return ErrWorkspaceInvalid
@@ -28,8 +25,17 @@ func validateQATransition(old model.WorkItem, in model.WorkItemInput, checker bo
 	if old.RequiresQA != in.RequiresQA {
 		return ErrWorkspaceInvalid
 	}
+	if in.QAOnly {
+		if !old.RequiresQA || old.Status != model.WorkInProgress {
+			return ErrWorkspaceForbidden
+		}
+		if (in.Status == model.WorkDone && in.QAStage == "COMPLETE") || (in.Status == model.WorkNeedRevision && in.QAStage == "") {
+			return nil
+		}
+		return ErrWorkspaceInvalid
+	}
 	// Historical Done records are retained, not backfilled with fictitious approvals.
-	if in.Status == model.WorkDone && old.Status != model.WorkDone && old.QAValidatedAt == nil {
+	if old.RequiresQA && in.Status == model.WorkDone && old.Status != model.WorkDone {
 		return ErrQARequired
 	}
 	if in.QAStage == "COMPLETE" && old.QAValidatedAt == nil && old.Status != model.WorkDone {

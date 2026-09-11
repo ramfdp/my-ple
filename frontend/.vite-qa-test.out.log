@@ -1,0 +1,8 @@
+
+> frontend@0.0.1 dev
+> vite dev --host 127.0.0.1 --port 5188
+
+
+  VITE v8.2.2  ready in 1271 ms
+
+  ➜  Local:   http://127.0.0.1:5188/

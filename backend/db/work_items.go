@@ -190,9 +190,6 @@ func recordWorkActivity(ctx context.Context, tx *sql.Tx, id, actor, action, fiel
 }
 func (db *Database) SaveWorkItem(ctx context.Context, userID string, division int, id string, in model.WorkItemInput) (model.WorkItem, error) {
 	var empty model.WorkItem
-	if id == "" {
-		in.RequiresQA = true
-	}
 	assignmentsProvided := in.AssigneeIDs != nil
 	if err := ValidateWorkItem(&in); err != nil {
 		return empty, err
@@ -207,7 +204,7 @@ func (db *Database) SaveWorkItem(ctx context.Context, userID string, division in
 		if err != nil {
 			return empty, err
 		}
-		if old.WorkspaceID != division || (!old.CanEdit && !in.PriorityOnly && !in.AssigneesOnly && !(in.QAOnly && old.CanCheckQA)) {
+		if old.WorkspaceID != division || (!old.CanEdit && !in.PriorityOnly && !in.AssigneesOnly && !in.QAOnly) {
 			return empty, ErrWorkspaceForbidden
 		}
 		if in.PriorityOnly || in.QAOnly || in.AssigneesOnly {
@@ -408,7 +405,7 @@ func (db *Database) ArchiveWorkItem(ctx context.Context, userID, id string, vers
 }
 
 // Stored in the existing feed, with explicit recipients and live membership checks on read.
-func workspaceNotification(ctx context.Context, tx *sql.Tx, id, actor, message string) error {
+func workspaceNotification(ctx context.Context, tx *sql.Tx, id, actor, message string, extraRecipients ...string) error {
 	notificationID := NewID()
 	_, err := tx.ExecContext(ctx, `INSERT INTO notifications(id,type,actor_user_id,entity_type,entity_id,workspace_division_id,data)
  SELECT $1,'workspace_task',$2,'work_item',id,division_id,jsonb_build_object('title',title,'workspaceId',division_id,'message',$4::text) FROM work_items WHERE id=$3`, notificationID, actor, id, message)
@@ -420,6 +417,14 @@ func workspaceNotification(ctx context.Context, tx *sql.Tx, id, actor, message s
  WHERE a.user_id<>$3`, notificationID, id, actor)
 	if err != nil {
 		return err
+	}
+	for _, recipient := range extraRecipients {
+		if recipient == actor {
+			continue
+		}
+		if _, err = tx.ExecContext(ctx, `INSERT INTO notification_recipients(notification_id,user_id) VALUES($1,$2) ON CONFLICT DO NOTHING`, notificationID, recipient); err != nil {
+			return err
+		}
 	}
 	return queueWorkNotificationEmail(ctx, tx, notificationID)
 }
@@ -443,12 +448,29 @@ func (db *Database) WorkComments(ctx context.Context, userID, id string) ([]mode
 	}
 	return items, rows.Err()
 }
-func (db *Database) AddWorkComment(ctx context.Context, userID, id, content string) error {
-	if strings.TrimSpace(content) == "" || len(content) > 4000 {
+func (db *Database) AddWorkComment(ctx context.Context, userID, id, content string, mentionIDs []string) error {
+	if strings.TrimSpace(content) == "" || len(content) > 4000 || len(mentionIDs) > 20 {
 		return ErrWorkspaceInvalid
 	}
-	if _, err := db.WorkItem(ctx, userID, id); err != nil {
+	task, err := db.WorkItem(ctx, userID, id)
+	if err != nil {
 		return err
+	}
+	seen := map[string]bool{}
+	for _, mention := range mentionIDs {
+		if !workspaceUUID(mention) || seen[mention] {
+			return ErrWorkspaceInvalid
+		}
+		seen[mention] = true
+		var name string
+		if err = db.Conn.QueryRowContext(ctx, `SELECT u.name FROM workspace_members m JOIN users u ON u.id=m.user_id WHERE m.division_id=$1 AND m.user_id=$2 AND u.is_active`, task.WorkspaceID, mention).Scan(&name); errors.Is(err, sql.ErrNoRows) {
+			return ErrWorkspaceForbidden
+		} else if err != nil {
+			return err
+		}
+		if !strings.Contains(content, "@"+name) {
+			return ErrWorkspaceInvalid
+		}
 	}
 	tx, err := db.Conn.BeginTx(ctx, nil)
 	if err != nil {
@@ -465,7 +487,7 @@ func (db *Database) AddWorkComment(ctx context.Context, userID, id, content stri
 	if err = recordWorkActivity(ctx, tx, id, userID, "COMMENT", "", nil, "Komentar ditambahkan"); err != nil {
 		return err
 	}
-	if err = workspaceNotification(ctx, tx, id, userID, "Komentar baru"); err != nil {
+	if err = workspaceNotification(ctx, tx, id, userID, "Komentar baru", mentionIDs...); err != nil {
 		return err
 	}
 	return tx.Commit()

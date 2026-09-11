@@ -49,9 +49,10 @@ await context.route('**/*',async route=>{
   const body=route.request().postDataJSON();mutations.push({path:u.pathname,body});
   task.version++;
   if(body.assigneeIds)task.assignees=[member,colleague].filter(m=>body.assigneeIds.includes(m.id));
-  if(body.qaStage)Object.assign(task,{qaStage:body.qaStage,qaValidatedAt:now,qaValidatedBy:'u1',qaValidatedByName:long});
+  if(body.decision)Object.assign(task,{status:body.decision,qaStage:body.decision==='DONE'?'COMPLETE':'',qaValidatedAt:body.decision==='DONE'?now:null,qaValidatedBy:body.decision==='DONE'?'u1':null,qaValidatedByName:body.decision==='DONE'?long:''});
   return route.fulfill({contentType:'application/json',body:JSON.stringify({task}),headers:{'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Credentials':'true'}});
  }
+ if(route.request().method()==='POST'&&u.pathname==='/work-items/t1/comments'){mutations.push({path:u.pathname,body:route.request().postDataJSON()});return route.fulfill({status:204,headers:{'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Credentials':'true'}})}
  if(u.pathname==='/reports/r1'&&['PATCH','PUT'].includes(route.request().method()))return route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({error:'Laporan sudah berubah',code:'report_conflict',report}),headers:{'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Credentials':'true'}});
  const value=u.pathname==='/workspaces/1/tasks'?{tasks:fixtures[u.pathname].tasks.slice(Number(u.searchParams.get('offset')??0),Number(u.searchParams.get('offset')??0)+Number(u.searchParams.get('limit')??100)),total:fixtures[u.pathname].total}:u.pathname==='/reports'&&route.request().method()==='POST'?{report}:fixtures[u.pathname];
  if(!value&&u.pathname!=='/auth/me')missing.add(u.pathname);
@@ -65,6 +66,10 @@ try {
  assert.equal(await page.locator('.ws-comment a').getAttribute('href'),'https://example.test/a');
  assert.equal(await page.locator('.ws-comment a').getAttribute('rel'),'noopener noreferrer');
  assert.equal(await page.locator('.ws-comment script').count(),0);
+ await page.getByLabel('Komentar baru').fill('@Re');
+ await page.getByRole('button',{name:'@Rekan Divisi',exact:true}).click();
+ await page.getByRole('button',{name:'Kirim Komentar',exact:true}).click();
+ assert.deepEqual(mutations.at(-1),{path:'/work-items/t1/comments',body:{content:'@Rekan Divisi ',mentionIds:['u2']}});
  await page.getByLabel('Tutup detail').click();
  assert.equal(await page.getByRole('link',{name:'Kembali ke Dashboard'}).getAttribute('href'),'/dashboard');
  const connected=sockets.length;
@@ -90,11 +95,13 @@ try {
  await page.keyboard.press('Escape');
  assert.equal(await page.locator('dialog[open]').count(),0);
  await page.getByRole('button',{name:'+ Tambah Pekerjaan',exact:true}).click();
- await page.getByText('Validasi QA diperlukan sebelum Done.',{exact:true}).waitFor();
+ assert.equal(await page.getByLabel('Butuh validasi QA sebelum pekerjaan dapat diselesaikan').isChecked(),false);
  assert.equal(await page.getByRole('dialog').getByRole('combobox',{name:/^Status/}).inputValue(),'TODO');
  await page.getByLabel('Tutup detail').click();
- task.canEdit=false;
+ task.canEdit=false;task.canCheckQa=false;
  await page.goto(origin+'/workspace/1?task=t1');
+ assert.equal(await page.getByRole('button',{name:'Validasi QA',exact:true}).isEnabled(),true);
+ task.canCheckQa=true;
  const peer=await context.newPage();peer.on('pageerror',e=>errors.push(e.message));
  await peer.goto(origin+'/workspace/1?task=t1');
  await peer.getByRole('dialog',{name:'Detail Pekerjaan',exact:true}).waitFor();
@@ -106,8 +113,11 @@ try {
  for(const ws of sockets)try{ws.send(JSON.stringify({event:'workspace.changed',workspaceId:1,entityId:'t1',revision:task.version}))}catch{}
  await peer.waitForFunction(()=>Array.from(document.querySelectorAll('dialog[open] input[type=checkbox]')).some(el=>el.value==='u2'&&el.checked));
  await page.getByRole('button',{name:'Validasi QA',exact:true}).click();
+ const validation=page.getByRole('dialog',{name:'Validasi QA',exact:true});
+ await validation.getByRole('combobox').selectOption('DONE');
+ await validation.getByRole('button',{name:'Simpan Validasi',exact:true}).click();
  await page.getByText('QA Validated',{exact:true}).waitFor();
- assert.equal(task.status,'IN_PROGRESS');
+ assert.equal(task.status,'DONE');
  assert.ok(task.qaValidatedAt);
  for(const ws of sockets)try{ws.send(JSON.stringify({event:'workspace.changed',workspaceId:1,entityId:'t1',revision:task.version}))}catch{}
  await peer.getByText('QA Validated',{exact:true}).waitFor();
@@ -118,8 +128,16 @@ try {
   await page.getByRole('button',{name:view,exact:true}).click();
   await page.getByRole('button',{name:long,exact:true}).first().click();
   await page.getByRole('dialog',{name:'Detail Pekerjaan',exact:true}).getByText('QA Validated',{exact:true}).waitFor();
-  await page.getByLabel('Tutup detail').click();
+ await page.getByLabel('Tutup detail').click();
  }
+ Object.assign(task,{status:'IN_PROGRESS',qaStage:'',qaValidatedAt:null,qaValidatedBy:null,qaValidatedByName:''});
+ await page.goto(origin+'/workspace/1?task=t1');
+ await page.getByRole('button',{name:'Validasi QA',exact:true}).click();
+ await page.getByRole('dialog',{name:'Validasi QA',exact:true}).getByRole('combobox').selectOption('NEED_REVISION');
+ await page.getByRole('button',{name:'Simpan Validasi',exact:true}).click();
+ assert.equal(task.status,'NEED_REVISION');
+ await page.getByLabel('Tutup detail').click();
+ Object.assign(task,{status:'IN_PROGRESS',qaStage:'',qaValidatedAt:null,qaValidatedBy:null,qaValidatedByName:''});
  for(const width of [1280,390]){
   await page.setViewportSize({width,height:740});
   await page.goto(origin+'/workspace/1');

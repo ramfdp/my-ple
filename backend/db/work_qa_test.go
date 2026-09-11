@@ -41,3 +41,23 @@ func TestQATransitions(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestOptionalQAAllowsDirectCompletion(t *testing.T) {
+	old := model.WorkItem{ID: "task", Status: model.WorkInProgress}
+	in := model.WorkItemInput{Status: model.WorkDone}
+	if err := validateQATransition(old, in, false); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestQADecisionCompletesOrRevisesTask(t *testing.T) {
+	old := model.WorkItem{ID: "task", RequiresQA: true, Status: model.WorkInProgress}
+	for _, in := range []model.WorkItemInput{
+		{RequiresQA: true, Status: model.WorkDone, QAStage: "COMPLETE", QAOnly: true},
+		{RequiresQA: true, Status: model.WorkNeedRevision, QAOnly: true},
+	} {
+		if err := validateQATransition(old, in, false); err != nil {
+			t.Fatal(err)
+		}
+	}
+}

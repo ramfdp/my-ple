@@ -352,13 +352,21 @@ func (c *WorkspaceController) task(w http.ResponseWriter, r *http.Request, userI
 			in.AssigneesOnly = true
 		} else {
 			var patch struct {
-				Stage   string `json:"qaStage"`
-				Version int    `json:"version"`
+				Decision string `json:"decision"`
+				Version  int    `json:"version"`
 			}
 			if !DecodeStrictJSON(w, r, &patch) {
 				return
 			}
-			in.QAStage = patch.Stage
+			switch patch.Decision {
+			case model.WorkDone:
+				in.Status, in.QAStage = model.WorkDone, "COMPLETE"
+			case model.WorkNeedRevision:
+				in.Status, in.QAStage = model.WorkNeedRevision, ""
+			default:
+				workspaceError(w, db.ErrWorkspaceInvalid)
+				return
+			}
 			in.Version = patch.Version
 			in.QAOnly = true
 		}
@@ -383,12 +391,13 @@ func (c *WorkspaceController) task(w http.ResponseWriter, r *http.Request, userI
 		}
 		if r.Method == "POST" {
 			var in struct {
-				Content string `json:"content"`
+				Content    string   `json:"content"`
+				MentionIDs []string `json:"mentionIds"`
 			}
 			if !DecodeStrictJSON(w, r, &in) {
 				return
 			}
-			if e := c.DB.AddWorkComment(r.Context(), userID, t.ID, in.Content); e != nil {
+			if e := c.DB.AddWorkComment(r.Context(), userID, t.ID, in.Content, in.MentionIDs); e != nil {
 				workspaceError(w, e)
 				return
 			}

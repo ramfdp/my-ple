@@ -6,3 +6,4 @@
 @media(max-width:640px){.ws-timeline{--ws-label-width:160px}}
 
 .ws-comment-form{display:flex;flex-direction:column;gap:12px;margin-top:16px;min-width:0}.ws-comment-form textarea{width:100%;max-width:100%;box-sizing:border-box;min-height:96px;resize:vertical}.ws-comment-form button{align-self:flex-start;max-width:100%;min-height:44px}
+.workspace-page .ws-check{flex-direction:row;align-items:center}.workspace-page .ws-check input{width:18px;height:18px}.ws-mentions{list-style:none;margin:-8px 0 0;padding:6px;border:1px solid #cbd5e1;border-radius:7px;max-height:220px;overflow:auto}.ws-mentions li+li{margin-top:4px}.workspace-page .ws-mentions button{width:100%;text-align:left;border:0}.ws-qa-dialog{width:min(420px,calc(100vw - 32px))}.ws-qa-dialog form{display:grid;gap:18px}

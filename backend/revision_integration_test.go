@@ -278,6 +278,10 @@ func TestRevisionIntegration(t *testing.T) {
 		if assignmentCount() != 1 {
 			t.Fatal("single assignment")
 		}
+		status, _ := request(manager, "POST", path+"/comments", map[string]any{"content": "@Test Project Engineer please review", "mentionIds": []string{qa.id}})
+		if status != 204 || count(`SELECT count(*) FROM notifications n JOIN notification_recipients r ON r.notification_id=n.id WHERE n.entity_id=$1 AND n.type='workspace_task' AND r.user_id=$2`, task.ID, qa.id) != 1 || count(`SELECT count(*) FROM zoom_booking_email_deliveries WHERE work_item_id=$1 AND recipient_user_id=$2 AND notification_type='workspace_task'`, task.ID, qa.id) != 1 {
+			t.Fatal("mention notification/email missing", status)
+		}
 		// A non-editor division member can assign, without gaining other edit rights.
 		for _, body := range []map[string]any{
 			{"version": task.Version, "assigneeIds": []string{outsider.id}},
@@ -334,24 +338,14 @@ func TestRevisionIntegration(t *testing.T) {
 		if s != 400 {
 			t.Fatal("QA bypass", s)
 		}
-		task = mustTask(pe, "PATCH", path+"/qa", map[string]any{"version": task.Version, "qaStage": "WAITING"})
-		s, _ = request(pe, "PATCH", path+"/qa", map[string]any{"version": task.Version, "qaStage": "CHECKING"})
-		if s != 403 {
-			t.Fatal("PE checking", s)
-		}
-		task = mustTask(qa, "PATCH", path+"/qa", map[string]any{"version": task.Version, "qaStage": "CHECKING"})
-		task = mustTask(qa, "PATCH", path+"/qa", map[string]any{"version": task.Version, "qaStage": "COMPLETE"})
-		if task.Status != "IN_PROGRESS" || task.QAStage != "COMPLETE" {
+		task = mustTask(pe, "PATCH", path+"/qa", map[string]any{"version": task.Version, "decision": "DONE"})
+		if task.Status != "DONE" || task.QAStage != "COMPLETE" {
 			t.Fatal("QA incomplete")
 		}
 		var validator string
 		var validatedAt time.Time
-		if e := conn.QueryRow(`SELECT qa_validated_by,qa_validated_at FROM work_items WHERE id=$1`, task.ID).Scan(&validator, &validatedAt); e != nil || validator != qa.id || validatedAt.IsZero() {
+		if e := conn.QueryRow(`SELECT qa_validated_by,qa_validated_at FROM work_items WHERE id=$1`, task.ID).Scan(&validator, &validatedAt); e != nil || validator != pe.id || validatedAt.IsZero() {
 			t.Fatal("QA validation audit missing", e)
-		}
-		task = mustTask(pe, "PATCH", path, map[string]any{"version": task.Version, "status": "DONE"})
-		if task.Status != "DONE" {
-			t.Fatal("validated task cannot finish")
 		}
 		if count(`SELECT count(*) FROM work_items WHERE id=$1`, task.ID) != 1 {
 			t.Fatal("duplicate QA task")
@@ -398,38 +392,13 @@ func TestRevisionIntegration(t *testing.T) {
 		}
 	})
 
-	t.Run("every active task requires audited QA validation", func(t *testing.T) {
-		task := mustTask(member, "POST", fmt.Sprintf("/workspaces/%d/tasks", division), map[string]any{"title": "QA required for completion", "assigneeIds": []string{pe.id}, "requiresQa": false})
+	t.Run("QA validation is optional per task", func(t *testing.T) {
+		task := mustTask(member, "POST", fmt.Sprintf("/workspaces/%d/tasks", division), map[string]any{"title": "No QA required", "assigneeIds": []string{pe.id}, "requiresQa": false})
 		path := "/work-items/" + task.ID
 		task = mustTask(member, "PATCH", path, map[string]any{"version": task.Version, "status": "IN_PROGRESS"})
-		status, body := request(member, "PATCH", path, map[string]any{"version": task.Version, "status": "DONE"})
-		if status != 400 || len(body["error"]) == 0 {
-			t.Fatal("unchecked task reached DONE", status)
-		}
-		status, _ = request(member, "PATCH", path+"/qa", map[string]any{"version": task.Version, "qaStage": "COMPLETE"})
-		if status != 403 {
-			t.Fatal("non-QA validation", status)
-		}
-		status, _ = request(qa, "PATCH", path+"/qa", map[string]any{"version": task.Version, "qaStage": "COMPLETE", "qaValidatedBy": member.id})
-		if status != 400 {
-			t.Fatal("client supplied validator accepted", status)
-		}
-		task = mustTask(qa, "PATCH", path+"/qa", map[string]any{"version": task.Version, "qaStage": "COMPLETE"})
-		if task.Status != "IN_PROGRESS" {
-			t.Fatal("validation silently completed work")
-		}
-		status, response := request(member, "GET", path, nil)
-		var audit struct {
-			At   *time.Time `json:"qaValidatedAt"`
-			By   *string    `json:"qaValidatedBy"`
-			Name string     `json:"qaValidatedByName"`
-		}
-		if err := json.Unmarshal(response["task"], &audit); err != nil || status != 200 || audit.At == nil || audit.By == nil || *audit.By != qa.id || audit.Name == "" {
-			t.Fatal("validation audit missing from detail", status, err)
-		}
 		task = mustTask(member, "PATCH", path, map[string]any{"version": task.Version, "status": "DONE"})
 		if task.Status != "DONE" {
-			t.Fatal("validated completion failed")
+			t.Fatal("optional QA task cannot finish")
 		}
 	})
 
@@ -601,13 +570,13 @@ func TestRevisionIntegration(t *testing.T) {
 		task = mustTask(pe, "PATCH", path, map[string]any{"version": task.Version, "status": "IN_PROGRESS"})
 		awaitChange(inside, task)
 		awaitChange(second, task)
-		task = mustTask(qa, "PATCH", path+"/qa", map[string]any{"version": task.Version, "qaStage": "COMPLETE"})
+		task = mustTask(pe, "PATCH", path+"/qa", map[string]any{"version": task.Version, "decision": "DONE"})
 		awaitChange(inside, task)
 		awaitChange(second, task)
 		status, response := request(pe, "GET", path, nil)
 		var fresh map[string]json.RawMessage
 		_ = json.Unmarshal(response["task"], &fresh)
-		if status != 200 || string(fresh["qaValidatedBy"]) != fmt.Sprintf("%q", qa.id) {
+		if status != 200 || string(fresh["qaValidatedBy"]) != fmt.Sprintf("%q", pe.id) {
 			t.Fatal("peer cannot read committed validation")
 		}
 		s, _ := request(pe, "POST", "/auth/logout", nil)
