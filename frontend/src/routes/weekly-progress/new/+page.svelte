@@ -3,6 +3,7 @@
 	import JobPicker from '$lib/components/JobPicker.svelte';
 	import ToastNotification from '$lib/components/ToastNotification.svelte';
 	import { api, type Job, type Report, type ReportInput, type ReportingPeriod } from '$lib/api';
+	import { capitalizeReportDescription } from '$lib/utils/report-table';
 
 	let division=$state('Project Engineer'), selected=$state<Job|null>(null), jobsBusy=$state(true), description=$state(''), error=$state(''), submitting=$state(false);
 	let mounted = $state(false), readOnly = $state(true), checking = $state(true);
@@ -40,7 +41,7 @@
 	<form class="report-form" onsubmit={saveReport}>
 		{#if checking}<p role="status">Memeriksa periode laporan…</p>{:else if readOnly}<p role="status">Periode ditutup. Input baru dibuka Selasa 00:00 WIB setelah arsip periode sebelumnya aman. <a href="/weekly-progress/history">Lihat riwayat</a></p>{/if}
 		<JobPicker bind:division bind:selected bind:busy={jobsBusy} />
-		<label>Uraian pekerjaan yang dilakukan<textarea bind:this={descriptionInput} bind:value={description} disabled={submitting} rows="8" required></textarea></label>
+		<label>Uraian pekerjaan yang dilakukan<textarea bind:this={descriptionInput} bind:value={description} oninput={()=>description=capitalizeReportDescription(description)} disabled={submitting} rows="8" required></textarea></label>
 		{#if error}<p class="demo-note">{error}</p>{/if}<button class="report-submit" type="submit" disabled={submitting || readOnly || checking || jobsBusy || !selected}>{submitting ? 'Menyimpan…' : 'Simpan laporan'}</button>
 	</form>
 </div></main>

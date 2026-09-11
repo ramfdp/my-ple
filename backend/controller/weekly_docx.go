@@ -73,7 +73,7 @@ func weeklyDOCX(division string, period model.ReportingPeriod, reports []model.W
 			if header {
 				color = "FFFFFF"
 			}
-			fmt.Fprintf(&document, `<w:tc><w:tcPr><w:tcW w:w="%d" w:type="dxa"/>%s%s%s<w:vAlign w:val="center"/></w:tcPr>%s</w:tc>`, size, span, merge, shading, paragraph(value, header || group, header || (!group && i < 3), color))
+			fmt.Fprintf(&document, `<w:tc><w:tcPr><w:tcW w:w="%d" w:type="dxa"/>%s%s%s<w:vAlign w:val="center"/></w:tcPr>%s</w:tc>`, size, span, merge, shading, paragraph(value, header || group, header || i < 2 || (!group && i == 2), color))
 		}
 		document.WriteString("</w:tr>")
 	}
@@ -110,7 +110,10 @@ func weeklyDOCX(division string, period model.ReportingPeriod, reports []model.W
 		finalHeaderID = "rId3"
 	}
 	fmt.Fprintf(&document, `</w:tbl><w:p/><w:sectPr><w:headerReference w:type="default" r:id="%s"/><w:footerReference w:type="default" r:id="rId2"/><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="2400" w:right="850" w:bottom="850" w:left="850" w:header="425" w:footer="425" w:gutter="0"/></w:sectPr></w:body></w:document>`, finalHeaderID)
-	headerLabel := "PE & QA"
+	headerLabel := division
+	if division == "Project Engineer" {
+		headerLabel = "PE & QA"
+	}
 	if len(groups) > 0 && groups[0].Name == "CIHPK" {
 		headerLabel = "CIHPK"
 	}

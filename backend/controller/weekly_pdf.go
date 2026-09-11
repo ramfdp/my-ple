@@ -163,7 +163,10 @@ func weeklyPDFDocument(division string, period model.ReportingPeriod, reports []
 	pdf.AddUTF8FontFromBytes("Report", "B", reportBoldFont)
 	const left, bottom, lineHeight = 15.0, 282.0, 5.0
 	widths := []float64{24, 34, 14, 108}
-	headerLabel := "PE & QA"
+	headerLabel := division
+	if division == "Project Engineer" {
+		headerLabel = "PE & QA"
+	}
 	if len(groups) > 0 && groups[0].Name == "CIHPK" {
 		headerLabel = "CIHPK"
 	}
@@ -203,12 +206,20 @@ func weeklyPDFDocument(division string, period model.ReportingPeriod, reports []
 	activeRole, activeCategory := "", ""
 	roleStart, categoryStart := pdf.GetY(), pdf.GetY()
 	drawMergedText := func(x, start, end, width float64, value string) {
+		fontSize, mergedLineHeight := 9.0, lineHeight
+		pdf.SetFont("Report", "", fontSize)
 		lines := pdf.SplitText(value, width-4)
-		y := start + max(2, (end-start-float64(len(lines))*lineHeight)/2)
+		for fontSize > 5 && float64(len(lines))*mergedLineHeight > end-start-2 {
+			fontSize--
+			mergedLineHeight = fontSize / 2
+			pdf.SetFont("Report", "", fontSize)
+			lines = pdf.SplitText(value, width-4)
+		}
+		y := start + max(1, (end-start-float64(len(lines))*mergedLineHeight)/2)
 		for _, line := range lines {
 			pdf.SetXY(x+2, y)
-			pdf.CellFormat(width-4, lineHeight, line, "", 0, "C", false, 0, "")
-			y += lineHeight
+			pdf.CellFormat(width-4, mergedLineHeight, line, "", 0, "C", false, 0, "")
+			y += mergedLineHeight
 		}
 	}
 	closeCategory := func() {

@@ -5,7 +5,7 @@
 	import {subscribeChanges} from '$lib/realtime';
 	import JobPicker from '$lib/components/JobPicker.svelte';
 	import type { Job } from '$lib/api';
-	import { canModifyReport, groupReports } from '$lib/utils/report-table';
+	import { canModifyReport, capitalizeReportDescription, groupReports } from '$lib/utils/report-table';
 
 	const divisions = ['Project Engineer', 'AI Dev', 'Keuangan', 'Business Development', 'HR', 'PMO'];
 	let selectedDivision = $state<number | null>(null);
@@ -129,7 +129,7 @@
 				{#if period?.readOnly}<p role="status" class="report-period">{period.status === 'finalized' ? 'Finalized' : 'Periode ditutup — arsip diproses'} — hanya baca. Laporan tetap tersedia selama Senin. Reset mulai Selasa 00:00 WIB setelah arsip dan PDF berhasil disimpan.</p>{/if}
 				<div class="task-list-header"><div><h2 id="task-title">Pekerjaan yang sudah dilakukan</h2><p>Daftar pekerjaan pada minggu berjalan.</p>{#if period}<p class="report-period">Periode: {period.label}</p>{/if}</div><div class="task-list-actions"><p class="selected-division">{divisions[selectedDivision]}</p><div class="report-actions"><button class="report-button export-button" type="button" disabled={reports.length === 0 || exporting || loading} onclick={() => {exportError='';exportDialog.showModal()}}>Export</button>{#if !period?.readOnly}<a class="report-button" href={`/weekly-progress/new?division=${encodeURIComponent(divisions[selectedDivision])}`}>+ Input laporan</a>{/if}</div></div></div>
 				<div class="work-table-wrap">
-					<table class="work-table current-report-table">
+					<table class="work-table current-report-table" class:other-division-table={divisions[selectedDivision] !== 'Project Engineer'}>
 						<thead><tr><th scope="col">Role</th><th scope="col">Kategori</th><th scope="col">No.</th><th scope="col">Pekerjaan yang dilakukan</th><th scope="col">Aksi</th></tr></thead>
 						<tbody>
 							{#if loading}<tr><td colspan="5">Memuat laporan…</td></tr>
@@ -139,7 +139,7 @@
 									<tr class="work-group-row">
 										{#if row.role}<td rowspan={row.roleRowSpan ?? 1} class="task-role">{row.role}</td>{/if}
 										{#if row.category}<td rowspan={row.categoryRowSpan ?? 1} class="task-category">{row.category}</td>{/if}
-										<td colspan="2" class="task-work-title"><div class="job-heading"><span>{row.work}</span>{#if row.pics?.length}<small>PIC: {row.pics.map(pic=>pic.name+(pic.isActive?'':' (Nonaktif)')).join(', ')}</small>{/if}</div></td><td class="task-actions"></td>
+										<td colspan="2" class="task-work-title" data-role={row.roleLabel} data-category={row.categoryLabel}><div class="job-heading"><span>{row.work}</span>{#if row.pics?.length}<small>PIC: {row.pics.map(pic=>pic.name+(pic.isActive?'':' (Nonaktif)')).join(', ')}</small>{/if}</div></td><td class="task-actions"></td>
 									</tr>
 								{:else}
 									<tr><td class="task-number">{row.displayNumber}</td><td class="task-description">{row.report.description}</td><td class="task-actions">{#if !period?.readOnly && canModifyReport($currentUser, row.report.userId)}<div class="report-row-actions"><button class="edit-report" type="button" onclick={() => { latest=null;remoteDeleted=false;editing = row.report; pickerReport=row.report; editDescription = row.report.description; }}>Edit</button><button class="delete-report" type="button" onclick={() => (deleting = row.report)}>Hapus</button></div>{:else}<span class="no-actions">—</span>{/if}</td></tr>
@@ -168,7 +168,7 @@
 			<div class="report-drawer-header"><h2 id="edit-report-title">Edit laporan</h2><button class="drawer-close" type="button" aria-label="Tutup" onclick={() => (editing = null)}>×</button></div>
 			<form class="report-form report-drawer-form" onsubmit={(event) => { event.preventDefault(); void saveEdit(); }}>
 				{#key pickerReport}<JobPicker division={editing.primaryDivision} existing={pickerReport??editing} fixedDivision bind:selected={editJob} bind:busy={jobsBusy} />{/key}
-				<label>Uraian pekerjaan yang dilakukan<textarea bind:value={editDescription} rows="8" required></textarea></label>
+				<label>Uraian pekerjaan yang dilakukan<textarea bind:value={editDescription} oninput={()=>editDescription=capitalizeReportDescription(editDescription)} rows="8" required></textarea></label>
 				{#if latest}<section role="status"><p>Data server berubah (versi {latest.version}). Draf Anda tetap tersedia di atas.</p><p>Pekerjaan terbaru: {latest.work} · {latest.role} · {latest.workDivision}</p><p class="task-description">{latest.description}</p><button type="button" onclick={()=>{if(!latest||!editing)return;const descriptionChanged=editDescription!==editing.description;const jobChanged=editJob?.id!==editing.jobId; if(!descriptionChanged)editDescription=latest.description;if(!jobChanged)pickerReport=latest;editing=latest;latest=null;error=''}}>Sudah dibandingkan — gunakan versi terbaru sebagai dasar draf</button><button type="button" onclick={()=>{if(!latest)return;editDescription=latest.description;pickerReport=latest;editing=latest;latest=null;error=''}}>Gunakan data server</button></section>{/if}
 				{#if remoteDeleted}<p role="alert">Laporan ini sudah dihapus atau diarsipkan. Draf Anda tetap tersedia untuk disalin.</p>{/if}
 				{#if error}<p role="alert">{error}</p>{/if}

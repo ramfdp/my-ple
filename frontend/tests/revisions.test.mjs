@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {commentLinks} from '../src/lib/utils/comment-links.ts';
-import {groupReports} from '../src/lib/utils/report-table.ts';
+import {capitalizeReportDescription,groupReports} from '../src/lib/utils/report-table.ts';
 import {subscribeChanges} from '../src/lib/realtime.ts';
 
 test('weekly preview flattens the shared server hierarchy into one table',()=>{
@@ -17,6 +17,13 @@ test('weekly preview flattens the shared server hierarchy into one table',()=>{
  ]);
  assert.deepEqual(rows.filter(r=>r.type==='report').map(r=>[r.report.id,r.displayNumber]),[['a',1],['b',2],['q',1],['c',1]]);
  assert.equal(rows.length,7);
+});
+
+test('weekly descriptions capitalize the first letter of every line and bullet',()=>{
+ assert.equal(
+  capitalizeReportDescription('halo\n\n  halo\n- halo\n  - halo'),
+  'Halo\n\n  Halo\n- Halo\n  - Halo'
+ );
 });
 
 test('comment linkification retains text and only activates safe schemes',()=>{

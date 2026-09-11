@@ -111,7 +111,7 @@
 .work-table td { box-sizing: border-box; padding: 14px; border-top: 1px solid var(--his-border); color: var(--his-text); line-height: 1.55; text-align: center; vertical-align: middle; }
 .work-table .task-role, .work-table .task-category { color: var(--his-primary); font-weight: 800; }
 .work-table .task-number { border-inline: 1px solid var(--his-border); font-weight: 800; }
-.work-table .task-description { text-align: left; }
+.work-table .task-description { text-align: left; white-space: pre-wrap; }
 .work-table .task-actions { padding-inline: 12px; }
 .report-row-actions { display: grid; gap: 7px; }
 .report-row-actions button { min-height: 34px; border: 1px solid transparent; border-radius: 8px; font: inherit; font-size: 0.78rem; font-weight: 800; cursor: pointer; transition: background 160ms ease, border-color 160ms ease, transform 160ms ease; }
@@ -128,6 +128,16 @@
 .current-report-table th:nth-child(3) { width: 7%; }
 .current-report-table th:nth-child(4) { width: 48%; }
 .current-report-table th:nth-child(5) { width: 15%; }
+.other-division-table th:nth-child(1) { width: 20%; }
+.other-division-table th:nth-child(2) { width: 20%; }
+.other-division-table th:nth-child(3) { width: 7%; }
+.other-division-table th:nth-child(4) { width: 38%; }
+.other-division-table th:nth-child(5) { width: 15%; }
+.other-division-table td { padding-block: 16px; }
+.other-division-table .task-role,
+.other-division-table .task-category { padding-inline: 18px; line-height: 1.45; }
+.other-division-table .task-work-title { padding: 13px 16px; border-top: 2px solid var(--his-border); }
+.other-division-table .task-description { padding: 14px 16px 18px; }
 .history-row-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .work-table tbody tr:nth-child(even) { background: var(--his-surface); }
 .work-table tbody tr:hover { background: var(--his-primary-soft); }
@@ -174,6 +184,20 @@
 	.report-actions { justify-content: flex-start; }
 	.selected-division { text-align: left; }
 	.work-table-wrap { margin-top: 20px; }
+	.current-report-table { min-width: 0; font-size: .78rem; }
+	.current-report-table th:nth-child(-n+2),
+	.current-report-table .task-role,
+	.current-report-table .task-category { display: none; }
+	.current-report-table th:nth-child(3) { width: 12%; }
+	.current-report-table th:nth-child(4) { width: 63%; }
+	.current-report-table th:nth-child(5) { width: 25%; }
+	.current-report-table th,
+	.current-report-table td { padding: 9px 7px; }
+	.current-report-table .task-work-title::before { display: block; margin-bottom: 4px; color: var(--his-muted); content: attr(data-role) ' · ' attr(data-category); font-size: .68rem; font-weight: 700; }
+	.current-report-table .report-row-actions button { min-height: 30px; padding-inline: 5px; }
+	.other-division-table td,
+	.other-division-table .task-description,
+	.other-division-table .task-work-title { padding: 10px 8px; }
 	.report-drawer { padding: 20px; }
 	.report-delete-modal { width: min(calc(100% - 32px), 420px); padding: 22px; }
 }

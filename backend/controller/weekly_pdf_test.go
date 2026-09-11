@@ -166,6 +166,42 @@ func TestDocumentsGroupRepeatedRoleCategoryAndJobLabels(t *testing.T) {
 	}
 }
 
+func TestDOCXCentersRoleAndCategoryCells(t *testing.T) {
+	docx, err := weeklyDOCX("AI Dev", model.ReportingPeriod{Label: "Test"}, []model.WeeklyReport{{ID: "x", Role: "AI Engineer", WorkDivision: "Model Development", Work: "Task", Description: "Progress"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	document := docxDocument(t, docx)
+	if !bytes.Contains(docxPart(t, docx, "word/header.xml"), []byte("AI Dev")) {
+		t.Fatal("DOCX header does not identify the exported division")
+	}
+	for _, marker := range []string{"AI Engineer", "Model Development"} {
+		position := bytes.Index(document, []byte(">"+marker+"<"))
+		start := bytes.LastIndex(document[:position], []byte("<w:tc>"))
+		end := position + bytes.Index(document[position:], []byte("</w:tc>"))
+		if position < 0 || start < 0 || end < position || !bytes.Contains(document[start:end], []byte(`<w:jc w:val="center"/>`)) {
+			t.Fatalf("DOCX cell %q is not centered", marker)
+		}
+	}
+}
+
+func TestNonProjectEngineerExportsUseDivisionAsRoleAndHeader(t *testing.T) {
+	for _, division := range []string{"AI Dev", "Keuangan", "Business Development", "HR", "PMO"} {
+		reports := []model.WeeklyReport{{ID: division, PrimaryDivision: division, WorkDivision: "Pelaporan", Work: "Pekerjaan", Description: "PROGRESS"}}
+		pdf, err := weeklyPDFDocument(division, model.ReportingPeriod{Label: "Test"}, reports, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		docx, err := weeklyDOCX(division, model.ReportingPeriod{Label: "Test"}, reports)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Contains(pdf, utf16BE(division)) || !bytes.Contains(docxDocument(t, docx), []byte(division)) || !bytes.Contains(docxPart(t, docx, "word/header.xml"), []byte(division)) {
+			t.Fatalf("%s is missing from its PDF/DOCX role or header", division)
+		}
+	}
+}
+
 func TestExportGroupsRequiredHierarchy(t *testing.T) {
 	jobA, jobB, pit, sgr := 1, 2, 3, 4
 	picsA := model.JobPICs{{UserID: "u1", Name: "mingse", IsActive: true}, {UserID: "u2", Name: "nasfa", IsActive: true}}

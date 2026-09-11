@@ -84,6 +84,9 @@ func CanonicalWeeklyRoleCategory(role, category string) (string, string) {
 }
 
 func NormalizeWeeklyReport(report *WeeklyReport) {
+	if strings.TrimSpace(report.Role) == "" {
+		report.Role = report.PrimaryDivision
+	}
 	report.Role, report.WorkDivision = CanonicalWeeklyRoleCategory(report.Role, report.WorkDivision)
 	if report.Role == "CIHPK" {
 		switch report.Work {

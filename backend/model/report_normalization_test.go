@@ -33,3 +33,13 @@ func TestNormalizeWeeklyStorageKeys(t *testing.T) {
 		}
 	}
 }
+
+func TestNormalizeWeeklyReportUsesDivisionWhenRoleIsEmpty(t *testing.T) {
+	for _, division := range []string{"AI Dev", "Keuangan", "Business Development", "HR", "PMO"} {
+		report := WeeklyReport{PrimaryDivision: division, WorkDivision: "Pelaporan"}
+		NormalizeWeeklyReport(&report)
+		if report.Role != division {
+			t.Fatalf("%s role = %q", division, report.Role)
+		}
+	}
+}
