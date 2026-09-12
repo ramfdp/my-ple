@@ -72,7 +72,7 @@ const workJSON = `jsonb_build_object('id',t.id,'workspaceId',t.division_id,'jobI
  'requiresQa',t.requires_qa,'qaStage',t.qa_stage,
  'qaValidatedAt',t.qa_validated_at,'qaValidatedBy',t.qa_validated_by,'qaValidatedByName',COALESCE((SELECT name FROM users WHERE id=t.qa_validated_by),''),
  'title',t.title,'description',t.description,'relatedUrl',t.related_url,'startDate',COALESCE(t.start_date::text,''),'dueDate',COALESCE(t.due_date::text,''),
- 'status',t.status,'priority',t.priority,'createdBy',t.created_by,'createdAt',t.created_at,'updatedAt',t.updated_at,'version',t.version,
+ 'status',t.status,'priority',t.priority,'createdBy',COALESCE(t.created_by::text,''),'createdAt',t.created_at,'updatedAt',t.updated_at,'version',t.version,
  'assignees',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',u.id,'name',u.name,'avatarUrl',u.avatar_url) ORDER BY u.name,u.id)
  FROM work_item_assignees a JOIN users u ON u.id=a.user_id WHERE a.work_item_id=t.id),'[]'),
  'commentCount',(SELECT count(*) FROM work_item_comments c WHERE c.work_item_id=t.id))`
@@ -433,7 +433,7 @@ func (db *Database) WorkComments(ctx context.Context, userID, id string) ([]mode
 	if _, err := db.WorkItem(ctx, userID, id); err != nil {
 		return nil, err
 	}
-	rows, err := db.Conn.QueryContext(ctx, `SELECT c.id,c.user_id,u.name,c.content,c.created_at FROM work_item_comments c JOIN users u ON u.id=c.user_id WHERE c.work_item_id=$1 ORDER BY c.created_at,c.id`, id)
+	rows, err := db.Conn.QueryContext(ctx, `SELECT c.id,COALESCE(c.user_id::text,''),COALESCE(u.name,''),c.content,c.created_at FROM work_item_comments c LEFT JOIN users u ON u.id=c.user_id WHERE c.work_item_id=$1 ORDER BY c.created_at,c.id`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -505,8 +505,8 @@ func (db *Database) WorkActivity(ctx context.Context, userID string, division in
 			return nil, ErrWorkspaceForbidden
 		}
 	}
-	rows, err := db.Conn.QueryContext(ctx, `SELECT a.id,a.work_item_id,u.name,a.action,a.field_name,COALESCE(a.old_value,'null'),COALESCE(a.new_value,'null'),a.created_at
- FROM work_item_activity a JOIN work_items t ON t.id=a.work_item_id JOIN users u ON u.id=a.actor_user_id WHERE t.division_id=$1 AND ($2='' OR t.id=NULLIF($2,'')::uuid) AND ($2<>'' OR a.created_at >= $3) ORDER BY a.created_at DESC,a.id DESC LIMIT 100`, division, id, db.Now().Add(-7*24*time.Hour))
+	rows, err := db.Conn.QueryContext(ctx, `SELECT a.id,a.work_item_id,COALESCE(u.name,''),a.action,a.field_name,COALESCE(a.old_value,'null'),COALESCE(a.new_value,'null'),a.created_at
+ FROM work_item_activity a JOIN work_items t ON t.id=a.work_item_id LEFT JOIN users u ON u.id=a.actor_user_id WHERE t.division_id=$1 AND ($2='' OR t.id=NULLIF($2,'')::uuid) AND ($2<>'' OR a.created_at >= $3) ORDER BY a.created_at DESC,a.id DESC LIMIT 100`, division, id, db.Now().Add(-7*24*time.Hour))
 	if err != nil {
 		return nil, err
 	}

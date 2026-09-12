@@ -264,10 +264,6 @@ func (db *Database) DeleteUser(ctx context.Context, id string) error {
 	}
 	result, err := tx.ExecContext(ctx, `DELETE FROM users WHERE id = $1`, id)
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23503" && (pgErr.TableName == "work_items" || pgErr.TableName == "work_item_assignees" || pgErr.TableName == "work_item_comments" || pgErr.TableName == "work_item_activity" || pgErr.TableName == "workspace_pages") {
-			return ErrUserHasWorkspaceHistory
-		}
 		return err
 	}
 	if count, _ := result.RowsAffected(); count == 0 {

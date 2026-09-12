@@ -89,6 +89,41 @@ func TestRevisionIntegration(t *testing.T) {
 	if err = conn.QueryRow(`SELECT id,division_id,name,category_name FROM job_context WHERE role_name='PE' ORDER BY id LIMIT 1`).Scan(&job, &division, &jobName, &category); err != nil {
 		t.Fatal(err)
 	}
+	t.Run("deleting user preserves workspace history", func(t *testing.T) {
+		victim := createUser("Project Engineer", "")
+		task, page, comment, activity := db.NewID(), db.NewID(), db.NewID(), db.NewID()
+		if _, err := conn.Exec(`INSERT INTO work_items(id,division_id,title,created_by,qa_validated_by) VALUES($1,$2,'Preserved task',$3,$3)`, task, division, victim.id); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := conn.Exec(`INSERT INTO work_item_assignees(work_item_id,user_id,assigned_by) VALUES($1,$2,$2)`, task, victim.id); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := conn.Exec(`INSERT INTO work_item_comments(id,work_item_id,user_id,content) VALUES($1,$2,$3,'Preserved comment')`, comment, task, victim.id); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := conn.Exec(`INSERT INTO work_item_activity(id,work_item_id,actor_user_id,action) VALUES($1,$2,$3,'CREATE')`, activity, task, victim.id); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := conn.Exec(`INSERT INTO workspace_pages(id,division_id,title,visibility,created_by) VALUES($1,$2,'Preserved page','DIVISION',$3)`, page, division, victim.id); err != nil {
+			t.Fatal(err)
+		}
+		if err := database.DeleteUser(ctx, victim.id); err != nil {
+			t.Fatal(err)
+		}
+		countPreserved := func(query string, args ...any) (n int) {
+			if err := conn.QueryRow(query, args...).Scan(&n); err != nil {
+				t.Fatal(err)
+			}
+			return n
+		}
+		if countPreserved(`SELECT count(*) FROM work_items WHERE id=$1 AND created_by IS NULL AND qa_validated_by IS NULL`, task) != 1 ||
+			countPreserved(`SELECT count(*) FROM workspace_pages WHERE id=$1 AND created_by IS NULL`, page) != 1 ||
+			countPreserved(`SELECT count(*) FROM work_item_comments WHERE id=$1 AND user_id IS NULL`, comment) != 1 ||
+			countPreserved(`SELECT count(*) FROM work_item_activity WHERE id=$1 AND actor_user_id IS NULL`, activity) != 1 ||
+			countPreserved(`SELECT count(*) FROM work_item_assignees WHERE work_item_id=$1`, task) != 0 {
+			t.Fatal("workspace history was removed or still references deleted user")
+		}
+	})
 	if err = conn.QueryRow(`SELECT id FROM job_context WHERE role_name='QA' ORDER BY id LIMIT 1`).Scan(&qaJob); err != nil {
 		t.Fatal(err)
 	}

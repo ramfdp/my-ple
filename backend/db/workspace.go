@@ -10,7 +10,6 @@ import (
 var ErrWorkspaceForbidden = errors.New("Anda tidak memiliki akses ke workspace atau tindakan ini.")
 var ErrWorkspaceInvalid = errors.New("Data workspace tidak valid.")
 var ErrWorkspaceConflict = errors.New("Data sudah berubah. Silakan muat ulang.")
-var ErrUserHasWorkspaceHistory = errors.New("user has workspace history")
 
 // Always resolve current account privileges from PostgreSQL, never request fields.
 func (db *Database) WorkspaceAccess(ctx context.Context, userID string, divisionID int) (bool, error) {

@@ -41,7 +41,7 @@ func scanWorkspacePage(s interface{ Scan(...any) error }) (model.WorkspacePage, 
 	return p, err
 }
 
-const pageColumns = `id,division_id,parent_id,title,content,visibility,created_by,updated_at,version`
+const pageColumns = `id,division_id,parent_id,title,content,visibility,COALESCE(created_by::text,''),updated_at,version`
 
 func (db *Database) WorkspacePage(ctx context.Context, userID, id string) (model.WorkspacePage, error) {
 	var p model.WorkspacePage
@@ -51,7 +51,7 @@ func (db *Database) WorkspacePage(ctx context.Context, userID, id string) (model
 	// First lookup is metadata only; unauthorized personal content never leaves PostgreSQL.
 	var division int
 	var creator, visibility string
-	err := db.Conn.QueryRowContext(ctx, `SELECT division_id,created_by,visibility FROM workspace_pages WHERE id=$1`, id).Scan(&division, &creator, &visibility)
+	err := db.Conn.QueryRowContext(ctx, `SELECT division_id,COALESCE(created_by::text,''),visibility FROM workspace_pages WHERE id=$1`, id).Scan(&division, &creator, &visibility)
 	if err != nil {
 		return p, err
 	}
@@ -72,7 +72,7 @@ func (db *Database) WorkspacePages(ctx context.Context, userID string, division 
 		return nil, err
 	}
 	// Listing excludes content; fetch a page's body only after authorization.
-	rows, err := db.Conn.QueryContext(ctx, `SELECT id,division_id,parent_id,title,'[]'::jsonb,visibility,created_by,updated_at,version FROM workspace_pages WHERE division_id=$1 AND (visibility='DIVISION' OR created_by=$2) ORDER BY title,id`, division, userID)
+	rows, err := db.Conn.QueryContext(ctx, `SELECT id,division_id,parent_id,title,'[]'::jsonb,visibility,COALESCE(created_by::text,''),updated_at,version FROM workspace_pages WHERE division_id=$1 AND (visibility='DIVISION' OR created_by=$2) ORDER BY title,id`, division, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func (db *Database) SaveWorkspacePage(ctx context.Context, userID string, divisi
 	if in.ParentID != nil {
 		var parentDivision int
 		var parentVisibility, parentCreator string
-		err = tx.QueryRowContext(ctx, `SELECT division_id,visibility,created_by FROM workspace_pages WHERE id=$1`, *in.ParentID).Scan(&parentDivision, &parentVisibility, &parentCreator)
+		err = tx.QueryRowContext(ctx, `SELECT division_id,visibility,COALESCE(created_by::text,'') FROM workspace_pages WHERE id=$1`, *in.ParentID).Scan(&parentDivision, &parentVisibility, &parentCreator)
 		if err != nil {
 			return empty, ErrWorkspaceInvalid
 		}

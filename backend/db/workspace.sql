@@ -54,6 +54,25 @@ CREATE TABLE IF NOT EXISTS workspace_pages (
 CREATE INDEX IF NOT EXISTS workspace_pages_division ON workspace_pages(division_id,visibility,created_by);
 CREATE INDEX IF NOT EXISTS workspace_pages_parent ON workspace_pages(parent_id);
 
+-- Keep workspace history when its author account is deleted.
+ALTER TABLE work_items ALTER COLUMN created_by DROP NOT NULL;
+ALTER TABLE work_items DROP CONSTRAINT IF EXISTS work_items_created_by_fkey;
+ALTER TABLE work_items ADD CONSTRAINT work_items_created_by_fkey FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE work_item_assignees DROP CONSTRAINT IF EXISTS work_item_assignees_user_id_fkey;
+ALTER TABLE work_item_assignees ADD CONSTRAINT work_item_assignees_user_id_fkey FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE work_item_assignees ALTER COLUMN assigned_by DROP NOT NULL;
+ALTER TABLE work_item_assignees DROP CONSTRAINT IF EXISTS work_item_assignees_assigned_by_fkey;
+ALTER TABLE work_item_assignees ADD CONSTRAINT work_item_assignees_assigned_by_fkey FOREIGN KEY(assigned_by) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE work_item_comments ALTER COLUMN user_id DROP NOT NULL;
+ALTER TABLE work_item_comments DROP CONSTRAINT IF EXISTS work_item_comments_user_id_fkey;
+ALTER TABLE work_item_comments ADD CONSTRAINT work_item_comments_user_id_fkey FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE work_item_activity ALTER COLUMN actor_user_id DROP NOT NULL;
+ALTER TABLE work_item_activity DROP CONSTRAINT IF EXISTS work_item_activity_actor_user_id_fkey;
+ALTER TABLE work_item_activity ADD CONSTRAINT work_item_activity_actor_user_id_fkey FOREIGN KEY(actor_user_id) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE workspace_pages ALTER COLUMN created_by DROP NOT NULL;
+ALTER TABLE workspace_pages DROP CONSTRAINT IF EXISTS workspace_pages_created_by_fkey;
+ALTER TABLE workspace_pages ADD CONSTRAINT workspace_pages_created_by_fkey FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL;
+
 -- Preserve the existing broadcast notification model for Zoom; new events are private.
 ALTER TABLE notifications ADD COLUMN IF NOT EXISTS workspace_division_id INTEGER REFERENCES divisions(id);
 CREATE TABLE IF NOT EXISTS notification_recipients (
