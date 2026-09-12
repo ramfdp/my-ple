@@ -43,3 +43,11 @@ func TestNormalizeWeeklyReportUsesDivisionWhenRoleIsEmpty(t *testing.T) {
 		}
 	}
 }
+
+func TestNormalizeWeeklyReportLabelsEmptyCategory(t *testing.T) {
+	report := WeeklyReport{PrimaryDivision: "AI Dev", WorkDivision: "  "}
+	NormalizeWeeklyReport(&report)
+	if report.WorkDivision != "Tanpa Kategori" {
+		t.Fatalf("empty category = %q", report.WorkDivision)
+	}
+}

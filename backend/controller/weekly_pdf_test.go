@@ -185,6 +185,25 @@ func TestDOCXCentersRoleAndCategoryCells(t *testing.T) {
 	}
 }
 
+func TestDocumentsLabelEmptyCategory(t *testing.T) {
+	reports := []model.WeeklyReport{{ID: "x", PrimaryDivision: "AI Dev", Work: "Task", Description: "Progress"}}
+	groups := exportGroups(reports)
+	if len(groups) != 1 || len(groups[0].Categories) != 1 || groups[0].Categories[0].Name != "Tanpa Kategori" {
+		t.Fatalf("empty category group = %#v", groups)
+	}
+	pdf, err := weeklyPDFDocument("AI Dev", model.ReportingPeriod{Label: "Test"}, reports, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	docx, err := weeklyDOCX("AI Dev", model.ReportingPeriod{Label: "Test"}, reports)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(pdf, utf16BE("Tanpa Kategori")) || !bytes.Contains(docxDocument(t, docx), []byte("Tanpa Kategori")) {
+		t.Fatal("empty category label is missing from PDF or DOCX")
+	}
+}
+
 func TestNonProjectEngineerExportsUseDivisionAsRoleAndHeader(t *testing.T) {
 	for _, division := range []string{"AI Dev", "Keuangan", "Business Development", "HR", "PMO"} {
 		reports := []model.WeeklyReport{{ID: division, PrimaryDivision: division, WorkDivision: "Pelaporan", Work: "Pekerjaan", Description: "PROGRESS"}}
