@@ -131,7 +131,7 @@
 				{#if period?.readOnly}<p role="status" class="report-period">{period.status === 'finalized' ? 'Finalized' : 'Periode ditutup — arsip diproses'} — hanya baca. Laporan tetap tersedia selama Senin. Reset mulai Selasa 00:00 WIB setelah arsip dan PDF berhasil disimpan.</p>{/if}
 				<div class="task-list-header"><div><h2 id="task-title">Pekerjaan yang sudah dilakukan</h2><p>Daftar pekerjaan pada minggu berjalan.</p>{#if period}<p class="report-period">Periode: {period.label}</p>{/if}</div><div class="task-list-actions"><p class="selected-division">{divisions[selectedDivision]}</p><div class="report-actions"><button class="report-button export-button" type="button" disabled={reports.length === 0 || exporting || loading} onclick={() => {exportError='';exportDialog.showModal()}}>Export</button>{#if !period?.readOnly}<a class="report-button" href={`/weekly-progress/new?division=${encodeURIComponent(divisions[selectedDivision])}`}>+ Input laporan</a>{/if}</div></div></div>
 				<div class="work-table-wrap">
-					<table class="work-table current-report-table" class:other-division-table={divisions[selectedDivision] !== 'Project Engineer'}>
+					<table class="work-table current-report-table">
 						<thead><tr><th scope="col">Role</th><th scope="col">Kategori</th><th scope="col">No.</th><th scope="col">Pekerjaan yang dilakukan</th><th scope="col">Aksi</th></tr></thead>
 						<tbody>
 							{#if loading}<tr><td colspan="5">Memuat laporan…</td></tr>
