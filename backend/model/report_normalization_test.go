@@ -51,3 +51,10 @@ func TestNormalizeWeeklyReportLabelsEmptyCategory(t *testing.T) {
 		t.Fatalf("empty category = %q", report.WorkDivision)
 	}
 }
+
+func TestCanonicalWeeklyCategoryAcceptsDisplayLabelForEmptyCategory(t *testing.T) {
+	_, category := CanonicalWeeklyRoleCategory("", "Tanpa Kategori")
+	if category != "" {
+		t.Fatalf("empty category display label = %q", category)
+	}
+}

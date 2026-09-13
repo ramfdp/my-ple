@@ -19,6 +19,12 @@ func ReportingWeek(now time.Time) (time.Time, time.Time) {
 	return start, start.AddDate(0, 0, 7)
 }
 
+func ReportingPeriodWeek(now time.Time) (time.Time, time.Time) {
+	start, _ := ReportingWeek(now.AddDate(0, 0, -1))
+	start = start.AddDate(0, 0, 1)
+	return start, start.AddDate(0, 0, 7)
+}
+
 func IndonesianWeekLabel(start, next time.Time) string {
 	end := next.AddDate(0, 0, -1)
 	if start.Month() == end.Month() && start.Year() == end.Year() {
@@ -54,6 +60,9 @@ func NormalizeWeeklyRoleCategory(role, category string) (string, string) {
 }
 
 func CanonicalWeeklyRoleCategory(role, category string) (string, string) {
+	if strings.EqualFold(strings.TrimSpace(category), "Tanpa Kategori") {
+		category = ""
+	}
 	switch strings.ToLower(strings.TrimSpace(role)) {
 	case "pe", "project engineer":
 		role = "Project Engineer"
@@ -87,10 +96,10 @@ func NormalizeWeeklyReport(report *WeeklyReport) {
 	if strings.TrimSpace(report.Role) == "" {
 		report.Role = report.PrimaryDivision
 	}
+	report.Role, report.WorkDivision = CanonicalWeeklyRoleCategory(report.Role, report.WorkDivision)
 	if strings.TrimSpace(report.WorkDivision) == "" {
 		report.WorkDivision = "Tanpa Kategori"
 	}
-	report.Role, report.WorkDivision = CanonicalWeeklyRoleCategory(report.Role, report.WorkDivision)
 	if report.Role == "CIHPK" {
 		switch report.Work {
 		case "Jember Station Area Redevelopment", "Penataan Kawasan Stasiun Jember":

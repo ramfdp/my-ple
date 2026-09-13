@@ -200,7 +200,7 @@ func (s *WeeklyLifecycle) Run(ctx context.Context, now time.Time) error {
 				continue
 			}
 		}
-		if !now.Before(a.WeekEnd.Add(24*time.Hour)) && a.ResetAt == nil {
+		if !now.Before(a.WeekEnd) && a.ResetAt == nil {
 			log.Printf("weekly reset started archive=%s", a.ID)
 			n, e := s.DB.ResetArchivedWeek(ctx, a, now)
 			if e != nil {

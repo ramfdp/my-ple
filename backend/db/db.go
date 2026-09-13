@@ -391,7 +391,7 @@ func (db *Database) FindRoleByID(ctx context.Context, id int) (model.Role, error
 
 // Both create and reassignment allocate in PostgreSQL, in the caller's transaction.
 func allocateReportNumber(ctx context.Context, tx *sql.Tx, division, category string, jobID *int, completed time.Time) (int, error) {
-	start, _ := model.ReportingWeek(completed)
+	start, _ := model.ReportingPeriodWeek(completed)
 	var number int
 	err := tx.QueryRowContext(ctx, `INSERT INTO report_sequences(primary_division,work_division,week_start,job_id,last_number)
  VALUES($1,$2,$3,$4,1) ON CONFLICT ON CONSTRAINT report_sequences_job_scope
@@ -413,7 +413,7 @@ func (db *Database) CreateReport(ctx context.Context, userID string, input model
 	if err := resolveReportJob(ctx, tx, &input, nil); err != nil {
 		return result, err
 	}
-	start, _ := model.ReportingWeek(now)
+	start, _ := model.ReportingPeriodWeek(now)
 	var pendingReset bool
 	if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM reports WHERE primary_division=$1 AND completed_at<$2)`, input.PrimaryDivision, start).Scan(&pendingReset); err != nil {
 		return result, err
