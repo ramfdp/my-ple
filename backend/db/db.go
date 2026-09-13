@@ -262,6 +262,9 @@ func (db *Database) DeleteUser(ctx context.Context, id string) error {
 	if hasReports {
 		return ErrUserHasReports
 	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM notifications WHERE entity_type='leave_request' AND entity_id IN (SELECT id FROM leave_requests WHERE user_id=$1)`, id); err != nil {
+		return err
+	}
 	result, err := tx.ExecContext(ctx, `DELETE FROM users WHERE id = $1`, id)
 	if err != nil {
 		return err

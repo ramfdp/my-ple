@@ -18,6 +18,22 @@ ALTER TABLE zoom_booking_email_deliveries ADD COLUMN IF NOT EXISTS leave_request
 CREATE UNIQUE INDEX IF NOT EXISTS leave_email_event ON zoom_booking_email_deliveries(leave_request_id,notification_type,recipient_email);
 CREATE UNIQUE INDEX IF NOT EXISTS leave_notification_event ON notifications(entity_id,type) WHERE entity_type='leave_request';
 
+ALTER TABLE leave_requests DROP CONSTRAINT IF EXISTS leave_requests_user_id_fkey;
+ALTER TABLE leave_requests ADD CONSTRAINT leave_requests_user_id_fkey FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE leave_requests DROP CONSTRAINT IF EXISTS leave_requests_reviewed_by_fkey;
+ALTER TABLE leave_requests ADD CONSTRAINT leave_requests_reviewed_by_fkey FOREIGN KEY(reviewed_by) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE zoom_booking_email_deliveries DROP CONSTRAINT IF EXISTS zoom_booking_email_deliveries_leave_request_id_fkey;
+ALTER TABLE zoom_booking_email_deliveries ADD CONSTRAINT zoom_booking_email_deliveries_leave_request_id_fkey FOREIGN KEY(leave_request_id) REFERENCES leave_requests(id) ON DELETE CASCADE;
+DO $$ DECLARE constraint_name TEXT; BEGIN
+ SELECT conname INTO constraint_name FROM pg_constraint WHERE conrelid='leave_requests'::regclass AND contype='c' AND pg_get_constraintdef(oid) LIKE '%status%PENDING%reviewed_by%';
+ IF constraint_name IS NOT NULL THEN EXECUTE format('ALTER TABLE leave_requests DROP CONSTRAINT %I',constraint_name); END IF;
+ IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conrelid='leave_requests'::regclass AND conname='leave_review_state') THEN
+  ALTER TABLE leave_requests ADD CONSTRAINT leave_review_state CHECK(
+   (status='PENDING' AND reviewed_by IS NULL AND reviewed_at IS NULL) OR
+   (status<>'PENDING' AND reviewed_at IS NOT NULL));
+ END IF;
+END $$;
+
 -- Keep existing visibility rules unchanged; leave events require explicit recipients and current authority.
 CREATE OR REPLACE FUNCTION notification_visible(notification UUID, viewer UUID) RETURNS BOOLEAN
 LANGUAGE SQL STABLE AS $$

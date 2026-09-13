@@ -124,6 +124,20 @@ func TestRevisionIntegration(t *testing.T) {
 			t.Fatal("workspace history was removed or still references deleted user")
 		}
 	})
+	t.Run("deleting user removes their leave history", func(t *testing.T) {
+		victim := createUser("Project Engineer", "")
+		leaveID := db.NewID()
+		if _, err := conn.Exec(`INSERT INTO leave_requests(id,user_id,request_id,request_type,start_date,end_date,reason) VALUES($1,$2,$3,'CUTI','2026-09-20','2026-09-20','Delete with account')`, leaveID, victim.id, db.NewID()); err != nil {
+			t.Fatal(err)
+		}
+		if err := database.DeleteUser(ctx, victim.id); err != nil {
+			t.Fatal(err)
+		}
+		var count int
+		if err := conn.QueryRow(`SELECT count(*) FROM leave_requests WHERE id=$1`, leaveID).Scan(&count); err != nil || count != 0 {
+			t.Fatalf("leave history remains: count=%d err=%v", count, err)
+		}
+	})
 	if err = conn.QueryRow(`SELECT id FROM job_context WHERE role_name='QA' ORDER BY id LIMIT 1`).Scan(&qaJob); err != nil {
 		t.Fatal(err)
 	}
