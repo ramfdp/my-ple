@@ -11,6 +11,35 @@ Frontend: http://localhost:5173. Backend: http://localhost:3000
 (health check: `/health`). Compose menjalankan PostgreSQL baru; skema dibuat
 otomatis oleh backend. Data database lokal yang sudah ada tidak diimpor otomatis.
 
+## Testing dengan domain ngrok
+
+Salin `.env.testing.example` menjadi `.env.testing`. Isi `NGROK_DOMAIN` dengan
+hostname milik Anda di dashboard ngrok (tanpa `https://`) dan ganti password
+database testing sebelum pertama kali menjalankan stack.
+
+```sh
+docker compose --env-file .env.testing -f compose.yaml -f compose.testing.yaml config --quiet
+docker compose --env-file .env.testing -f compose.yaml -f compose.testing.yaml up -d --build --wait
+ngrok http 8081 --url https://DOMAIN-NGROK-ANDA
+```
+
+Gunakan domain yang sama pada perintah ngrok dan `NGROK_DOMAIN`.
+Ngrok harus sudah terpasang dan terautentikasi di mesin yang menjalankan Docker.
+Buka URL HTTPS ngrok untuk testing login; cookie testing memakai HTTPS.
+Gateway meneruskan `/api/` ke backend (termasuk upload dan WebSocket),
+dan path lainnya ke frontend. Setelah mengubah domain, jalankan ulang perintah
+`up -d --build --wait` agar URL API dalam bundle frontend diperbarui.
+
+Project `my-ple-testing` mempunyai database, upload, dan arsip sendiri.
+Port lokal testing: gateway `8081`, backend `3001`, frontend `5174`.
+Email testing dinonaktifkan. File `.env.testing` tidak masuk Git.
+Branch Git tidak memilih environment otomatis; selalu gunakan kedua file
+Compose dan `--env-file .env.testing` seperti di atas, termasuk saat `logs`,
+`ps`, atau `down`. Hindari `down -v` jika data testing masih dibutuhkan.
+
+Rujukan: [project Compose](https://docs.docker.com/compose/how-tos/project-name/)
+dan [CLI ngrok](https://ngrok.com/docs/agent/cli).
+
 ## Deployment production (VPS)
 
 Simpan konfigurasi production di `.env.production` pada root proyek, lalu selalu

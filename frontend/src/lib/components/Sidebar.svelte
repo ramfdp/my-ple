@@ -3,6 +3,7 @@
 	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { api, session, setAuthenticated } from '$lib/api';
+	import { canUseDocumentChecklist } from '$lib/document-checklist';
 
 	// ponytail: native Svelte reactivity for mobile drawer without external drawer lib
 	let { mobileOpen = $bindable(false) }: { mobileOpen?: boolean } = $props();
@@ -10,9 +11,11 @@
 	let sidebar: HTMLElement;
 	let menuButton: HTMLButtonElement;
 	let canManageEmployees = $state(false);
+	let canChecklist = $state(false);
  let canReviewLeave = $state(false);
 	onMount(() => {
 		const role = session()?.user.role?.toLowerCase() ?? '';
+		canChecklist = canUseDocumentChecklist(role);
 		canManageEmployees = ['admin', 'management', 'hr'].includes(role);
  canReviewLeave = ['admin', 'management'].includes(role);
 		const media = matchMedia('(max-width: 868px)');
@@ -55,7 +58,7 @@
 		{ name: 'Documents', href: '/documents', icon: 'file' },
 		{ name: 'Pengaturan Pekerjaan', href: '/settings/jobs', icon: 'settings' }
 	];
-	let visibleNavItems = $derived([...(canManageEmployees ? [{ name: 'Employees', href: '/employees', icon: 'users' }] : []), ...navItems, ...(canReviewLeave ? [{name:'Persetujuan Izin & Cuti',href:'/leave/approvals',icon:'calendar'}] : [])]);
+	let visibleNavItems = $derived([...(canManageEmployees ? [{ name: 'Employees', href: '/employees', icon: 'users' }] : []), ...navItems, ...(canChecklist ? [{name:'Checklist Dokumen Pekerjaan',href:'/document-checklists',icon:'file'}] : []), ...(canReviewLeave ? [{name:'Persetujuan Izin & Cuti',href:'/leave/approvals',icon:'calendar'}] : [])]);
 
 	function isItemActive(href: string): boolean {
 		if (href === '/workspace') return page.url.pathname === href || page.url.pathname.startsWith(href+'/');

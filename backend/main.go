@@ -87,6 +87,7 @@ func newHandler(database *db.Database, corsOrigin string, contexts ...context.Co
 func protectedHandler(database *db.Database, authCtrl *controller.AuthController, services ...*notification.Service) http.Handler {
 	weeklyCtrl := controller.NewWeeklyController(database)
 	jobCtrl := &controller.JobController{DB: database}
+	checklistCtrl := &controller.DocumentChecklistController{DB: database}
 	var notificationService *notification.Service
 	if len(services) > 0 {
 		notificationService = services[0]
@@ -100,6 +101,10 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 		current, ok := middleware.GetClaims(r.Context())
 		if !ok {
 			controller.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Autentikasi diperlukan."})
+			return
+		}
+		if r.URL.Path == "/document-checklists" || strings.HasPrefix(r.URL.Path, "/document-checklists/") {
+			checklistCtrl.ServeHTTP(w, r)
 			return
 		}
 		if r.URL.Path == "/leave-requests" || strings.HasPrefix(r.URL.Path, "/leave-requests/") {
