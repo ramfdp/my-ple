@@ -207,6 +207,9 @@ func (db *Database) SaveWorkItem(ctx context.Context, userID string, division in
 		if old.WorkspaceID != division || (!old.CanEdit && !in.PriorityOnly && !in.AssigneesOnly && !in.QAOnly) {
 			return empty, ErrWorkspaceForbidden
 		}
+		if (assignmentsProvided || in.AssigneesOnly) && old.CreatedBy != userID {
+			return empty, ErrWorkspaceForbidden
+		}
 		if in.PriorityOnly || in.QAOnly || in.AssigneesOnly {
 			// Internal flags are never accepted from JSON; guard other fields here too.
 			a, b := in, model.WorkItemInput{Title: old.Title, Description: old.Description, RelatedURL: old.RelatedURL, JobID: old.JobID, StartDate: old.StartDate, DueDate: old.DueDate, Status: old.Status, Priority: old.Priority, RequiresQA: old.RequiresQA, QAStage: old.QAStage}
@@ -228,6 +231,9 @@ func (db *Database) SaveWorkItem(ctx context.Context, userID string, division in
 				return empty, ErrWorkspaceForbidden
 			}
 		}
+	}
+	if old.RequiresQA && !in.RequiresQA && in.QAStage == old.QAStage && !in.QAOnly {
+		in.QAStage = ""
 	}
 	if err = validateQATransition(old, in, old.CanCheckQA); err != nil {
 		return empty, err
@@ -346,7 +352,7 @@ func (db *Database) SaveWorkItem(ctx context.Context, userID string, division in
 		for _, change := range []struct {
 			action, field string
 			old, new      any
-		}{{"UPDATE", "title", old.Title, in.Title}, {"UPDATE", "description", old.Description, in.Description}, {"UPDATE", "relatedUrl", old.RelatedURL, in.RelatedURL}, {"UPDATE", "jobId", old.JobID, in.JobID}, {"STATUS_CHANGE", "status", old.Status, in.Status}, {"PRIORITY_CHANGE", "priority", old.Priority, in.Priority}, {"DATE_CHANGE", "startDate", old.StartDate, in.StartDate}, {"DATE_CHANGE", "dueDate", old.DueDate, in.DueDate}} {
+		}{{"UPDATE", "requiresQa", old.RequiresQA, in.RequiresQA}, {"UPDATE", "title", old.Title, in.Title}, {"UPDATE", "description", old.Description, in.Description}, {"UPDATE", "relatedUrl", old.RelatedURL, in.RelatedURL}, {"UPDATE", "jobId", old.JobID, in.JobID}, {"STATUS_CHANGE", "status", old.Status, in.Status}, {"PRIORITY_CHANGE", "priority", old.Priority, in.Priority}, {"DATE_CHANGE", "startDate", old.StartDate, in.StartDate}, {"DATE_CHANGE", "dueDate", old.DueDate, in.DueDate}} {
 			a, _ := json.Marshal(change.old)
 			b, _ := json.Marshal(change.new)
 			if string(a) != string(b) {

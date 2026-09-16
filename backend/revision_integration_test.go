@@ -331,7 +331,15 @@ func TestRevisionIntegration(t *testing.T) {
 		if status != 204 || count(`SELECT count(*) FROM notifications n JOIN notification_recipients r ON r.notification_id=n.id WHERE n.entity_id=$1 AND n.type='workspace_task' AND r.user_id=$2`, task.ID, qa.id) != 1 || count(`SELECT count(*) FROM zoom_booking_email_deliveries WHERE work_item_id=$1 AND recipient_user_id=$2 AND notification_type='workspace_task'`, task.ID, qa.id) != 1 {
 			t.Fatal("mention notification/email missing", status)
 		}
-		// A non-editor division member can assign, without gaining other edit rights.
+		for _, actor := range []actor{member, pe} {
+			for _, suffix := range []string{"", "/assignees"} {
+				s, _ := request(actor, "PATCH", path+suffix, map[string]any{"version": task.Version, "assigneeIds": []string{qa.id}})
+				if s != 403 {
+					t.Fatal("non-creator assignment accepted", s)
+				}
+			}
+		}
+		// Only the creator can change assignments.
 		for _, body := range []map[string]any{
 			{"version": task.Version, "assigneeIds": []string{outsider.id}},
 			{"version": task.Version, "assigneeIds": []string{qa.id}, "title": "smuggled"},
@@ -341,11 +349,11 @@ func TestRevisionIntegration(t *testing.T) {
 				t.Fatal("invalid assignment accepted", s)
 			}
 		}
-		task = mustTask(member, "PATCH", path+"/assignees", map[string]any{"version": task.Version, "assigneeIds": []string{pe.id, qa.id, invalid.id}})
+		task = mustTask(manager, "PATCH", path+"/assignees", map[string]any{"version": task.Version, "assigneeIds": []string{pe.id, qa.id, invalid.id}})
 		if assignmentCount() != 3 {
 			t.Fatal("multiple new recipients")
 		}
-		task = mustTask(member, "PATCH", path+"/assignees", map[string]any{"version": task.Version, "assigneeIds": []string{pe.id, qa.id, invalid.id}})
+		task = mustTask(manager, "PATCH", path+"/assignees", map[string]any{"version": task.Version, "assigneeIds": []string{pe.id, qa.id, invalid.id}})
 		if assignmentCount() != 3 {
 			t.Fatal("unchanged assignees duplicated assignment")
 		}
@@ -374,8 +382,8 @@ func TestRevisionIntegration(t *testing.T) {
 		if s != 403 {
 			t.Fatal("priority granted deletion", s)
 		}
-		task = mustTask(member, "PATCH", path+"/assignees", map[string]any{"version": task.Version, "assigneeIds": []string{pe.id, invalid.id}})
-		task = mustTask(member, "PATCH", path+"/assignees", map[string]any{"version": task.Version, "assigneeIds": []string{pe.id, qa.id, invalid.id}})
+		task = mustTask(manager, "PATCH", path+"/assignees", map[string]any{"version": task.Version, "assigneeIds": []string{pe.id, invalid.id}})
+		task = mustTask(manager, "PATCH", path+"/assignees", map[string]any{"version": task.Version, "assigneeIds": []string{pe.id, qa.id, invalid.id}})
 		if assignmentCount() != 4 {
 			t.Fatal("reassignment missing")
 		}
@@ -444,8 +452,22 @@ func TestRevisionIntegration(t *testing.T) {
 	t.Run("QA validation is optional per task", func(t *testing.T) {
 		task := mustTask(member, "POST", fmt.Sprintf("/workspaces/%d/tasks", division), map[string]any{"title": "No QA required", "assigneeIds": []string{pe.id}, "requiresQa": false})
 		path := "/work-items/" + task.ID
-		task = mustTask(member, "PATCH", path, map[string]any{"version": task.Version, "status": "IN_PROGRESS"})
-		task = mustTask(member, "PATCH", path, map[string]any{"version": task.Version, "status": "DONE"})
+		if !task.CanEdit {
+			t.Fatal("creator cannot edit")
+		}
+		s, _ := request(manager, "PATCH", path+"/assignees", map[string]any{"version": task.Version, "assigneeIds": []string{qa.id}})
+		if s != 403 {
+			t.Fatal("non-creator manager can assign", s)
+		}
+		task = mustTask(pe, "PATCH", path, map[string]any{"version": task.Version, "status": "IN_PROGRESS", "description": "Assignee edit", "requiresQa": true})
+		if !task.CanEdit || !task.RequiresQA || task.Description != "Assignee edit" {
+			t.Fatal("assignee edit failed")
+		}
+		s, _ = request(pe, "PATCH", path, map[string]any{"version": task.Version, "status": "DONE"})
+		if s != 400 {
+			t.Fatal("QA bypass after enabling", s)
+		}
+		task = mustTask(pe, "PATCH", path, map[string]any{"version": task.Version, "requiresQa": false, "status": "DONE"})
 		if task.Status != "DONE" {
 			t.Fatal("optional QA task cannot finish")
 		}
@@ -613,7 +635,7 @@ func TestRevisionIntegration(t *testing.T) {
 			}
 		}
 		path := "/work-items/" + task.ID
-		task = mustTask(member, "PATCH", path+"/assignees", map[string]any{"version": task.Version, "assigneeIds": []string{pe.id}})
+		task = mustTask(manager, "PATCH", path+"/assignees", map[string]any{"version": task.Version, "assigneeIds": []string{pe.id}})
 		awaitChange(inside, task)
 		awaitChange(second, task)
 		task = mustTask(pe, "PATCH", path, map[string]any{"version": task.Version, "status": "IN_PROGRESS"})

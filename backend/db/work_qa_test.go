@@ -31,8 +31,10 @@ func TestQATransitions(t *testing.T) {
 		t.Fatal(err)
 	}
 	in.RequiresQA = false
-	if validateQATransition(old, in, true) == nil {
-		t.Fatal("QA disabled")
+	in.QAStage = ""
+	in.Status = model.WorkDone
+	if err := validateQATransition(old, in, false); err != nil {
+		t.Fatal("QA cannot be disabled", err)
 	}
 	if validateQATransition(model.WorkItem{}, model.WorkItemInput{Status: model.WorkDone}, false) == nil {
 		t.Fatal("created directly done")
@@ -59,5 +61,30 @@ func TestQADecisionCompletesOrRevisesTask(t *testing.T) {
 		if err := validateQATransition(old, in, false); err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+func TestEnableQARequiresValidation(t *testing.T) {
+	for _, status := range []string{model.WorkInProgress, model.WorkDone} {
+		old := model.WorkItem{ID: "task", Status: status}
+		if err := validateQATransition(old, model.WorkItemInput{RequiresQA: true, Status: model.WorkDone}, false); err != ErrQARequired {
+			t.Fatalf("enabling QA must require validation: %v", err)
+		}
+	}
+	old := model.WorkItem{ID: "task", Status: model.WorkInProgress}
+	if err := validateQATransition(old, model.WorkItemInput{RequiresQA: true, Status: model.WorkInProgress}, false); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWorkAssigneeCanEdit(t *testing.T) {
+	task := model.WorkItem{CreatedBy: "creator", Assignees: []model.WorkspaceMember{{ID: "assignee"}}}
+	workPermissions(&task, "assignee", false)
+	if !task.CanEdit || task.CanDelete {
+		t.Fatal("assignee must edit without deletion rights")
+	}
+	workPermissions(&task, "member", false)
+	if task.CanEdit {
+		t.Fatal("unassigned member can edit")
 	}
 }
