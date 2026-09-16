@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { currentUser } from '$lib/api';
+	import { canUseDocumentChecklist } from '$lib/document-checklist';
 	import NotificationBell from '$lib/components/NotificationBell.svelte';
 
 	let userName = $derived($currentUser?.name ?? 'Nama Pengguna');
+	let canChecklist = $derived(canUseDocumentChecklist($currentUser?.role));
 	let canReviewLeave = $derived(['admin', 'management'].includes($currentUser?.role?.toLowerCase() ?? ''));
 </script>
 
@@ -27,10 +29,17 @@
 				<p class="dashboard-kicker">LAYANAN</p>
 				<h2 id="menu-title">Menu utama</h2>
 			</div>
-			<p>{canReviewLeave ? 7 : 6} layanan tersedia</p>
+			<p>{6 + Number(canReviewLeave) + Number(canChecklist)} layanan tersedia</p>
 		</div>
 
 		<div class="menu-grid">
+			{#if canChecklist}
+				<a class="menu-card progress-card" href="/document-checklists">
+					<div class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2" /><path d="m7 8 1 1 2-2M12 8h5m-10 6 1 1 2-2M12 14h5" /></svg></div>
+					<h3>Checklist Dokumen Pekerjaan</h3>
+					<p>Pantau dokumen dan kelengkapan tanda tangan setiap pekerjaan.</p>
+				</a>
+			{/if}
 			<a class="menu-card attendance-card" href="/leave">
 				<div class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h6" /></svg></div>
 				<h3>Izin &amp; Cuti</h3>

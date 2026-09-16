@@ -54,8 +54,6 @@
 		{ name: 'My Profile', href: '/my-profile', icon: 'user' },
 		{ name: 'Attendance', href: '/attendance', icon: 'calendar' },
 		{ name: 'Izin & Cuti', href: '/leave', icon: 'clock' },
-		{ name: 'Payroll', href: '/payroll', icon: 'wallet' },
-		{ name: 'Documents', href: '/documents', icon: 'file' },
 		{ name: 'Pengaturan Pekerjaan', href: '/settings/jobs', icon: 'settings' }
 	];
 	let visibleNavItems = $derived([...(canManageEmployees ? [{ name: 'Employees', href: '/employees', icon: 'users' }] : []), ...navItems, ...(canChecklist ? [{name:'Checklist Dokumen Pekerjaan',href:'/document-checklists',icon:'file'}] : []), ...(canReviewLeave ? [{name:'Persetujuan Izin & Cuti',href:'/leave/approvals',icon:'calendar'}] : [])]);
