@@ -84,15 +84,11 @@ func newHandler(database *db.Database, corsOrigin string, contexts ...context.Co
 }
 
 // ponytail: unified protected routing for reports and employee profile
-func protectedHandler(database *db.Database, authCtrl *controller.AuthController, services ...*notification.Service) http.Handler {
+func protectedHandler(database *db.Database, authCtrl *controller.AuthController, notificationService *notification.Service) http.Handler {
 	weeklyCtrl := controller.NewWeeklyController(database)
 	jobCtrl := &controller.JobController{DB: database}
 	checklistCtrl := &controller.DocumentChecklistController{DB: database}
-	var notificationService *notification.Service
-	if len(services) > 0 {
-		notificationService = services[0]
-	}
-	zoomCtrl := controller.NewZoomBookingController(database, notificationService)
+	zoomCtrl := &controller.ZoomBookingController{DB: database, Notifications: notificationService}
 	zoomResourceCtrl := controller.NewZoomResourceController(database)
 	notificationCtrl := &controller.NotificationController{DB: database}
 	leaveCtrl := &controller.LeaveController{DB: database, Notifications: notificationService}

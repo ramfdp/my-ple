@@ -106,11 +106,6 @@ func (h *Hub) Broadcast(notification model.Notification, excludeUserID string) {
 	}
 }
 
-// Workspace events only invalidate authorized clients. No task or note content is sent.
-func (h *Hub) SendWorkspace(userIDs []string, divisionID int, excludeUserID string) {
-	h.SendEvent(userIDs, map[string]any{"event": "workspace.changed", "workspaceId": divisionID}, excludeUserID)
-}
-
 // Private invalidations contain no request content; the subsequent API read enforces current access.
 func (h *Hub) SendEvent(userIDs []string, event any, excludeUserID string) {
 	h.broadcastMu.Lock()

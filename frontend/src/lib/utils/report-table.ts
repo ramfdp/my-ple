@@ -4,8 +4,6 @@ export type TableReport =
 	| { type: 'work'; key:string; work:string; roleLabel:string; categoryLabel:string; pics?:JobPIC[]; category?:string; role?:string; categoryRowSpan?:number; roleRowSpan?:number }
 	| { type: 'report'; report:Report; displayNumber:number };
 
-export const canModifyReport = (user: { id:string; role:string } | null | undefined, _ownerID:string) => !!user;
-
 export const capitalizeReportDescription = (value:string) => value.replace(/(^|\n)([ \t]*(?:[-•]\s*)?)(\p{Ll})/gu,(_,line,prefix,letter)=>line+prefix+letter.toLocaleUpperCase('id-ID'));
 
 const categorySpan = (category:WeeklyRoleGroup['categories'][number]) => category.jobs.reduce((rows, job) => rows + 1 + job.progress.length, 0);

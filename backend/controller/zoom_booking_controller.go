@@ -19,14 +19,6 @@ type ZoomBookingController struct {
 	Notifications *notification.Service
 }
 
-func NewZoomBookingController(database *db.Database, notifications ...*notification.Service) *ZoomBookingController {
-	c := &ZoomBookingController{DB: database, Notifications: &notification.Service{DB: database}}
-	if len(notifications) > 0 && notifications[0] != nil {
-		c.Notifications = notifications[0]
-	}
-	return c
-}
-
 func cleanZoomBooking(input *model.ZoomBookingInput) bool {
 	input.Title = strings.TrimSpace(input.Title)
 	input.Description = strings.TrimSpace(input.Description)
