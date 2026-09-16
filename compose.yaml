@@ -25,6 +25,8 @@ services:
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
       UPLOAD_DIR: /app/upload
       WEEKLY_REPORT_STORAGE_DIR: /app/storage/weekly-reports
+      ATTENDANCE_OFFICE_LATITUDE: ${ATTENDANCE_OFFICE_LATITUDE:-}
+      ATTENDANCE_OFFICE_LONGITUDE: ${ATTENDANCE_OFFICE_LONGITUDE:-}
     expose:
       - "3000"
     volumes:

@@ -92,11 +92,16 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 	zoomResourceCtrl := controller.NewZoomResourceController(database)
 	notificationCtrl := &controller.NotificationController{DB: database}
 	leaveCtrl := &controller.LeaveController{DB: database, Notifications: notificationService}
+	attendanceCtrl := controller.NewAttendanceController(database)
 	workspaceCtrl := &controller.WorkspaceController{DB: database, Notifications: notificationService}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		current, ok := middleware.GetClaims(r.Context())
 		if !ok {
 			controller.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Autentikasi diperlukan."})
+			return
+		}
+		if r.URL.Path == "/attendance" || strings.HasPrefix(r.URL.Path, "/attendance/") {
+			attendanceCtrl.ServeHTTP(w, r)
 			return
 		}
 		if r.URL.Path == "/document-checklists" || strings.HasPrefix(r.URL.Path, "/document-checklists/") {

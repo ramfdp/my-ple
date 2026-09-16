@@ -56,13 +56,13 @@
 				<div class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 4h18v16H3zM3 9h18M9 9v11M15 9v11" /></svg></div>
 				<h3>Team Workspace</h3><p>Catatan, timeline, dan koordinasi pekerjaan tim.</p>
 			</a>
-			<article class="menu-card attendance-card">
+			<a class="menu-card attendance-card" href="/attendance">
 				<div class="menu-icon" aria-hidden="true">
 					<svg viewBox="0 0 24 24"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1ZM8 13h3M8 17h5" /></svg>
 				</div>
 				<h3>Absensi</h3>
 				<p>Catat kehadiran dan lihat riwayat kerja.</p>
-			</article>
+			</a>
 
 			<a class="menu-card progress-card" href="/weekly-progress">
 				<div class="menu-icon" aria-hidden="true">
