@@ -57,6 +57,7 @@ func TestAttendanceIntegration(t *testing.T) {
 		return item
 	}
 	request("GET", "/attendance", nil, 401)
+	request("GET", "/attendance/overview", nil, 401)
 	suffix := db.NewID()
 	var userID string
 	for i, role := range []string{"Admin", "Management", "HR", "Project Engineer", "Finance", "IT", "Business Development", "PMO"} {
@@ -68,6 +69,13 @@ func TestAttendanceIntegration(t *testing.T) {
 		}
 		_ = json.Unmarshal(response["user"], &user)
 		userID = user.ID
+		if i < 3 {
+			request("GET", "/attendance/overview", nil, 200)
+			request("GET", "/attendance/overview?date=2026-09-31", nil, 400)
+			request("GET", "/attendance/overview?date=2026-10-01", nil, 400)
+		} else {
+			request("GET", "/attendance/overview", nil, 403)
+		}
 		history := request("GET", "/attendance?month=2026-09", nil, 200)
 		if string(history["records"]) != "[]" || string(history["officeConfigured"]) != "true" {
 			t.Fatal("unexpected initial history", history)
@@ -165,6 +173,104 @@ func TestAttendanceIntegration(t *testing.T) {
 	server.URL = oldURL
 }
 
+func TestAttendanceOverview(t *testing.T) {
+	database := checklistTestDB(t)
+	now := time.Date(2026, 9, 30, 17, 0, 0, 0, time.UTC) // October 1 in WIB.
+	database.Now = func() time.Time { return now }
+	suffix := db.NewID()
+	t.Cleanup(func() { _, _ = database.Conn.Exec(`DELETE FROM users WHERE username LIKE $1`, "ov-%-"+suffix) })
+	ids := map[string]string{}
+	for _, name := range []string{"present", "closed", "cuti", "izin", "missing", "pending", "rejected", "inactive", "future", "overlap"} {
+		username := "ov-" + name + "-" + suffix
+		checklistTestUser(t, database, "Finance", username)
+		var id string
+		if err := database.Conn.QueryRow(`UPDATE users SET created_at='2026-09-29T17:00:00Z',is_active=($2<>'inactive') WHERE username=$1 RETURNING id`, username, name).Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		ids[name] = id
+	}
+	if _, err := database.Conn.Exec(`UPDATE users SET created_at='2026-10-01T17:00:00Z' WHERE id=$1`, ids["future"]); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"present", "closed"} {
+		if _, err := database.Conn.Exec(`INSERT INTO attendance(id,user_id,attendance_date,mode,clock_in,clock_out) VALUES($1,$2,'2026-10-01','WFO','2026-10-01T03:00:00Z',CASE WHEN $3='closed' THEN '2026-10-01T13:00:00Z'::timestamptz END)`, db.NewID(), ids[name], name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, leave := range []struct{ name, kind, status string }{
+		{"present", "CUTI", "APPROVED"}, {"cuti", "CUTI", "APPROVED"}, {"izin", "IZIN", "APPROVED"},
+		{"pending", "CUTI", "PENDING"}, {"rejected", "IZIN", "REJECTED"},
+		{"overlap", "CUTI", "APPROVED"}, {"overlap", "CUTI", "APPROVED"}, {"overlap", "IZIN", "APPROVED"},
+	} {
+		if _, err := database.Conn.Exec(`INSERT INTO leave_requests(id,user_id,request_id,request_type,start_date,end_date,reason,status,reviewed_by,reviewed_at)
+ VALUES($1,$2,$3,$4,'2026-10-01','2026-10-02','Test',$5,CASE WHEN $5<>'PENDING' THEN $6::uuid END,CASE WHEN $5<>'PENDING' THEN now() END)`, db.NewID(), ids[leave.name], db.NewID(), leave.kind, leave.status, ids["missing"]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	result, err := database.AttendanceOverview(context.Background(), "")
+	if err != nil || result.Date != "2026-10-01" || result.TodayDate != result.Date {
+		t.Fatalf("WIB default: %+v %v", result, err)
+	}
+	found := map[string]model.AttendanceEmployee{}
+	for _, employee := range result.Employees {
+		if _, duplicate := found[employee.UserID]; duplicate {
+			t.Fatal("duplicate employee from overlapping leave")
+		}
+		found[employee.UserID] = employee
+	}
+	for name, want := range map[string]string{"present": "PRESENT", "closed": "PRESENT", "cuti": "LEAVE", "izin": "LEAVE", "missing": "MISSING", "pending": "MISSING", "rejected": "MISSING", "overlap": "LEAVE"} {
+		if got := found[ids[name]].Status; got != want {
+			t.Errorf("%s: got %s want %s", name, got, want)
+		}
+	}
+	for _, name := range []string{"inactive", "future"} {
+		if _, ok := found[ids[name]]; ok {
+			t.Errorf("included %s employee", name)
+		}
+	}
+	if found[ids["cuti"]].LeaveTypes != "CUTI" || found[ids["izin"]].LeaveTypes != "IZIN" || found[ids["overlap"]].LeaveTypes != "CUTI, IZIN" || found[ids["present"]].LeaveTypes != "" {
+		t.Fatal("leave types or attendance precedence incorrect")
+	}
+	if found[ids["present"]].ClockIn == nil || found[ids["present"]].ClockOut != nil || found[ids["closed"]].ClockOut == nil || found[ids["missing"]].ClockIn != nil {
+		t.Fatal("clock timestamps incorrect")
+	}
+	raw, _ := json.Marshal(result)
+	for _, key := range []string{"salary", "email", "latitude", "longitude", "reason", "passwordHash"} {
+		if bytes.Contains(raw, []byte(`"`+key+`"`)) {
+			t.Errorf("overview exposes %s", key)
+		}
+	}
+	for _, date := range []string{"2026-09-31", "2026-10-02", "0000-01-01", "2026-9-30", "nonsense"} {
+		if _, err := database.AttendanceOverview(context.Background(), date); err == nil {
+			t.Errorf("accepted date %s", date)
+		}
+	}
+	before, err := database.AttendanceOverview(context.Background(), "0001-01-01")
+	if err != nil || len(before.Employees) != 0 {
+		t.Fatalf("before account creation: %+v %v", before, err)
+	}
+	now = now.AddDate(0, 0, 1)
+	end, err := database.AttendanceOverview(context.Background(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, employee := range end.Employees {
+		if employee.UserID == ids["cuti"] && employee.Status != "LEAVE" {
+			t.Fatal("leave end date must be inclusive")
+		}
+	}
+	now = now.AddDate(0, 0, 1)
+	after, err := database.AttendanceOverview(context.Background(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, employee := range after.Employees {
+		if employee.UserID == ids["cuti"] && employee.Status != "MISSING" {
+			t.Fatal("expired leave still shown")
+		}
+	}
+}
+
 func TestAttendanceBrowserServer(t *testing.T) {
 	if os.Getenv("ATTENDANCE_BROWSER_SERVER") != "1" {
 		t.Skip("browser fixture server disabled")
@@ -172,12 +278,23 @@ func TestAttendanceBrowserServer(t *testing.T) {
 	database := checklistTestDB(t)
 	t.Setenv("ATTENDANCE_OFFICE_LATITUDE", "0")
 	t.Setenv("ATTENDANCE_OFFICE_LONGITUDE", "0")
-	for _, role := range []string{"Admin", "Finance", "HR"} {
+	for _, role := range []string{"Admin", "Finance", "HR", "Management", "IT"} {
 		username := "attendance-browser-" + role
 		checklistTestUser(t, database, role, username)
+		if _, err := database.Conn.Exec(`UPDATE users SET name=$1 WHERE username=$2`, "Attendance "+role, username); err != nil {
+			t.Fatal(err)
+		}
 		if _, err := database.Conn.Exec(`DELETE FROM attendance WHERE user_id=(SELECT id FROM users WHERE username=$1)`, username); err != nil {
 			t.Fatal(err)
 		}
+	}
+	if _, err := database.Conn.Exec(`DELETE FROM leave_requests WHERE user_id=(SELECT id FROM users WHERE username='attendance-browser-Management')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.Conn.Exec(`INSERT INTO leave_requests(id,user_id,request_id,request_type,start_date,end_date,reason,status,reviewed_by,reviewed_at)
+ SELECT $1,u.id,$2,'IZIN',(now() AT TIME ZONE 'Asia/Jakarta')::date,(now() AT TIME ZONE 'Asia/Jakarta')::date,'Browser test','APPROVED',a.id,now()
+ FROM users u CROSS JOIN users a WHERE u.username='attendance-browser-Management' AND a.username='attendance-browser-Admin'`, db.NewID(), db.NewID()); err != nil {
+		t.Fatal(err)
 	}
 	server := &http.Server{Addr: "127.0.0.1:3001", Handler: newHandler(database, "http://127.0.0.1:5189"), ReadHeaderTimeout: 5 * time.Second}
 	t.Log("Attendance browser fixture ready on 3001")

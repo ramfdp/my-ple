@@ -56,7 +56,7 @@
 		{ name: 'Izin & Cuti', href: '/leave', icon: 'clock' },
 		{ name: 'Pengaturan Pekerjaan', href: '/settings/jobs', icon: 'settings' }
 	];
-	let visibleNavItems = $derived([...(canManageEmployees ? [{ name: 'Employees', href: '/employees', icon: 'users' }] : []), ...navItems, ...(canChecklist ? [{name:'Checklist Dokumen Pekerjaan',href:'/document-checklists',icon:'file'}] : []), ...(canReviewLeave ? [{name:'Persetujuan Izin & Cuti',href:'/leave/approvals',icon:'calendar'}] : [])]);
+	let visibleNavItems = $derived([...(canManageEmployees ? [{ name: 'Employees', href: '/employees', icon: 'users' }, { name: 'Absensi Karyawan', href: '/attendance/overview', icon: 'calendar' }] : []), ...navItems, ...(canChecklist ? [{name:'Checklist Dokumen Pekerjaan',href:'/document-checklists',icon:'file'}] : []), ...(canReviewLeave ? [{name:'Persetujuan Izin & Cuti',href:'/leave/approvals',icon:'calendar'}] : [])]);
 
 	function isItemActive(href: string): boolean {
 		if (href === '/workspace') return page.url.pathname === href || page.url.pathname.startsWith(href+'/');

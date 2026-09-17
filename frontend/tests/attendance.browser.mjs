@@ -101,8 +101,55 @@ try {
  await page.getByRole('button', { name: 'Muat ulang data' }).click(); await idle();
  await page.getByRole('button', { name: 'Clock Out', exact: true }).waitFor();
  assert.equal((await history()).records.length, 1);
+
+ // Overview uses real API data, and the fixture gives Management approved izin.
+ for (const role of ['HR', 'Management', 'Admin']) {
+  await login(role);
+  await page.getByRole('link', { name: 'Absensi Karyawan', exact: true }).click();
+  await page.locator('.overview-panel[aria-busy="false"]').waitFor();
+  await page.getByRole('heading', { name: 'Absensi Karyawan', exact: true }).waitFor();
+  await page.getByLabel('Cari nama').fill('Attendance HR');
+  await page.getByRole('cell', { name: 'Belum Clock Out', exact: true }).waitFor();
+  await page.getByLabel('Cari nama').fill('Attendance Management');
+  await page.getByRole('cell', { name: 'Izin', exact: true }).waitFor();
+ }
+ await page.getByLabel('Status', { exact: true }).selectOption('MISSING');
+ await page.getByText('Tidak ada karyawan yang sesuai dengan pencarian atau filter.').waitFor();
+ await page.getByLabel('Cari nama').fill('Attendance IT');
+ await page.getByRole('cell', { name: 'Belum Clock In', exact: true }).waitFor();
+ await page.getByLabel('Status', { exact: true }).selectOption('PRESENT');
+ await page.getByLabel('Cari nama').fill('Attendance Finance');
+ await page.getByRole('cell', { name: 'Hadir', exact: true }).waitFor();
+ assert.equal(await page.getByRole('cell', { name: 'Belum Clock Out', exact: true }).count(), 0);
+ await page.getByLabel('Status', { exact: true }).selectOption('');
+ await page.getByLabel('Cari nama').fill('');
+ for (const width of [320, 768, 1024, 1440]) {
+  await page.setViewportSize({ width, height: 1000 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, 'overview overflow at ' + width);
+  if (width === 320 || width === 1440) await page.screenshot({ path: `../graphify-out/attendance-overview-${width}.png`, fullPage: true, animations: 'disabled' });
+ }
+ const date = page.getByLabel('Tanggal', { exact: true });
+ const today = await date.inputValue();
+ await date.fill('0001-01-01'); await date.press('Tab');
+ await page.getByText('Belum ada karyawan aktif pada tanggal ini.').waitFor();
+ await date.fill(today); await date.press('Tab');
+ await page.locator('.overview-panel[aria-busy="false"]').waitFor();
+ await page.route('**/attendance/overview?date=*', route => route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'Overview test error' }) }));
+ await page.getByRole('button', { name: 'Muat ulang', exact: true }).click();
+ await page.getByRole('alert').filter({ hasText: 'Overview test error' }).waitFor();
+ assert.equal(await page.locator('tbody tr').count(), 0, 'failed refresh must not show stale attendance');
+ await page.unroute('**/attendance/overview?date=*');
+ await page.getByRole('button', { name: 'Muat ulang', exact: true }).focus();
+ await page.keyboard.press('Enter');
+ await page.locator('.overview-panel[aria-busy="false"]').waitFor();
+ await page.getByRole('cell', { name: 'Izin', exact: true }).waitFor();
+ await login('Finance');
+ assert.equal(await page.getByRole('link', { name: 'Absensi Karyawan', exact: true }).count(), 0);
+ await page.goto(origin + '/attendance/overview');
+ await page.getByRole('alert').filter({ hasText: 'hanya untuk HR, Management, dan Admin' }).waitFor();
+ assert.equal((await context.request.get(backend + '/attendance/overview')).status(), 403);
  assert.deepEqual(errors, []);
- console.log('Attendance browser checks passed: WFO/WFA, location failures, privacy, reload, clock-out, history, recovery, keyboard, and 4 viewport sizes.');
+ console.log('Attendance browser checks passed: personal attendance, overview permissions, approved leave, filters, dates, recovery, keyboard, and 4 viewport sizes.');
 } catch (error) {
  console.error('Browser state:', page.url(), await page.locator('body').innerText(), errors);
  await page.screenshot({ path: '../graphify-out/attendance-failure.png', fullPage: true });

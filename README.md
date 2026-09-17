@@ -191,14 +191,24 @@ Dashboard **Absensi** dan menu **Attendance** membuka `/attendance` untuk semua
 pengguna yang masuk. WFO memeriksa jarak maksimal 100 meter dan akurasi lokasi
 maksimal 100 meter saat Clock In; koordinat WFO tidak disimpan. WFA menyimpan
 koordinat Clock In dan menyediakan tautan Google Maps di riwayat pribadi.
-Clock Out hanya mencatat waktu, tanpa lokasi atau perhitungan lembur.
+Absensi hanya mencatat waktu Clock In dan Clock Out, tanpa perhitungan
+keterlambatan atau lembur. Clock Out tidak memerlukan lokasi.
 
-Salin koordinat pin kantor dari Google Maps. Untuk Docker Compose, isi
+Pin kantor Giri Mekar Permai adalah **-6.896211064380826, 107.69234020127173**,
+dengan radius WFO **100 meter**. Docker Compose memakai pin ini sebagai default.
+Untuk mengganti pin pada Docker Compose, isi
 `ATTENDANCE_OFFICE_LATITUDE` dan `ATTENDANCE_OFFICE_LONGITUDE` di `.env` root
 atau file yang diberikan ke `docker compose --env-file`. Untuk backend langsung,
 isi variabel tersebut di environment backend. Keduanya harus berupa angka desimal
-dengan titik. Jangan memakai koordinat contoh untuk kantor sebenarnya.
-Restart backend setelah mengubah pin. Tanpa pin yang valid, WFO diblokir dan WFA
+dengan titik. Untuk menjalankan backend langsung, gunakan:
+
+```dotenv
+ATTENDANCE_OFFICE_LATITUDE=-6.896211064380826
+ATTENDANCE_OFFICE_LONGITUDE=107.69234020127173
+```
+
+Recreate container backend setelah mengubah pin pada Compose, atau restart proses
+backend langsung. Tanpa pin yang valid, WFO diblokir dan WFA
 tetap tersedia. Tidak diperlukan Google Maps API key atau library peta.
 
 Gunakan HTTPS untuk akses dari perangkat lain; geolocation dapat digunakan di
@@ -210,8 +220,31 @@ Tidak ada pelacakan latar belakang atau pencatatan koordinat ke log aplikasi.
 Waktu berasal dari server dan tanggal kehadiran menggunakan `Asia/Jakarta`.
 Satu pengguna hanya memiliki satu record per hari dan satu record terbuka.
 Record lama harus di-Clock Out sebelum Clock In hari berikutnya; tanggal awal
-tetap dipertahankan. Riwayat hanya dapat dibaca pemiliknya. Migrasi tabel absensi
+tetap dipertahankan. Riwayat pribadi hanya dapat dibaca pemiliknya. Migrasi tabel absensi
 berjalan bersama migrasi database yang sudah ada.
+
+### Absensi Karyawan
+
+Menu **Absensi Karyawan** (`/attendance/overview`) tersedia untuk **HR, Management,
+dan Admin**. Halaman menampilkan karyawan aktif per tanggal (default hari ini WIB),
+pencarian nama, filter status, ringkasan jumlah, dan waktu Clock In/Out. Data dimuat
+ulang melalui tombol atau saat jendela kembali aktif.
+
+Status **Hadir** berlaku jika ada Clock In, termasuk setelah Clock Out. Tanpa Clock
+In, pengajuan **Izin/Cuti** yang sudah disetujui ditampilkan terpisah; pengajuan
+pending atau ditolak tidak dihitung. Sisanya berstatus **Belum Clock In** (hari ini)
+atau **Tidak ada Clock In** (tanggal lampau), tanpa penilaian keterlambatan atau penalti.
+Pengajuan izin/cuti yang bertumpuk tidak menggandakan baris karyawan.
+
+API `GET /attendance/overview?date=YYYY-MM-DD` memeriksa role di server dan menolak
+tanggal tidak valid atau masa depan. Respons berisi `date`, `todayDate`, dan
+`employees` dengan `userId`, `name`, `role`, `status` (`PRESENT`, `LEAVE`, `MISSING`),
+`leaveTypes`, `mode`, `clockIn`, serta `clockOut`. Tidak ada koordinat, gaji, atau
+alasan izin/cuti dalam respons. Tidak diperlukan migrasi tambahan.
+
+Karyawan mengacu pada akun yang **aktif saat ini** dan sudah dibuat pada tanggal
+pilihan; status keaktifan historis tidak direkonstruksi. Halaman ini tidak mengubah
+kewenangan persetujuan izin/cuti. Rebuild aplikasi untuk menerapkan halaman baru.
 
 Verifikasi: `go test ./...` dari `backend`, lalu `npm run check` dan
 `npm run build` dari `frontend`. Tes integrasi `TestAttendanceIntegration` memakai
@@ -221,4 +254,4 @@ di `127.0.0.1`. Untuk browser, jalankan `TestAttendanceBrowserServer` dengan
 `ATTENDANCE_BROWSER_SERVER=1`, Vite di port 5189 dengan
 `VITE_API_URL=http://127.0.0.1:3001`, lalu `node tests/attendance.browser.mjs`.
 Fixture browser mengosongkan absensi akun `attendance-browser-*` miliknya
-pada database uji tersebut sebelum setiap run.
+dan membuat ulang izin Management pada database uji tersebut sebelum setiap run.

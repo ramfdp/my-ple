@@ -101,7 +101,7 @@
   <p class="status" role="status">{status}</p>
   {#if error}<p class="error" role="alert">{error}</p>{/if}
   {#if !ready && !loading}<button disabled={busy} onclick={refresh}>Muat ulang data</button>{/if}
-  <p class="hint policy">Clock Out setelah pukul 19.00 tetap dicatat sebagai hari kerja biasa, tanpa perhitungan lembur.</p>
+  <p class="hint policy">Absensi hanya mencatat waktu Clock In dan Clock Out, tanpa perhitungan keterlambatan atau lembur.</p>
  </section>
 
  <section class="history-panel" aria-labelledby="history-title" aria-busy={loading}>

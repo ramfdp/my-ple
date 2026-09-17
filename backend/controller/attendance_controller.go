@@ -26,7 +26,7 @@ func NewAttendanceController(database *db.Database) *AttendanceController {
 func attendanceError(w http.ResponseWriter, err error) {
 	status, message := http.StatusInternalServerError, "Gagal memproses absensi. Coba muat ulang."
 	switch {
-	case errors.Is(err, db.ErrAttendanceInvalid), errors.Is(err, db.ErrAttendanceAccuracy):
+	case errors.Is(err, db.ErrAttendanceInvalid), errors.Is(err, db.ErrAttendanceAccuracy), errors.Is(err, db.ErrAttendanceDate):
 		status, message = 400, err.Error()
 	case errors.Is(err, db.ErrAttendanceOutside):
 		status, message = 403, err.Error()
@@ -48,6 +48,19 @@ func (c *AttendanceController) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	path := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(path) == 2 && path[1] == "overview" && r.Method == http.MethodGet {
+		if !strings.EqualFold(user.RoleName, "Admin") && !strings.EqualFold(user.RoleName, "Management") && !strings.EqualFold(user.RoleName, "HR") {
+			WriteJSON(w, http.StatusForbidden, map[string]string{"error": "Akses rekap absensi hanya untuk HR, Management, dan Admin."})
+			return
+		}
+		result, err := c.DB.AttendanceOverview(r.Context(), r.URL.Query().Get("date"))
+		if err != nil {
+			attendanceError(w, err)
+			return
+		}
+		WriteJSON(w, http.StatusOK, result)
+		return
+	}
 	if len(path) == 1 && r.Method == http.MethodGet {
 		result, err := c.DB.AttendanceHistory(r.Context(), user.ID, r.URL.Query().Get("month"))
 		if err != nil {

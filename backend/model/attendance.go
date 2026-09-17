@@ -26,3 +26,20 @@ type AttendanceHistory struct {
 	TodayDate        string       `json:"todayDate"`
 	OfficeConfigured bool         `json:"officeConfigured"`
 }
+
+type AttendanceEmployee struct {
+	UserID     string     `json:"userId"`
+	Name       string     `json:"name"`
+	Role       string     `json:"role"`
+	Status     string     `json:"status"`
+	LeaveTypes string     `json:"leaveTypes"`
+	Mode       string     `json:"mode"`
+	ClockIn    *time.Time `json:"clockIn"`
+	ClockOut   *time.Time `json:"clockOut"`
+}
+
+type AttendanceOverview struct {
+	Date      string               `json:"date"`
+	TodayDate string               `json:"todayDate"`
+	Employees []AttendanceEmployee `json:"employees"`
+}

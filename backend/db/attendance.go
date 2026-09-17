@@ -15,6 +15,7 @@ var (
 	ErrAttendanceOutside  = errors.New("Anda berada di luar radius 100 meter dari kantor.")
 	ErrAttendanceAccuracy = errors.New("Lokasi belum cukup akurat. Aktifkan lokasi presisi dan coba lagi di area terbuka.")
 	ErrAttendanceOpen     = errors.New("Selesaikan Clock Out absensi sebelumnya sebelum Clock In hari ini.")
+	ErrAttendanceDate     = errors.New("Tanggal absensi harus valid dan tidak boleh melebihi hari ini.")
 )
 
 type AttendanceOffice struct {
@@ -71,6 +72,42 @@ func scanAttendance(row interface{ Scan(...any) error }) (model.Attendance, erro
 	var item model.Attendance
 	err := row.Scan(&item.ID, &item.Date, &item.Mode, &item.ClockIn, &item.ClockOut, &item.Latitude, &item.Longitude)
 	return item, err
+}
+
+func (db *Database) AttendanceOverview(ctx context.Context, date string) (model.AttendanceOverview, error) {
+	today := db.attendanceNow().Format("2006-01-02")
+	if date == "" {
+		date = today
+	}
+	result := model.AttendanceOverview{Date: date, TodayDate: today, Employees: []model.AttendanceEmployee{}}
+	day, err := time.Parse("2006-01-02", date)
+	if err != nil || day.Year() < 1 || date > today {
+		return result, ErrAttendanceDate
+	}
+	rows, err := db.Conn.QueryContext(ctx, `SELECT u.id,u.name,r.name,
+ CASE WHEN a.id IS NOT NULL THEN 'PRESENT' WHEN l.types IS NOT NULL THEN 'LEAVE' ELSE 'MISSING' END,
+ CASE WHEN a.id IS NULL THEN COALESCE(l.types,'') ELSE '' END,
+ COALESCE(a.mode,''),a.clock_in,a.clock_out
+ FROM users u JOIN roles r ON r.id=u.role_id
+ LEFT JOIN attendance a ON a.user_id=u.id AND a.attendance_date=$1::date
+ LEFT JOIN LATERAL (
+   SELECT string_agg(DISTINCT request_type, ', ' ORDER BY request_type) AS types
+   FROM leave_requests WHERE user_id=u.id AND status='APPROVED' AND $1::date BETWEEN start_date AND end_date
+ ) l ON true
+ WHERE u.is_active AND (u.created_at AT TIME ZONE $2)::date <= $1::date
+ ORDER BY lower(u.name),u.id`, date, model.ReportingTimezone)
+	if err != nil {
+		return result, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var employee model.AttendanceEmployee
+		if err := rows.Scan(&employee.UserID, &employee.Name, &employee.Role, &employee.Status, &employee.LeaveTypes, &employee.Mode, &employee.ClockIn, &employee.ClockOut); err != nil {
+			return result, err
+		}
+		result.Employees = append(result.Employees, employee)
+	}
+	return result, rows.Err()
 }
 
 func (db *Database) AttendanceHistory(ctx context.Context, userID, month string) (model.AttendanceHistory, error) {

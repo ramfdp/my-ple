@@ -48,4 +48,14 @@ func TestAttendanceLocation(t *testing.T) {
 	if !errors.Is(office.Validate(in), ErrAttendanceInvalid) {
 		t.Fatal("missing latitude accepted")
 	}
+	// Verify the configured office pin with a non-zero latitude and longitude.
+	office = AttendanceOffice{Latitude: -6.896211064380826, Longitude: 107.69234020127173, Configured: true}
+	for _, meters := range []float64{0, 99, 101} {
+		lat, lng := office.Latitude+meters/6371000*180/math.Pi, office.Longitude
+		in = model.AttendanceInput{Mode: "WFO", Latitude: &lat, Longitude: &lng, Accuracy: &accuracy}
+		err := office.Validate(in)
+		if (meters <= 100 && err != nil) || (meters > 100 && !errors.Is(err, ErrAttendanceOutside)) {
+			t.Fatalf("office pin at %v meters: %v", meters, err)
+		}
+	}
 }
