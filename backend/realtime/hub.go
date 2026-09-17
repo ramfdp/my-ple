@@ -107,17 +107,15 @@ func (h *Hub) Broadcast(notification model.Notification, excludeUserID string) {
 }
 
 // Private invalidations contain no request content; the subsequent API read enforces current access.
-func (h *Hub) SendEvent(userIDs []string, event any, excludeUserID string) {
+func (h *Hub) SendEvent(userIDs []string, event any) {
 	h.broadcastMu.Lock()
 	defer h.broadcastMu.Unlock()
 	payload, _ := json.Marshal(event)
 	h.mu.RLock()
 	targets := []*websocket.Conn{}
 	for _, id := range userIDs {
-		if id != excludeUserID {
-			for c := range h.connections[id] {
-				targets = append(targets, c)
-			}
+		for c := range h.connections[id] {
+			targets = append(targets, c)
 		}
 	}
 	h.mu.RUnlock()

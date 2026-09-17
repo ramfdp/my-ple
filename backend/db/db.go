@@ -96,18 +96,17 @@ func (db *Database) Migrate(ctx context.Context) error {
 	return nil
 }
 
-// ponytail: single SELECT query covering all core user and profile fields
-func (db *Database) FindUser(ctx context.Context, identifier string) (model.User, error) {
-	var u model.User
-	err := db.Conn.QueryRowContext(ctx, `
+const userSelect = `
 		SELECT u.id, u.name, u.email, u.role_id, r.name, u.username, u.password_hash,
 		       COALESCE(u.job_title, ''), COALESCE(u.salary, 0), COALESCE(u.residence, ''),
 		       COALESCE(u.phone_number, ''), COALESCE(u.employment_status, 'Permanent Employee'),
 		       COALESCE(u.avatar_url, ''), COALESCE(u.is_active, true), u.created_at, u.updated_at
 		FROM users u
-		JOIN roles r ON u.role_id = r.id
-		WHERE u.username = $1 OR LOWER(u.email) = LOWER($1)`, identifier,
-	).Scan(
+		JOIN roles r ON u.role_id = r.id `
+
+func scanUser(row interface{ Scan(...any) error }) (model.User, error) {
+	var u model.User
+	err := row.Scan(
 		&u.ID, &u.Name, &u.Email, &u.RoleID, &u.RoleName, &u.Username, &u.PasswordHash,
 		&u.JobTitle, &u.Salary, &u.Residence, &u.PhoneNumber, &u.EmploymentStatus,
 		&u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt,
@@ -115,22 +114,12 @@ func (db *Database) FindUser(ctx context.Context, identifier string) (model.User
 	return u, err
 }
 
+func (db *Database) FindUser(ctx context.Context, identifier string) (model.User, error) {
+	return scanUser(db.Conn.QueryRowContext(ctx, userSelect+`WHERE u.username = $1 OR LOWER(u.email) = LOWER($1)`, identifier))
+}
+
 func (db *Database) FindUserByID(ctx context.Context, id string) (model.User, error) {
-	var u model.User
-	err := db.Conn.QueryRowContext(ctx, `
-		SELECT u.id, u.name, u.email, u.role_id, r.name, u.username, u.password_hash,
-		       COALESCE(u.job_title, ''), COALESCE(u.salary, 0), COALESCE(u.residence, ''),
-		       COALESCE(u.phone_number, ''), COALESCE(u.employment_status, 'Permanent Employee'),
-		       COALESCE(u.avatar_url, ''), COALESCE(u.is_active, true), u.created_at, u.updated_at
-		FROM users u
-		JOIN roles r ON u.role_id = r.id
-		WHERE u.id = $1`, id,
-	).Scan(
-		&u.ID, &u.Name, &u.Email, &u.RoleID, &u.RoleName, &u.Username, &u.PasswordHash,
-		&u.JobTitle, &u.Salary, &u.Residence, &u.PhoneNumber, &u.EmploymentStatus,
-		&u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt,
-	)
-	return u, err
+	return scanUser(db.Conn.QueryRowContext(ctx, userSelect+`WHERE u.id = $1`, id))
 }
 
 func (db *Database) CreateSession(ctx context.Context, userID, tokenHash string, expiresAt time.Time) error {

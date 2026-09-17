@@ -76,7 +76,7 @@ func (s *Service) deliverChange(ctx context.Context, c Change) {
 	err = rows.Err()
 	rows.Close()
 	if err == nil {
-		s.Hub.SendEvent(ids, c, "")
+		s.Hub.SendEvent(ids, c)
 	}
 }
 

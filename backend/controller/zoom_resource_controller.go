@@ -14,10 +14,6 @@ import (
 
 type ZoomResourceController struct{ DB *db.Database }
 
-func NewZoomResourceController(database *db.Database) *ZoomResourceController {
-	return &ZoomResourceController{DB: database}
-}
-
 func canEditZoomResources(role string) bool {
 	return strings.EqualFold(role, "Admin") || strings.EqualFold(role, "Management")
 }

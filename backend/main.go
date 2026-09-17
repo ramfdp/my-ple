@@ -89,7 +89,7 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 	jobCtrl := &controller.JobController{DB: database}
 	checklistCtrl := &controller.DocumentChecklistController{DB: database}
 	zoomCtrl := &controller.ZoomBookingController{DB: database, Notifications: notificationService}
-	zoomResourceCtrl := controller.NewZoomResourceController(database)
+	zoomResourceCtrl := &controller.ZoomResourceController{DB: database}
 	notificationCtrl := &controller.NotificationController{DB: database}
 	leaveCtrl := &controller.LeaveController{DB: database, Notifications: notificationService}
 	attendanceCtrl := controller.NewAttendanceController(database)
