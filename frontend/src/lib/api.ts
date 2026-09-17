@@ -73,10 +73,14 @@ export async function upload<T>(path: string, body: FormData): Promise<T> {
 	return response.json();
 }
 
-export async function download(path: string): Promise<{ blob: Blob; filename: string }> {
+export async function download(path: string): Promise<void> {
 	const response = await checked(await fetch(`${apiUrl}${path}`, { credentials: 'include' }), 'Download failed.');
 	const filename = response.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] ?? 'Weekly_Report.pdf';
-	return { blob: await response.blob(), filename };
+	const url = URL.createObjectURL(await response.blob());
+	const link = document.createElement('a');
+	link.href = url;
+	link.download = filename;
+	try { link.click(); } finally { URL.revokeObjectURL(url); }
 }
 
 export const assetUrl = (path: string) => path.startsWith('/uploads/') ? `${apiUrl}${path}` : path;

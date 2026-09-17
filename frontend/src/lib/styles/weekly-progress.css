@@ -201,7 +201,3 @@
 	.report-drawer-header { margin-bottom: 16px; }
 	.report-drawer-form { gap: 16px; }
 }
-
-@media (prefers-reduced-motion: reduce) {
-	*, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
-}

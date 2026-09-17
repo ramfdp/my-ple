@@ -59,3 +59,7 @@ fieldset { min-width: 0; }
 	button:not(.calendar-booking), input:not([type='checkbox']):not([type='radio']), select { min-height: 44px; }
 	body :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]) { font-size: max(1rem, 1em); }
 }
+
+@media (prefers-reduced-motion: reduce) {
+	*, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
+}

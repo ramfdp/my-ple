@@ -158,14 +158,6 @@
 	line-height: 1.04;
 }
 
-.showcase-content > p:last-child {
-	max-width: 390px;
-	margin: 22px 0 0;
-	color: #d8e7e2;
-	font-size: 1rem;
-	line-height: 1.65;
-}
-
 @keyframes reveal-up {
 	from { opacity: 0; transform: translateY(20px); }
 	to { opacity: 1; transform: translateY(0); }
@@ -181,12 +173,4 @@
 	min-width: 0; min-height: 100svh; padding: 32px 24px; }
 	.login-heading { margin: 52px 0 30px; }
 	.showcase-panel { display: none; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-	*, *::before, *::after {
-		animation-duration: 1ms !important;
-		animation-iteration-count: 1 !important;
-		transition-duration: 1ms !important;
-	}
 }

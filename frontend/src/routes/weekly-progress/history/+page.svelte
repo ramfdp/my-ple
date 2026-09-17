@@ -28,9 +28,7 @@
 	async function savePDF(id: string) {
 		downloading = id; error = '';
 		try {
-			const { blob, filename } = await download(`/reports/history/${id}/pdf`);
-			const url = URL.createObjectURL(blob), link = document.createElement('a');
-			link.href = url; link.download = filename; link.click(); URL.revokeObjectURL(url);
+			await download(`/reports/history/${id}/pdf`);
 		} catch (e) { error = e instanceof Error ? e.message : 'PDF tidak dapat diunduh.'; }
 		finally { downloading = ''; }
 	}

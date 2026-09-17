@@ -56,13 +56,7 @@
 		exporting = true;
 		exportError = '';
 		try {
-			const { blob, filename } = await download(`/reports.${format}?primaryDivision=${encodeURIComponent(divisions[selectedDivision])}`);
-			const url = URL.createObjectURL(blob);
-			const link = document.createElement('a');
-			link.href = url;
-			link.download = filename;
-			link.click();
-			URL.revokeObjectURL(url);
+			await download(`/reports.${format}?primaryDivision=${encodeURIComponent(divisions[selectedDivision])}`);
    exportDialog.close();
 		} catch (err) {
 			exportError = err instanceof Error ? err.message : 'Laporan tidak dapat diekspor.';

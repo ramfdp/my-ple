@@ -196,11 +196,3 @@
 	.menu-card h3 { margin-top: 28px; font-size: 1rem; }
 	.menu-card p { font-size: 0.78rem; }
 }
-
-@media (prefers-reduced-motion: reduce) {
-	*, *::before, *::after {
-		animation-duration: 1ms !important;
-		animation-iteration-count: 1 !important;
-		transition-duration: 1ms !important;
-	}
-}
