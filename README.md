@@ -261,3 +261,30 @@ di `127.0.0.1`. Untuk browser, jalankan `TestAttendanceBrowserServer` dengan
 `VITE_API_URL=http://127.0.0.1:3001`, lalu `node tests/attendance.browser.mjs`.
 Fixture browser mengosongkan absensi akun `attendance-browser-*` miliknya
 dan membuat ulang izin Management pada database uji tersebut sebelum setiap run.
+
+
+### Tabel checklist dokumen
+
+Checklist hanya menampilkan pekerjaan ber-role Project Engineer (termasuk pekerjaan
+nonaktif), bukan QA atau CIHPK. Akses tetap untuk Project Engineer, Finance, Management,
+dan Admin. Setiap pekerjaan dapat memiliki beberapa tabel berjudul; gunakan panah
+sebelumnya/berikutnya untuk memilih tabel, lalu **Edit Tabel Checklist** untuk mengubah
+judul dan penandatangan. **Tambah Isi Dokumen** menambah baris; isi sel tetap disimpan
+otomatis. Kolom Aksi dan tombol hapus tidak ditampilkan.
+
+Migrasi otomatis mempertahankan tabel, dokumen, dan riwayat tanda tangan yang ada,
+memberi judul awal **Checklist Dokumen**, dan menghapus batas satu tabel per pekerjaan.
+Data checklist pekerjaan non-PE tetap tersimpan tetapi tidak tersedia pada fitur ini.
+Deploy backend dan frontend bersamaan: `GET /document-checklists/{jobId}` sekarang
+mengembalikan `{checklists: [...]}`; `POST` pada URL tersebut membuat tabel.
+`GET`/`PUT /document-checklists/{jobId}/tables/{tableId}` membaca/mengubah tabel.
+Operasi dokumen menggunakan `/document-checklists/{jobId}/tables/{tableId}/items`
+dan `.../items/{itemId}`. Konfigurasi wajib menyertakan `title`; mutasi mengembalikan
+`{checklist: ...}`. Route mutasi lama tanpa ID tabel tidak lagi digunakan.
+
+Tes checklist: jalankan `go test . -run TestDocumentChecklist -v` dari `backend`
+dengan `CHECKLIST_TEST_DATABASE_URL` ke database lokal terisolasi
+`my_ple_checklist_test`. Untuk browser, jalankan `TestDocumentChecklistBrowserServer`
+dengan `CHECKLIST_BROWSER_SERVER=1`, Vite port 5189 dengan
+`VITE_API_URL=http://127.0.0.1:3001`, lalu dari `frontend` jalankan
+`node tests/document-checklist.browser.mjs`.

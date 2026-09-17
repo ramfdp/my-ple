@@ -26,6 +26,7 @@ type ChecklistSigner struct {
 	Archived     bool   `json:"archived"`
 }
 type ChecklistConfigInput struct {
+	Title                   string            `json:"title"`
 	RequireDigitalSignature bool              `json:"requireDigitalSignature"`
 	Version                 int               `json:"version"`
 	InternalCount           int               `json:"internalCount"`
@@ -34,6 +35,10 @@ type ChecklistConfigInput struct {
 }
 
 func (in *ChecklistConfigInput) Validate() error {
+	in.Title = strings.TrimSpace(in.Title)
+	if in.Title == "" || len([]rune(in.Title)) > 255 {
+		return ErrInvalidChecklist
+	}
 	if in.InternalCount < 0 || in.ExternalCount < 0 || in.Version < 0 {
 		return ErrInvalidChecklist
 	}
@@ -59,6 +64,7 @@ func (in *ChecklistConfigInput) Validate() error {
 }
 
 type DocumentChecklist struct {
+	Title                   string            `json:"title"`
 	ID                      int               `json:"id"`
 	JobID                   int               `json:"jobId"`
 	RequireDigitalSignature bool              `json:"requireDigitalSignature"`

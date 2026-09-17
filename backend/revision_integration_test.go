@@ -635,12 +635,16 @@ func TestRevisionIntegration(t *testing.T) {
 		}
 		await(own, "notifications.changed", employee.id)
 		checklistPath := fmt.Sprintf("/document-checklists/%d", job)
-		status, _ = request(manager, "POST", checklistPath, model.ChecklistConfigInput{RequireDigitalSignature: true})
+		status, checklistBody := request(manager, "POST", checklistPath, model.ChecklistConfigInput{Title: "Live checklist", RequireDigitalSignature: true})
 		if status != 200 {
 			t.Fatal("checklist create", status)
 		}
 		await(admin, "document-checklists.changed", fmt.Sprint(job))
-		status, _ = request(manager, "POST", checklistPath+"/items", model.ChecklistItemPatch{Field: "documentName", Value: "Live document"})
+		var checklist model.DocumentChecklist
+		if err := json.Unmarshal(checklistBody["checklist"], &checklist); err != nil {
+			t.Fatal(err)
+		}
+		status, _ = request(manager, "POST", fmt.Sprintf("%s/tables/%d/items", checklistPath, checklist.ID), model.ChecklistItemPatch{Field: "documentName", Value: "Live document"})
 		if status != 200 {
 			t.Fatal("checklist item", status)
 		}

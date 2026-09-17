@@ -1,11 +1,17 @@
 CREATE TABLE IF NOT EXISTS document_checklists (
  id SERIAL PRIMARY KEY,
- job_id INTEGER NOT NULL UNIQUE REFERENCES jobs(id),
+ job_id INTEGER NOT NULL REFERENCES jobs(id),
+ title VARCHAR(255) NOT NULL CHECK (btrim(title) <> ''),
  require_digital_signature BOOLEAN NOT NULL DEFAULT FALSE,
  version INTEGER NOT NULL DEFAULT 1,
  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+-- Upgrade existing single-table checklists without changing their identities.
+ALTER TABLE document_checklists ADD COLUMN IF NOT EXISTS title VARCHAR(255) NOT NULL DEFAULT 'Checklist Dokumen' CHECK (btrim(title) <> '');
+ALTER TABLE document_checklists ALTER COLUMN title DROP DEFAULT;
+ALTER TABLE document_checklists DROP CONSTRAINT IF EXISTS document_checklists_job_id_key;
+CREATE INDEX IF NOT EXISTS document_checklists_job_order ON document_checklists(job_id,id);
 CREATE TABLE IF NOT EXISTS document_checklist_signers (
  id SERIAL PRIMARY KEY,
  checklist_id INTEGER NOT NULL REFERENCES document_checklists(id),

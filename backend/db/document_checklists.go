@@ -6,17 +6,14 @@ import (
 	"my-ple-backend/model"
 )
 
-func (db *Database) DocumentChecklist(ctx context.Context, jobID int) (*model.DocumentChecklist, error) {
+func (db *Database) DocumentChecklist(ctx context.Context, jobID, checklistID int) (*model.DocumentChecklist, error) {
 	tx, err := db.Conn.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 	c := &model.DocumentChecklist{JobID: jobID, Signers: []model.ChecklistSigner{}, Items: []model.ChecklistItem{}}
-	err = tx.QueryRowContext(ctx, `SELECT id,require_digital_signature,version FROM document_checklists WHERE job_id=$1`, jobID).Scan(&c.ID, &c.RequireDigitalSignature, &c.Version)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
+	err = tx.QueryRowContext(ctx, `SELECT id,title,require_digital_signature,version FROM document_checklists WHERE job_id=$1 AND id=$2`, jobID, checklistID).Scan(&c.ID, &c.Title, &c.RequireDigitalSignature, &c.Version)
 	if err != nil {
 		return nil, err
 	}
@@ -79,85 +76,80 @@ func (db *Database) DocumentChecklist(ctx context.Context, jobID int) (*model.Do
 	return c, tx.Commit()
 }
 
-func (db *Database) SaveDocumentChecklist(ctx context.Context, jobID int, in model.ChecklistConfigInput) error {
+func (db *Database) SaveDocumentChecklist(ctx context.Context, jobID, checklistID int, in model.ChecklistConfigInput) (int, error) {
 	if err := in.Validate(); err != nil {
-		return err
+		return 0, err
 	}
 	tx, err := db.Conn.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer tx.Rollback()
-	// Lock the existing master, also serializing concurrent first-time configuration.
-	var job int
-	if err = tx.QueryRowContext(ctx, `SELECT id FROM jobs WHERE id=$1 FOR UPDATE`, jobID).Scan(&job); err != nil {
-		return err
-	}
 	var id, version int
-	err = tx.QueryRowContext(ctx, `SELECT id,version FROM document_checklists WHERE job_id=$1 FOR UPDATE`, jobID).Scan(&id, &version)
-	if err != nil && err != sql.ErrNoRows {
-		return err
-	}
-	if version != in.Version {
-		return model.ErrChecklistConflict
-	}
-	if id == 0 {
-		err = tx.QueryRowContext(ctx, `INSERT INTO document_checklists(job_id,require_digital_signature) VALUES($1,$2) RETURNING id`, jobID, in.RequireDigitalSignature).Scan(&id)
+	if checklistID == 0 {
+		err = tx.QueryRowContext(ctx, `INSERT INTO document_checklists(job_id,title,require_digital_signature) VALUES($1,$2,$3) RETURNING id`, jobID, in.Title, in.RequireDigitalSignature).Scan(&id)
 	} else {
-		_, err = tx.ExecContext(ctx, `UPDATE document_checklists SET require_digital_signature=$2,version=version+1,updated_at=NOW() WHERE id=$1`, id, in.RequireDigitalSignature)
+		err = tx.QueryRowContext(ctx, `SELECT id,version FROM document_checklists WHERE job_id=$1 AND id=$2 FOR UPDATE`, jobID, checklistID).Scan(&id, &version)
+		if err != nil {
+			return 0, err
+		}
+		if version != in.Version {
+			return 0, model.ErrChecklistConflict
+		}
+		_, err = tx.ExecContext(ctx, `UPDATE document_checklists SET title=$2,require_digital_signature=$3,version=version+1,updated_at=NOW() WHERE id=$1`, id, in.Title, in.RequireDigitalSignature)
 	}
 	if err != nil {
-		return err
+		return 0, err
 	}
 	// Archive removed/changed identities; never reassign their historical checkboxes.
 	rows, err := tx.QueryContext(ctx, `SELECT id,signer_type,name,position FROM document_checklist_signers WHERE checklist_id=$1 AND archived_at IS NULL`, id)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	old := map[int]model.ChecklistSigner{}
 	for rows.Next() {
 		var s model.ChecklistSigner
 		if err = rows.Scan(&s.ID, &s.Type, &s.Name, &s.Position); err != nil {
 			rows.Close()
-			return err
+			return 0, err
 		}
 		old[s.ID] = s
 	}
 	err = rows.Err()
 	rows.Close()
 	if err != nil {
-		return err
+		return 0, err
 	}
 	for _, s := range in.Signers {
 		if s.ID > 0 {
 			previous, ok := old[s.ID]
 			if !ok {
-				return model.ErrInvalidChecklist
+				return 0, model.ErrInvalidChecklist
 			}
 			if previous.Type == s.Type && previous.Name == s.Name && previous.Position == s.Position {
 				if _, err = tx.ExecContext(ctx, `UPDATE document_checklist_signers SET display_order=$2 WHERE id=$1`, s.ID, s.DisplayOrder); err != nil {
-					return err
+					return 0, err
 				}
 				delete(old, s.ID)
 				continue
 			}
 		}
 		if _, err = tx.ExecContext(ctx, `INSERT INTO document_checklist_signers(checklist_id,signer_type,name,position,display_order) VALUES($1,$2,$3,$4,$5)`, id, s.Type, s.Name, s.Position, s.DisplayOrder); err != nil {
-			return err
+			return 0, err
 		}
 	}
 	for signerID := range old {
 		if _, err = tx.ExecContext(ctx, `UPDATE document_checklist_signers SET archived_at=NOW() WHERE id=$1`, signerID); err != nil {
-			return err
+			return 0, err
 		}
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE jobs SET used_at=COALESCE(used_at,NOW()) WHERE id=$1`, jobID); err != nil {
-		return err
+		return 0, err
 	}
-	return tx.Commit()
+	return id, tx.Commit()
 }
 
-func (db *Database) MutateChecklistItem(ctx context.Context, jobID, itemID int, method string, patch model.ChecklistItemPatch) error {
+func (db *Database) MutateChecklistItem(ctx context.Context, jobID, checklistID, itemID int, method string, patch model.ChecklistItemPatch) error {
 	if method != "DELETE" {
 		if err := patch.Validate(); err != nil {
 			return err
@@ -170,7 +162,7 @@ func (db *Database) MutateChecklistItem(ctx context.Context, jobID, itemID int, 
 	defer tx.Rollback()
 	var configID int
 	var digital bool
-	if err = tx.QueryRowContext(ctx, `SELECT id,require_digital_signature FROM document_checklists WHERE job_id=$1 FOR UPDATE`, jobID).Scan(&configID, &digital); err != nil {
+	if err = tx.QueryRowContext(ctx, `SELECT id,require_digital_signature FROM document_checklists WHERE job_id=$1 AND id=$2 FOR UPDATE`, jobID, checklistID).Scan(&configID, &digital); err != nil {
 		return err
 	}
 	if method == "POST" {
@@ -216,4 +208,35 @@ func (db *Database) MutateChecklistItem(ctx context.Context, jobID, itemID int, 
 		return err
 	}
 	return tx.Commit()
+}
+
+func (db *Database) DocumentChecklists(ctx context.Context, jobID int) ([]*model.DocumentChecklist, error) {
+	rows, err := db.Conn.QueryContext(ctx, `SELECT id FROM document_checklists WHERE job_id=$1 ORDER BY id`, jobID)
+	if err != nil {
+		return nil, err
+	}
+	ids := []int{}
+	for rows.Next() {
+		var id int
+		if err = rows.Scan(&id); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	// ponytail: reuse per-table snapshots; batch reads if large table counts make refresh slow.
+	checklists := []*model.DocumentChecklist{}
+	for _, id := range ids {
+		checklist, err := db.DocumentChecklist(ctx, jobID, id)
+		if err != nil {
+			return nil, err
+		}
+		checklists = append(checklists, checklist)
+	}
+	return checklists, nil
 }

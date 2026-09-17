@@ -24,9 +24,10 @@ async function saved(action) {
  await action(); const result=await response; assert.equal(result.ok(),true,await result.text());
  await page.waitForFunction(() => !document.querySelector('.checklist input:disabled'));
 }
-async function configure(section, internal, external, digital) {
+async function configure(section, internal, external, digital, title = 'Table One') {
  await section.getByRole('button',{name:'+ Buat Tabel Checklist',exact:true}).click();
  const dialog=page.getByRole('dialog');
+ await dialog.getByLabel('Judul Tabel',{exact:true}).fill(title);
  if(digital)await dialog.getByLabel('Butuh TTD Digital?').check();
  await dialog.getByLabel('Berapa banyak TTD Internal?').fill(String(internal.length));
  await dialog.getByLabel('Berapa banyak TTD External?').fill(String(external.length));
@@ -39,14 +40,19 @@ async function configure(section, internal, external, digital) {
 }
 async function add(section,name) {
  await section.getByLabel('Dokumen baru',{exact:true}).fill(name);
- await saved(()=>section.getByRole('button',{name:'+ Tambah Dokumen',exact:true}).click());
+ await saved(()=>section.getByRole('button',{name:'+ Tambah Isi Dokumen',exact:true}).click());
 }
 try {
  await login('Admin');
  const masters=await api('/jobs/masters');
  const stamp=Date.now();const names=['Checklist Browser A '+stamp,'Checklist Browser B '+stamp];
  const jobs=[];
- for(const name of names){const result=await api('/jobs','POST',{divisionId:masters.divisions[0].id,name,isActive:true});jobs.push(result.job)}
+ const pe=masters.roles.find(r=>r.name==='Project Engineer');
+ assert.ok(pe);
+ for(const role of masters.roles.filter(r=>['Quality Assurance','CIHPK'].includes(r.name))) {
+  await api('/jobs','POST',{divisionId:role.divisionId,roleId:role.id,name:'Excluded '+role.name+' '+stamp,isActive:true});
+ }
+ for(const name of names){const result=await api('/jobs','POST',{divisionId:pe.divisionId,roleId:pe.id,name,isActive:true});jobs.push(result.job)}
  await page.getByRole('link',{name:'Checklist Dokumen Pekerjaan',exact:true}).click();
  const a=page.locator('section').filter({has:page.getByRole('button',{name:new RegExp(names[0])})});
  const b=page.locator('section').filter({has:page.getByRole('button',{name:new RegExp(names[1])})});
@@ -60,11 +66,45 @@ try {
   await saved(async()=>{const field=a.getByLabel(label,{exact:true});await field.fill(value);await field.press('Tab')});
  }
  await add(a,'Laporan Mingguan');await add(a,'Laporan Final');
- const before=(await api('/document-checklists/'+jobs[0].id)).checklist.items;
- await saved(()=>a.getByRole('button',{name:'Hapus Laporan Mingguan',exact:true}).click());
- assert.deepEqual(await a.locator('tbody tr td:first-child').allTextContents(),['1','2']);
- const after=(await api('/document-checklists/'+jobs[0].id)).checklist.items;
- assert.deepEqual(after.map(i=>i.id),[before[0].id,before[2].id]);
+ assert.equal(await a.getByRole('columnheader',{name:'Aksi',exact:true}).count(),0);
+ assert.equal(await a.getByRole('button',{name:/Hapus/}).count(),0);
+ assert.equal(await a.getByRole('button',{name:'Tabel sebelumnya',exact:true}).isDisabled(),true);
+ assert.equal(await a.getByRole('button',{name:'Tabel berikutnya',exact:true}).isDisabled(),true);
+ await configure(a,[],[],false,'Table Two');
+ await add(a,'Second table document');
+ assert.equal(await a.locator('.table-title').textContent(),'Table Two');
+ assert.equal(await a.getByRole('button',{name:'Tabel berikutnya',exact:true}).isDisabled(),true);
+ await a.getByRole('button',{name:'Tabel sebelumnya',exact:true}).click();
+ await a.getByLabel('Dokumen 1',{exact:true}).waitFor();
+ assert.equal(await a.getByLabel('Dokumen 1',{exact:true}).inputValue(),'Berita Acara');
+ // Clicking navigation saves the focused cell before changing tables.
+ await a.getByLabel('Catatan Berita Acara',{exact:true}).fill('Saved before navigation');
+ await saved(()=>a.getByRole('button',{name:'Tabel berikutnya',exact:true}).click());
+ await page.waitForFunction(()=>document.querySelector('.table-title')?.textContent==='Table Two');
+ await a.getByRole('button',{name:'Tabel sebelumnya',exact:true}).click();
+ assert.equal(await a.getByLabel('Catatan Berita Acara',{exact:true}).inputValue(),'Saved before navigation');
+ // A failed save must not navigate to another table.
+ await page.route('**/document-checklists/*/tables/*/items/*', route => route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({error:'Save failed'})}), {times:1});
+ await a.getByLabel('Catatan Berita Acara',{exact:true}).fill('Must not switch');
+ const failure=page.waitForResponse(r=>r.status()===500 && r.url().includes('/document-checklists/'));
+ await a.getByRole('button',{name:'Tabel berikutnya',exact:true}).click();await failure;
+ await a.getByRole('alert').filter({hasText:'Save failed'}).waitFor();
+ assert.equal(await a.locator('.table-title').textContent(),'Table One');
+ await saved(async()=>{const field=a.getByLabel('Catatan Berita Acara',{exact:true});await field.fill('Menunggu tanda tangan client');await field.press('Tab')});
+ const tables=(await api('/document-checklists/'+jobs[0].id)).checklists;
+ assert.equal(tables.length,2);assert.equal(tables[0].items.length,3);assert.equal(tables[1].items.length,1);
+ for(const job of (await api('/document-checklists')).jobs)assert.equal(job.role,'Project Engineer');
+ assert.equal(await a.locator('.table-title').getAttribute('colspan'),'9');
+ await a.getByRole('button',{name:'Tabel berikutnya',exact:true}).click();
+ assert.equal(await a.locator('.table-title').getAttribute('colspan'),'5');
+ const draft=a.getByLabel('Catatan Second table document',{exact:true});
+ await draft.fill('Typing while another table changes');
+ await api('/document-checklists/'+jobs[0].id,'POST',{title:'Remote table',version:0,internalCount:0,externalCount:0,signers:[]});
+ assert.equal(await draft.inputValue(),'Typing while another table changes');
+ await saved(()=>draft.press('Tab'));
+ await a.getByText('Table Two (2 / 3)',{exact:true}).waitFor();
+ assert.equal(await draft.inputValue(),'Typing while another table changes');
+ await a.getByRole('button',{name:'Tabel sebelumnya',exact:true}).click();
  await b.getByRole('button',{name:new RegExp(names[1])}).click();
  await configure(b,[['Internal B','PE']],[['External B1','Client'],['External B2','Client']],false);
  await add(b,'Dokumen B');assert.equal(await b.getByText('TTD Digital',{exact:true}).count(),0);
@@ -79,9 +119,11 @@ try {
  await b.getByRole('button',{name:new RegExp(names[1])}).click();
  await b.getByLabel('External B1 — Dokumen B',{exact:true}).waitFor();
  assert.equal(await b.getByText('Budi',{exact:true}).count(),0);
- await a.getByRole('button',{name:'Edit Struktur Checklist',exact:true}).click();
+ await a.getByRole('button',{name:'Edit Tabel Checklist',exact:true}).click();
  await page.getByRole('dialog').getByLabel('Nama',{exact:true}).first().fill('Budi Pengganti');
+ await page.getByRole('dialog').getByLabel('Judul Tabel',{exact:true}).fill('Renamed table');
  await saved(()=>page.getByRole('dialog').getByRole('button',{name:'Simpan',exact:true}).click());
+ assert.equal(await a.locator('.table-title').textContent(),'Renamed table');
  assert.equal(await a.getByLabel('Budi Pengganti — Berita Acara',{exact:true}).isChecked(),false);
  await a.getByText('Riwayat penandatangan yang diarsipkan (1)',{exact:true}).click();
  assert.match(await a.locator('details').textContent(),/Berita Acara: Sudah ditandatangani/);
@@ -99,5 +141,5 @@ try {
  await page.goto(origin+'/document-checklists');await page.getByRole('alert').filter({hasText:'Akses ditolak'}).waitFor();
  const denied=await context.request.get(backend+'/document-checklists');assert.equal(denied.status(),403);
  assert.deepEqual(errors,[]);
- console.log('PASS: real login, DB jobs, independent configurations, dynamic headers, document CRUD, persistent cells/signatures, archive, stable IDs/numbering, mobile scrolling, allowed roles and forbidden direct URL/API.');
+ console.log('PASS: real login, DB jobs, independent configurations, dynamic headers, multiple named tables, navigation, save failure, inline editing, persistent cells/signatures, archive, stable IDs/numbering, mobile scrolling, allowed roles and forbidden direct URL/API.');
 } finally {await browser.close();}

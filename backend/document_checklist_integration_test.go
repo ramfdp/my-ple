@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -97,14 +98,14 @@ func TestDocumentChecklistIntegration(t *testing.T) {
 				request(method, "/document-checklists/1", nil, 403)
 			}
 			for _, method := range []string{"POST", "PATCH", "DELETE"} {
-				request(method, "/document-checklists/1/items/1", nil, 403)
+				request(method, "/document-checklists/1/tables/1/items/1", nil, 403)
 			}
 		}
 	}
 	request("POST", "/auth/login", map[string]string{"username": "checklist-api-2", "password": "Checklist-test-only-2026"}, 200)
 	createJob := func(name string) int {
 		var id int
-		err := database.Conn.QueryRow(`INSERT INTO jobs(division_id,name) SELECT id,$1 FROM divisions ORDER BY id LIMIT 1 RETURNING id`, name+db.NewID()).Scan(&id)
+		err := database.Conn.QueryRow(`INSERT INTO jobs(division_id,role_id,name) SELECT division_id,id,$1 FROM report_roles WHERE name='PE' ORDER BY id LIMIT 1 RETURNING id`, name+db.NewID()).Scan(&id)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -119,13 +120,36 @@ func TestDocumentChecklistIntegration(t *testing.T) {
 	}
 	found := false
 	for _, j := range jobs {
+		if j.Role != "Project Engineer" {
+			t.Fatalf("ineligible job: %+v", j)
+		}
 		found = found || j.ID == jobA
 	}
 	if !found {
 		t.Fatal("new database job missing")
 	}
+	for _, role := range []string{"QA", "CIHPK"} {
+		var excluded int
+		err := database.Conn.QueryRow(`INSERT INTO jobs(division_id,role_id,name) SELECT division_id,id,$1 FROM report_roles WHERE name=$2 ORDER BY id LIMIT 1 RETURNING id`, "Excluded "+db.NewID(), role).Scan(&excluded)
+		if err != nil {
+			t.Fatal(err)
+		}
+		path := fmt.Sprintf("/document-checklists/%d", excluded)
+		for _, method := range []string{"GET", "POST", "PUT"} {
+			request(method, path, nil, 404)
+		}
+		var visible []model.Job
+		if err := json.Unmarshal(request("GET", "/document-checklists", nil, 200)["jobs"], &visible); err != nil {
+			t.Fatal(err)
+		}
+		for _, j := range visible {
+			if j.ID == excluded {
+				t.Fatal("excluded role visible")
+			}
+		}
+	}
 	request("GET", "/document-checklists/2147483647", nil, 404)
-	if string(request("GET", a, nil, 200)["checklist"]) != "null" {
+	if string(request("GET", a, nil, 200)["checklists"]) != "[]" {
 		t.Fatal("new job already configured")
 	}
 	decode := func(result map[string]json.RawMessage) model.DocumentChecklist {
@@ -138,19 +162,35 @@ func TestDocumentChecklistIntegration(t *testing.T) {
 	signer := func(kind, name, position string) model.ChecklistSigner {
 		return model.ChecklistSigner{Type: kind, Name: name, Position: position}
 	}
-	config := model.ChecklistConfigInput{RequireDigitalSignature: true, InternalCount: 2, ExternalCount: 1, Signers: []model.ChecklistSigner{signer("internal", "Budi", "Project Manager"), signer("internal", "Andi", "Project Engineer"), signer("external", "Hendrik", "Client")}}
+	config := model.ChecklistConfigInput{Title: "First table", RequireDigitalSignature: true, InternalCount: 2, ExternalCount: 1, Signers: []model.ChecklistSigner{signer("internal", "Budi", "Project Manager"), signer("internal", "Andi", "Project Engineer"), signer("external", "Hendrik", "Client")}}
 	invalid := config
 	invalid.InternalCount = -1
 	request("POST", a, invalid, 400)
 	request("POST", a, map[string]any{"internalCount": 1.5}, 400)
 	c := decode(request("POST", a, config, 200))
-	request("POST", a, config, 409)
-	configB := model.ChecklistConfigInput{InternalCount: 1, ExternalCount: 2, Signers: []model.ChecklistSigner{signer("internal", "Internal B", "PM"), signer("external", "Client B1", "Client"), signer("external", "Client B2", "Client")}}
+	second := decode(request("POST", a, config, 200))
+	var tables []model.DocumentChecklist
+	if err := json.Unmarshal(request("GET", a, nil, 200)["checklists"], &tables); err != nil {
+		t.Fatal(err)
+	}
+	if len(tables) != 2 || tables[0].ID != c.ID || tables[1].ID != second.ID {
+		t.Fatal("multiple table ordering")
+	}
+	secondPath := fmt.Sprintf("%s/tables/%d", a, second.ID)
+	a = fmt.Sprintf("%s/tables/%d", a, c.ID)
+	foreign := config
+	foreign.Version = c.Version
+	request("PUT", fmt.Sprintf("%s/tables/%d", b, c.ID), foreign, 404)
+	request("GET", fmt.Sprintf("%s/tables/%d", b, c.ID), nil, 404)
+	configB := model.ChecklistConfigInput{Title: "Other job", InternalCount: 1, ExternalCount: 2, Signers: []model.ChecklistSigner{signer("internal", "Internal B", "PM"), signer("external", "Client B1", "Client"), signer("external", "Client B2", "Client")}}
 	cb := decode(request("POST", b, configB, 200))
+	b = fmt.Sprintf("%s/tables/%d", b, cb.ID)
 	for _, name := range []string{"Berita Acara", "Laporan Mingguan", "Laporan Final"} {
 		c = decode(request("POST", a+"/items", model.ChecklistItemPatch{Field: "documentName", Value: name}, 200))
 	}
 	itemID := c.Items[0].ID
+	request("PATCH", fmt.Sprintf("%s/items/%d", secondPath, itemID), model.ChecklistItemPatch{Field: "notes", Value: "cross-table"}, 404)
+	request("PATCH", fmt.Sprintf("%s/items/%d", a, itemID), model.ChecklistItemPatch{Field: "signature", SignerID: second.Signers[0].ID, Checked: true}, 404)
 	itemPath := fmt.Sprintf("%s/items/%d", a, itemID)
 	for _, p := range []model.ChecklistItemPatch{{Field: "digitalSigned", Checked: true}, {Field: "signature", SignerID: c.Signers[0].ID, Checked: true}, {Field: "signature", SignerID: c.Signers[1].ID, Checked: true}, {Field: "documentPosition", Value: "Di Client"}, {Field: "sentDate", Value: "2026-09-14"}, {Field: "notes", Value: "Menunggu tanda tangan client"}} {
 		request("PATCH", itemPath, p, 200)
@@ -169,12 +209,22 @@ func TestDocumentChecklistIntegration(t *testing.T) {
 		t.Fatal("delete/order changed IDs")
 	}
 	request("PATCH", fmt.Sprintf("%s/items/%d", a, middle), model.ChecklistItemPatch{Field: "notes", Value: "deleted"}, 404)
+	config.Title = "Renamed table"
 	config.Version = c.Version
 	config.Signers = c.Signers
 	oldID := c.Signers[0].ID
 	config.Signers[0].Name = "Pengganti Budi"
 	c = decode(request("PUT", a, config, 200))
 	request("PUT", a, config, 409)
+	if c.Title != "Renamed table" || decode(request("GET", secondPath, nil, 200)).Title != "First table" {
+		t.Fatal("table title isolation")
+	}
+	if err := database.Migrate(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if decode(request("GET", a, nil, 200)).Title != "Renamed table" {
+		t.Fatal("migration reset title")
+	}
 	archived := false
 	for _, s := range c.Signers {
 		if s.ID == oldID {
@@ -213,6 +263,54 @@ func TestDocumentChecklistBrowserServer(t *testing.T) {
 	server := &http.Server{Addr: "127.0.0.1:3001", Handler: newHandler(database, "http://127.0.0.1:5189"), ReadHeaderTimeout: 5 * time.Second}
 	t.Log("Checklist browser fixture ready on 3001")
 	if err := server.ListenAndServe(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDocumentChecklistMigration(t *testing.T) {
+	database := checklistTestDB(t)
+	tx, err := database.Conn.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	// A rolled-back schema keeps this legacy-data fixture isolated from other tests.
+	schema := "checklist_migration_" + strings.ReplaceAll(db.NewID(), "-", "")
+	if _, err = tx.Exec(`CREATE SCHEMA ` + schema + `; SET LOCAL search_path TO ` + schema + `; CREATE TABLE jobs(id INTEGER PRIMARY KEY); INSERT INTO jobs VALUES(1)`); err != nil {
+		t.Fatal(err)
+	}
+	migration, err := os.ReadFile("db/document_checklists.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = tx.Exec(string(migration)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = tx.Exec(`
+ INSERT INTO document_checklists(id,job_id,title,version) VALUES(10,1,'Legacy',3);
+ INSERT INTO document_checklist_signers(id,checklist_id,signer_type,name,position,display_order,archived_at) VALUES(20,10,'internal','Signer','PM',0,NOW());
+ INSERT INTO document_checklist_items(id,checklist_id,document_name,notes) VALUES(30,10,'Document','Preserved');
+ INSERT INTO document_checklist_signatures(checklist_id,item_id,signer_id,signed) VALUES(10,30,20,true);
+ ALTER TABLE document_checklists DROP COLUMN title;
+ ALTER TABLE document_checklists ADD CONSTRAINT document_checklists_job_id_key UNIQUE(job_id);
+ `); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ {
+		if _, err = tx.Exec(string(migration)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var title, notes string
+	var version int
+	var signed, archived bool
+	if err = tx.QueryRow(`SELECT c.title,c.version,i.notes,s.signed,p.archived_at IS NOT NULL FROM document_checklists c JOIN document_checklist_items i ON i.checklist_id=c.id JOIN document_checklist_signatures s ON s.item_id=i.id JOIN document_checklist_signers p ON p.id=s.signer_id WHERE c.id=10 AND i.id=30 AND p.id=20`).Scan(&title, &version, &notes, &signed, &archived); err != nil {
+		t.Fatal(err)
+	}
+	if title != "Checklist Dokumen" || version != 3 || notes != "Preserved" || !signed || !archived {
+		t.Fatal("legacy data changed")
+	}
+	if _, err = tx.Exec(`INSERT INTO document_checklists(job_id,title) VALUES(1,'Second table')`); err != nil {
 		t.Fatal(err)
 	}
 }

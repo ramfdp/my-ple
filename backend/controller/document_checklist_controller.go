@@ -49,23 +49,55 @@ func (c *DocumentChecklistController) ServeHTTP(w http.ResponseWriter, r *http.R
 			fail(err)
 			return
 		}
-		WriteJSON(w, 200, map[string]any{"jobs": jobs})
+		eligible := []model.Job{}
+		for _, job := range jobs {
+			if job.Role == "Project Engineer" {
+				eligible = append(eligible, job)
+			}
+		}
+		WriteJSON(w, 200, map[string]any{"jobs": eligible})
 		return
 	}
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/document-checklists/"), "/")
 	jobID, err := strconv.Atoi(parts[0])
-	if err != nil || jobID <= 0 || len(parts) > 3 {
+	if err != nil || jobID <= 0 {
 		fail(sql.ErrNoRows)
 		return
 	}
-	if _, err = c.DB.Job(r.Context(), jobID); err != nil {
+	job, err := c.DB.Job(r.Context(), jobID)
+	if err != nil {
 		fail(err)
 		return
 	}
-	if len(parts) == 1 {
-		switch r.Method {
-		case "GET":
-		case "POST", "PUT":
+	if job.Role != "Project Engineer" {
+		fail(sql.ErrNoRows)
+		return
+	}
+	tableID := 0
+	if len(parts) != 1 {
+		if len(parts) < 3 || len(parts) > 5 || parts[1] != "tables" {
+			fail(sql.ErrNoRows)
+			return
+		}
+		tableID, err = strconv.Atoi(parts[2])
+		if err != nil || tableID <= 0 {
+			fail(sql.ErrNoRows)
+			return
+		}
+	}
+	if len(parts) == 1 && r.Method == "GET" {
+		checklists, err := c.DB.DocumentChecklists(r.Context(), jobID)
+		if err != nil {
+			fail(err)
+			return
+		}
+		WriteJSON(w, 200, map[string]any{"checklists": checklists})
+		return
+	}
+	if len(parts) == 1 || len(parts) == 3 {
+		switch {
+		case len(parts) == 3 && r.Method == "GET":
+		case len(parts) == 1 && r.Method == "POST", len(parts) == 3 && r.Method == "PUT":
 			var in model.ChecklistConfigInput
 			if !DecodeStrictJSON(w, r, &in) {
 				return
@@ -74,7 +106,8 @@ func (c *DocumentChecklistController) ServeHTTP(w http.ResponseWriter, r *http.R
 				fail(model.ErrInvalidChecklist)
 				return
 			}
-			if err = c.DB.SaveDocumentChecklist(r.Context(), jobID, in); err != nil {
+			tableID, err = c.DB.SaveDocumentChecklist(r.Context(), jobID, tableID, in)
+			if err != nil {
 				fail(err)
 				return
 			}
@@ -82,16 +115,16 @@ func (c *DocumentChecklistController) ServeHTTP(w http.ResponseWriter, r *http.R
 			w.WriteHeader(405)
 			return
 		}
-	} else if parts[1] == "items" {
+	} else if parts[3] == "items" {
 		itemID := 0
-		if len(parts) == 3 {
-			itemID, err = strconv.Atoi(parts[2])
+		if len(parts) == 5 {
+			itemID, err = strconv.Atoi(parts[4])
 			if err != nil || itemID <= 0 {
 				fail(sql.ErrNoRows)
 				return
 			}
 		}
-		if !((len(parts) == 2 && r.Method == "POST") || (len(parts) == 3 && (r.Method == "PATCH" || r.Method == "DELETE"))) {
+		if !((len(parts) == 4 && r.Method == "POST") || (len(parts) == 5 && (r.Method == "PATCH" || r.Method == "DELETE"))) {
 			w.WriteHeader(405)
 			return
 		}
@@ -99,7 +132,7 @@ func (c *DocumentChecklistController) ServeHTTP(w http.ResponseWriter, r *http.R
 		if r.Method != "DELETE" && !DecodeStrictJSON(w, r, &in) {
 			return
 		}
-		if err = c.DB.MutateChecklistItem(r.Context(), jobID, itemID, r.Method, in); err != nil {
+		if err = c.DB.MutateChecklistItem(r.Context(), jobID, tableID, itemID, r.Method, in); err != nil {
 			fail(err)
 			return
 		}
@@ -107,7 +140,7 @@ func (c *DocumentChecklistController) ServeHTTP(w http.ResponseWriter, r *http.R
 		fail(sql.ErrNoRows)
 		return
 	}
-	checklist, err := c.DB.DocumentChecklist(r.Context(), jobID)
+	checklist, err := c.DB.DocumentChecklist(r.Context(), jobID, tableID)
 	if err != nil {
 		fail(err)
 		return
