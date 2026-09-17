@@ -1,5 +1,7 @@
 import { canUseDocumentChecklist } from './document-checklist.ts';
+import { canUseBilling } from './billing-documents.ts';
 export const features = [
+ {key:'Dokumen Penagihan',href:'/billing-documents',icon:'file',description:'Rekap kesiapan dokumen penagihan per pekerjaan.'},
  {key:'Team Workspace',href:'/workspace',icon:'users',description:'Catatan, timeline, dan koordinasi pekerjaan tim.'},
  {key:'My Profile',href:'/my-profile',icon:'user',description:'Personal and employment information'},
  {key:'Absensi',href:'/attendance',icon:'calendar',description:'Catat kehadiran dan lihat riwayat kerja.'},
@@ -17,6 +19,7 @@ export function visibleFeatures(role = '') {
  return features.filter(item => {
   if(['/employees','/attendance/overview'].includes(item.href))return ['admin','management','hr'].includes(role);
   if(item.href==='/document-checklists')return canUseDocumentChecklist(role);
+  if(item.href==='/billing-documents')return canUseBilling(role);
   if(item.href==='/leave/approvals')return ['admin','management'].includes(role);
   return !!role;
  });

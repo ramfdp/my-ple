@@ -88,6 +88,7 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 	weeklyCtrl := controller.NewWeeklyController(database)
 	jobCtrl := &controller.JobController{DB: database}
 	checklistCtrl := &controller.DocumentChecklistController{DB: database}
+	billingCtrl := &controller.BillingDocumentsController{DB: database}
 	zoomCtrl := &controller.ZoomBookingController{DB: database, Notifications: notificationService}
 	zoomResourceCtrl := &controller.ZoomResourceController{DB: database}
 	notificationCtrl := &controller.NotificationController{DB: database}
@@ -106,6 +107,10 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 		}
 		if r.URL.Path == "/document-checklists" || strings.HasPrefix(r.URL.Path, "/document-checklists/") {
 			checklistCtrl.ServeHTTP(w, r)
+			return
+		}
+		if r.URL.Path == "/billing-documents" || strings.HasPrefix(r.URL.Path, "/billing-documents/") {
+			billingCtrl.ServeHTTP(w, r)
 			return
 		}
 		if r.URL.Path == "/leave-requests" || strings.HasPrefix(r.URL.Path, "/leave-requests/") {

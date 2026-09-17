@@ -263,6 +263,33 @@ Fixture browser mengosongkan absensi akun `attendance-browser-*` miliknya
 dan membuat ulang izin Management pada database uji tersebut sebelum setiap run.
 
 
+### Dokumen Penagihan
+
+Halaman `/billing-documents` berdiri sendiri dan memakai master pekerjaan, sesi login,
+serta PostgreSQL yang sudah tersedia. Admin, Finance, Project Engineer, dan Management
+dapat membuat dan mengedit tahap/periode, milestone, requirement, status, dan catatan.
+Tidak ada integrasi spreadsheet atau relasi dengan checklist dokumen.
+
+Setiap dokumen aktif merupakan requirement wajib; dokumen baru dimulai `BELUM ADA`.
+Milestone `SIAP` hanya jika mempunyai dokumen wajib dan semuanya `OK`; tahap `SIAP`
+hanya jika mempunyai milestone dan semuanya `SIAP`. Kesiapan dihitung backend, tidak
+disimpan. Requirement yang dikeluarkan diarsipkan dan tidak dihitung. Tanda `/` pada
+nama dokumen tidak menandakan alternatif otomatis. Perubahan requirement dikonfirmasi
+sebelum disimpan; konflik versi mempertahankan draf untuk dibandingkan.
+
+API: `GET /billing-documents`, `POST /billing-documents/stages`,
+`PUT /billing-documents/stages/{id}/configuration`, dan
+`PATCH /billing-documents/stages/{id}`. Mutasi tahap existing menyertakan `version`.
+Respons mutasi berisi `stage` dan status hasil kalkulasi. Perubahan status/catatan
+memperbarui waktu server; tampilan waktu menggunakan WIB. Tidak ada ekspor/import.
+
+Tes: `go test ./model -run TestBillingReadiness` dan
+`go test . -run TestBillingDocumentsIntegration` dengan database uji lokal
+`CHECKLIST_TEST_DATABASE_URL` yang sama seperti tes checklist. Browser:
+`node tests/billing-documents.browser.mjs` dengan fixture 3001 dan Vite 5189.
+Rollback aplikasi dapat menghapus menu/routing; pertahankan tabel `billing_*`
+agar data dapat dipulihkan. Deploy backend dan frontend bersamaan.
+
 ### Tabel checklist dokumen
 
 Checklist hanya menampilkan pekerjaan ber-role Project Engineer (termasuk pekerjaan

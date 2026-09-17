@@ -32,6 +32,7 @@ test('menus use one permission-filtered feature list',()=>{
   assert.equal(paths.includes('/employees'),['Admin','Management','HR'].includes(role));
   assert.equal(paths.includes('/attendance/overview'),['Admin','Management','HR'].includes(role));
   assert.equal(paths.includes('/document-checklists'),['Admin','Management','Finance','Project Engineer'].includes(role));
+  assert.equal(paths.includes('/billing-documents'),['Admin','Management','Finance','Project Engineer'].includes(role));
   assert.equal(paths.includes('/leave/approvals'),['Admin','Management'].includes(role));
   assert.ok(paths.includes('/weekly-progress')&&paths.includes('/booking-zoom'));
   for(const item of items){assert.ok(messages[item.key]);assert.ok(messages[item.description]);}
