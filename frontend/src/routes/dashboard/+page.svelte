@@ -29,7 +29,7 @@
 				<p class="dashboard-kicker">LAYANAN</p>
 				<h2 id="menu-title">Menu utama</h2>
 			</div>
-			<p>{6 + Number(canReviewLeave) + Number(canChecklist)} layanan tersedia</p>
+			<p>{5 + Number(canReviewLeave) + Number(canChecklist)} layanan tersedia</p>
 		</div>
 
 		<div class="menu-grid">
@@ -72,13 +72,7 @@
 				<p>Ringkas progres dan prioritas mingguan.</p>
 			</a>
 
-			<article class="menu-card overtime-card">
-				<div class="menu-icon" aria-hidden="true">
-					<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /><path d="M12 8v4l3 2M7 3v3M17 3v3" /></svg>
-				</div>
-				<h3>List Lembur</h3>
-				<p>Kelola daftar dan pengajuan lembur.</p>
-			</article>
+
 
 			<a class="menu-card zoom-card" href="/booking-zoom">
 				<div class="menu-icon" aria-hidden="true">

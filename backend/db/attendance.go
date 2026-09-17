@@ -87,7 +87,7 @@ func (db *Database) AttendanceOverview(ctx context.Context, date string) (model.
 	rows, err := db.Conn.QueryContext(ctx, `SELECT u.id,u.name,r.name,
  CASE WHEN a.id IS NOT NULL THEN 'PRESENT' WHEN l.types IS NOT NULL THEN 'LEAVE' ELSE 'MISSING' END,
  CASE WHEN a.id IS NULL THEN COALESCE(l.types,'') ELSE '' END,
- COALESCE(a.mode,''),a.clock_in,a.clock_out
+ COALESCE(a.mode,''),a.clock_in,a.clock_out,a.latitude,a.longitude
  FROM users u JOIN roles r ON r.id=u.role_id
  LEFT JOIN attendance a ON a.user_id=u.id AND a.attendance_date=$1::date
  LEFT JOIN LATERAL (
@@ -102,7 +102,7 @@ func (db *Database) AttendanceOverview(ctx context.Context, date string) (model.
 	defer rows.Close()
 	for rows.Next() {
 		var employee model.AttendanceEmployee
-		if err := rows.Scan(&employee.UserID, &employee.Name, &employee.Role, &employee.Status, &employee.LeaveTypes, &employee.Mode, &employee.ClockIn, &employee.ClockOut); err != nil {
+		if err := rows.Scan(&employee.UserID, &employee.Name, &employee.Role, &employee.Status, &employee.LeaveTypes, &employee.Mode, &employee.ClockIn, &employee.ClockOut, &employee.Latitude, &employee.Longitude); err != nil {
 			return result, err
 		}
 		result.Employees = append(result.Employees, employee)

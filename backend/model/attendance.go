@@ -36,6 +36,8 @@ type AttendanceEmployee struct {
 	Mode       string     `json:"mode"`
 	ClockIn    *time.Time `json:"clockIn"`
 	ClockOut   *time.Time `json:"clockOut"`
+	Latitude   *float64   `json:"latitude"`
+	Longitude  *float64   `json:"longitude"`
 }
 
 type AttendanceOverview struct {

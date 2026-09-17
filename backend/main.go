@@ -193,7 +193,6 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 				"menus": []map[string]string{
 					{"id": "attendance", "name": "Absensi"},
 					{"id": "weekly-progress", "name": "Weekly Progress"},
-					{"id": "overtime", "name": "List Lembur"},
 					{"id": "zoom-booking", "name": "Booking Zoom"},
 					{"id": "workspace", "name": "Team Workspace"},
 				},

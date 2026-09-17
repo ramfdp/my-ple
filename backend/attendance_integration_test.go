@@ -197,6 +197,9 @@ func TestAttendanceOverview(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	if _, err := database.Conn.Exec(`UPDATE attendance SET mode='WFA',latitude=0,longitude=107.69234020127173 WHERE user_id=$1`, ids["closed"]); err != nil {
+		t.Fatal(err)
+	}
 	for _, leave := range []struct{ name, kind, status string }{
 		{"present", "CUTI", "APPROVED"}, {"cuti", "CUTI", "APPROVED"}, {"izin", "IZIN", "APPROVED"},
 		{"pending", "CUTI", "PENDING"}, {"rejected", "IZIN", "REJECTED"},
@@ -235,7 +238,16 @@ func TestAttendanceOverview(t *testing.T) {
 		t.Fatal("clock timestamps incorrect")
 	}
 	raw, _ := json.Marshal(result)
-	for _, key := range []string{"salary", "email", "latitude", "longitude", "reason", "passwordHash"} {
+	remote := found[ids["closed"]]
+	if remote.Latitude == nil || *remote.Latitude != 0 || remote.Longitude == nil || *remote.Longitude != 107.69234020127173 {
+		t.Fatal("WFA coordinates missing or changed")
+	}
+	for _, name := range []string{"present", "missing", "cuti"} {
+		if found[ids[name]].Latitude != nil || found[ids[name]].Longitude != nil {
+			t.Fatalf("unexpected coordinates for %s", name)
+		}
+	}
+	for _, key := range []string{"salary", "email", "reason", "passwordHash"} {
 		if bytes.Contains(raw, []byte(`"`+key+`"`)) {
 			t.Errorf("overview exposes %s", key)
 		}

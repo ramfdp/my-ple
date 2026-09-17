@@ -239,7 +239,9 @@ Pengajuan izin/cuti yang bertumpuk tidak menggandakan baris karyawan.
 API `GET /attendance/overview?date=YYYY-MM-DD` memeriksa role di server dan menolak
 tanggal tidak valid atau masa depan. Respons berisi `date`, `todayDate`, dan
 `employees` dengan `userId`, `name`, `role`, `status` (`PRESENT`, `LEAVE`, `MISSING`),
-`leaveTypes`, `mode`, `clockIn`, serta `clockOut`. Tidak ada koordinat, gaji, atau
+`leaveTypes`, `mode`, `clockIn`, `clockOut`, `latitude`, dan `longitude`. Lokasi Clock In
+WFA ditampilkan dengan tautan Google Maps; WFO menampilkan verifikasi radius kantor
+100 meter tanpa menyimpan koordinat karyawan. Tidak ada gaji atau
 alasan izin/cuti dalam respons. Tidak diperlukan migrasi tambahan.
 
 Karyawan mengacu pada akun yang **aktif saat ini** dan sudah dibuat pada tanggal

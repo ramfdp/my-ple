@@ -3,7 +3,7 @@
  import { api, APIError, session } from '$lib/api';
 
  type Status = 'PRESENT' | 'LEAVE' | 'MISSING';
- interface Employee { userId: string; name: string; role: string; status: Status; leaveTypes: string; mode: string; clockIn: string | null; clockOut: string | null }
+ interface Employee { userId: string; name: string; role: string; status: Status; leaveTypes: string; mode: string; clockIn: string | null; clockOut: string | null; latitude: number | null; longitude: number | null }
  interface Overview { date: string; todayDate: string; employees: Employee[] }
  const jakartaDate = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
  const formatTime = (value: string) => new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
@@ -70,13 +70,14 @@
     {:else if !rows.length}<p>Tidak ada karyawan yang sesuai dengan pencarian atau filter.</p>
     {:else}
      <div class="table-scroll"><table>
-      <thead><tr><th scope="col">Karyawan</th><th scope="col">Role</th><th scope="col">Status</th><th scope="col">Mode</th><th scope="col">Clock In (WIB)</th><th scope="col">Clock Out (WIB)</th></tr></thead>
+      <thead><tr><th scope="col">Karyawan</th><th scope="col">Role</th><th scope="col">Status</th><th scope="col">Mode</th><th scope="col">Clock In (WIB)</th><th scope="col">Clock Out (WIB)</th><th scope="col">Lokasi Clock In</th></tr></thead>
       <tbody>{#each rows as employee (employee.userId)}<tr>
        <td data-label="Karyawan">{employee.name}</td><td data-label="Role">{employee.role}</td>
        <td data-label="Status"><span class:present={employee.status === 'PRESENT'} class="badge">{employee.status === 'PRESENT' ? 'Hadir' : employee.status === 'LEAVE' ? employee.leaveTypes.replace('CUTI', 'Cuti').replace('IZIN', 'Izin') : missingLabel}</span></td>
        <td data-label="Mode">{employee.mode || '—'}</td>
        <td data-label="Clock In (WIB)">{employee.clockIn ? formatTime(employee.clockIn) : '—'}</td>
        <td data-label="Clock Out (WIB)">{employee.clockOut ? formatTime(employee.clockOut) : employee.clockIn ? 'Belum Clock Out' : '—'}</td>
+       <td data-label="Lokasi Clock In">{#if employee.mode === 'WFA' && employee.latitude !== null && employee.longitude !== null}<span>{employee.latitude}, {employee.longitude}</span><br/><a href={`https://www.google.com/maps?q=${employee.latitude},${employee.longitude}`} target="_blank" rel="noopener noreferrer" aria-label={`Lihat lokasi ${employee.name} di Google Maps (tab baru)`}>Lihat di Google Maps</a>{:else if employee.mode === 'WFO'}Dalam radius kantor (100 m){:else}—{/if}</td>
       </tr>{/each}</tbody>
      </table></div>
     {/if}

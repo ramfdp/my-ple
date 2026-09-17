@@ -162,7 +162,6 @@
 
 .attendance-card .menu-icon { background: var(--his-primary-soft); color: var(--his-primary); }
 .progress-card .menu-icon { background: var(--his-primary-soft); color: var(--his-primary); }
-.overtime-card .menu-icon { background: var(--his-danger-soft); color: var(--his-danger); }
 .zoom-card .menu-icon { background: var(--his-primary-soft); color: var(--his-primary); }
 
 .menu-card h3 {
