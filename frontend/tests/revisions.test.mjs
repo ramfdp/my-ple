@@ -45,3 +45,16 @@ test('shared subscription resynchronizes and removes listeners on navigation',as
  stop();window.dispatchEvent(new Event('workspace.changed'));window.dispatchEvent(new Event('realtime.resync'));
  assert.equal(calls,2);
 });
+
+test('realtime retains distinct entities and continues after a failed refresh',async()=>{
+ globalThis.window=new EventTarget();
+ const calls=[];let release;
+ const stop=subscribeChanges(['document-checklists.changed'],async change=>{
+  calls.push(change.entityId);
+  if(calls.length===1){await new Promise(r=>release=r);throw new Error('temporary failure')}
+ },change=>change.entityId!=='unrelated');
+ const send=(entityId,revision)=>window.dispatchEvent(new CustomEvent('document-checklists.changed',{detail:{entityId,revision}}));
+ send('1',1);send('2',2);send('2',2);send('3',3);send('unrelated',4);
+ release();await new Promise(r=>setImmediate(r));
+ assert.deepEqual(calls,['1','2','3']);stop();
+});

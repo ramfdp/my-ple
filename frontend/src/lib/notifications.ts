@@ -1,6 +1,7 @@
 import {notificationSound} from './notification-sound';
 import { get, writable } from 'svelte/store';
-import { api, apiUrl, session, type Notification } from '$lib/api';
+import { api, apiUrl, session, setAuthenticated, type User, type Notification } from '$lib/api';
+import { subscribeChanges } from '$lib/realtime';
 
 export const notifications = writable<{ items: Notification[]; unread: number }>({ items: [], unread: 0 });
 
@@ -13,7 +14,7 @@ export async function markRead(id: string) {
 	const item = get(notifications).items.find((entry) => entry.id === id);
 	if (!item || item.readAt) return;
 	await api(`/notifications/${id}/read`, { method: 'PATCH' });
-	notifications.update((state) => ({ items: state.items.map((entry) => entry.id === id ? { ...entry, readAt: new Date().toISOString() } : entry), unread: Math.max(0, state.unread - 1) }));
+	notifications.update((state) => ({ items: state.items.map((entry) => entry.id === id ? { ...entry, readAt: new Date().toISOString() } : entry), unread: Math.max(0, state.unread - (state.items.some(entry => entry.id === id && !entry.readAt) ? 1 : 0)) }));
 }
 
 export async function markAllRead() {
@@ -23,9 +24,8 @@ export async function markAllRead() {
 }
 
 export async function dismissNotification(id: string) {
-	const item = get(notifications).items.find((entry) => entry.id === id);
 	await api(`/notifications/${id}/dismiss`, { method: 'PATCH' });
-	notifications.update((state) => ({ items: state.items.filter((entry) => entry.id !== id), unread: Math.max(0, state.unread - (item && !item.readAt ? 1 : 0)) }));
+	notifications.update((state) => ({ items: state.items.filter((entry) => entry.id !== id), unread: Math.max(0, state.unread - (state.items.some(entry => entry.id === id && !entry.readAt) ? 1 : 0)) }));
 }
 
 let seenUser = '';
@@ -42,7 +42,7 @@ export function startNotifications() {
 	let retry = 1000;
 	let timer: ReturnType<typeof setTimeout>;
 	let refreshing = Promise.resolve();
- const refresh = (merge: boolean, live = false) => {
+ const refresh = (live = false) => {
  const run = async () => {
 		const [feed, count] = await Promise.all([
 			api<{ notifications: Notification[] }>('/notifications'),
@@ -51,11 +51,7 @@ export function startNotifications() {
 		if (stopped) return;
   const incoming = feed.notifications.some(item => !seen.has(item.id) && !item.readAt);
   feed.notifications.forEach(item => seen.add(item.id));
-  notifications.update((state) => {
-			const ids = new Set(feed.notifications.map(({ id }) => id));
-			const items = merge ? [...feed.notifications, ...state.items.filter(({ id, type }) => type !== 'workspace_task' && type !== 'work_item_assigned' && !type.startsWith('leave_request_') && !ids.has(id))] : feed.notifications;
-			return { items, unread: merge ? items.filter(({ readAt }) => !readAt).length : count.count };
-		});
+  notifications.set({items:feed.notifications,unread:count.count});
   if (live && hydrated && incoming) sound.play();
   hydrated = true;
  };
@@ -67,14 +63,12 @@ export function startNotifications() {
 		const url = new URL(`${apiUrl}/ws/notifications`, window.location.origin);
 		url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
 		socket = new WebSocket(url);
-		socket.onopen = () => { retry = 1000; window.dispatchEvent(new Event('realtime.resync')); void refresh(true).catch(() => {}); };
+		socket.onopen = () => { retry = 1000; window.dispatchEvent(new Event('realtime.resync')); };
 		socket.onmessage = ({ data }) => {
    if (stopped) return;
 			try {
 				const message = JSON.parse(data) as { event: string; notification: Notification; workspaceId?:number };
-				if(message.event==='workspace.changed') { window.dispatchEvent(new CustomEvent('workspace.changed',{detail:message})); void refresh(false,true).catch(()=>{}); }
-				if(message.event==='leave.changed') { window.dispatchEvent(new Event('leave.changed')); void refresh(false,true).catch(()=>{}); }
-				if(['reports.changed','zoom.changed','jobs.changed','users.changed'].includes(message.event))window.dispatchEvent(new CustomEvent(message.event,{detail:message}));
+				if(['workspace.changed','leave.changed','reports.changed','zoom.changed','jobs.changed','users.changed','attendance.changed','document-checklists.changed','notifications.changed'].includes(message.event))window.dispatchEvent(new CustomEvent(message.event,{detail:message}));
     if (message.event === 'notification.created' && message.notification?.id && message.notification.actor?.id && message.notification.actor.id !== current.user.id) {
      const item = message.notification;
      if (!seen.has(item.id)) { seen.add(item.id); addNotification(item); if (!item.readAt) sound.play(); }
@@ -84,9 +78,14 @@ export function startNotifications() {
 		socket.onclose = () => { if (!stopped) { timer = setTimeout(connect, retry); retry = Math.min(retry * 2, 30_000); } };
 	};
 	void refresh(false).then(connect).catch(connect);
+	const stopFeed=subscribeChanges(['notifications.changed','zoom.changed','workspace.changed','leave.changed'],change=>refresh(change.event==='workspace.changed'||change.event==='leave.changed'));
+	const stopUser=subscribeChanges(['users.changed'],async()=>{
+		const {user}=await api<{user:User}>('/auth/me');
+		if(!stopped)setAuthenticated(user);
+	},change=>!change.entityId||change.entityId===current.user.id);
 	// Bounded recovery for missed relay events and silently disconnected sockets.
 	const resync=()=>{if(!stopped&&document.visibilityState==='visible')window.dispatchEvent(new Event('realtime.resync'))};
 	const fallback=setInterval(resync,30_000);
 	document.addEventListener('visibilitychange',resync);
-	return () => { stopped = true; sound.stop(); clearTimeout(timer);clearInterval(fallback);document.removeEventListener('visibilitychange',resync); socket?.close(); notifications.set({items:[],unread:0}); };
+	return () => { stopped = true; stopFeed();stopUser();sound.stop(); clearTimeout(timer);clearInterval(fallback);document.removeEventListener('visibilitychange',resync); socket?.close(); notifications.set({items:[],unread:0}); };
 }

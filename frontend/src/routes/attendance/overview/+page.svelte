@@ -1,6 +1,7 @@
 <script lang="ts">
  import { onMount } from 'svelte';
  import { api, APIError, session } from '$lib/api';
+ import { subscribeChanges } from '$lib/realtime';
 
  type Status = 'PRESENT' | 'LEAVE' | 'MISSING';
  interface Employee { userId: string; name: string; role: string; status: Status; leaveTypes: string; mode: string; clockIn: string | null; clockOut: string | null; latitude: number | null; longitude: number | null }
@@ -17,15 +18,21 @@
   MISSING: data?.employees.filter(employee => employee.status === 'MISSING').length ?? 0
  });
 
- async function load() {
-  loading = true; error = ''; data = null;
+ let generation = 0;
+ async function load(background = false) {
+  const request = ++generation;
+  if (!background) { loading = true; data = null; }
+  error = '';
   try {
-   data = await api<Overview>(`/attendance/overview${date ? `?date=${encodeURIComponent(date)}` : ''}`);
+   const result = await api<Overview>(`/attendance/overview${date ? `?date=${encodeURIComponent(date)}` : ''}`);
+   if (request !== generation) return;
+   data = result;
    date = data.date; today = data.todayDate;
   } catch (failure) {
+   if (request !== generation) return;
    if (failure instanceof APIError && failure.status === 403) allowed = false;
    else error = failure instanceof Error ? failure.message : 'Data absensi belum dapat dimuat. Coba lagi.';
-  } finally { loading = false; }
+  } finally { if (request === generation) loading = false; }
  }
  function refresh() {
   if (!allowed || loading) return;
@@ -36,7 +43,12 @@
   allowed = ['admin', 'management', 'hr'].includes(session()?.user.role?.toLowerCase() ?? '');
   if (allowed) void load(); else loading = false;
   window.addEventListener('focus', refresh);
-  return () => window.removeEventListener('focus', refresh);
+  const stop = subscribeChanges(['attendance.changed','leave.changed','users.changed'], () => {
+   if (!allowed) return;
+   if (date === today && jakartaDate() !== today) date = '';
+   return load(true);
+  });
+  return () => { generation++; stop(); window.removeEventListener('focus', refresh); };
  });
 </script>
 

@@ -591,6 +591,99 @@ func TestRevisionIntegration(t *testing.T) {
 			t.Fatal("new template cache not reused", e)
 		}
 	})
+	t.Run("missing realtime mutations and recipient scopes", func(t *testing.T) {
+		employee := createUser("IT", "")
+		hr := createUser("HR", "")
+		finance := createUser("Finance", "")
+		dial := func(base string, a actor) *websocket.Conn {
+			t.Helper()
+			h := http.Header{"Origin": {"http://test.local"}, "Cookie": {middleware.SessionCookie + "=" + a.token}}
+			ws, _, e := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(base, "http")+"/ws/notifications", h)
+			if e != nil {
+				t.Fatal(e)
+			}
+			t.Cleanup(func() { ws.Close() })
+			return ws
+		}
+		own, admin := dial(server.URL, employee), dial(server.URL, manager)
+		await := func(ws *websocket.Conn, event, id string) {
+			t.Helper()
+			ws.SetReadDeadline(time.Now().Add(3 * time.Second))
+			var c notification.Change
+			if e := ws.ReadJSON(&c); e != nil || c.Event != event || c.EntityID != id {
+				t.Fatalf("want %s %s got %+v: %v", event, id, c, e)
+			}
+		}
+		for _, mutation := range []struct {
+			method, path, event string
+			body                any
+		}{
+			{"POST", "/attendance/clock-in", "attendance.changed", map[string]any{"mode": "WFA", "latitude": 0, "longitude": 0, "accuracy": 5}},
+			{"PATCH", "/profile", "users.changed", map[string]any{"phoneNumber": "+628123456789", "residence": "Socket test"}},
+			{"POST", "/leave-requests", "leave.changed", map[string]any{"requestId": db.NewID(), "requestType": "CUTI", "startDate": "2026-09-21", "endDate": "2026-09-21", "reason": "Test"}},
+		} {
+			status, body := request(employee, mutation.method, mutation.path, mutation.body)
+			if status != 200 {
+				t.Fatalf("%s: %d %s", mutation.path, status, body["error"])
+			}
+			await(own, mutation.event, employee.id)
+			await(admin, mutation.event, employee.id)
+		}
+		status, _ := request(employee, "PATCH", "/notifications/read-all", nil)
+		if status != 200 && status != 204 {
+			t.Fatal(status)
+		}
+		await(own, "notifications.changed", employee.id)
+		checklistPath := fmt.Sprintf("/document-checklists/%d", job)
+		status, _ = request(manager, "POST", checklistPath, model.ChecklistConfigInput{RequireDigitalSignature: true})
+		if status != 200 {
+			t.Fatal("checklist create", status)
+		}
+		await(admin, "document-checklists.changed", fmt.Sprint(job))
+		status, _ = request(manager, "POST", checklistPath+"/items", model.ChecklistItemPatch{Field: "documentName", Value: "Live document"})
+		if status != 200 {
+			t.Fatal("checklist item", status)
+		}
+		await(admin, "document-checklists.changed", fmt.Sprint(job))
+		// Read timeouts terminate these sockets; create a fresh connection for each scope check.
+		hub := realtime.NewHub("http://test.local")
+		service := notification.Service{DB: database, Hub: hub}
+		remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { hub.ServeHTTP(database, w, r) }))
+		defer remote.Close()
+		for _, test := range []struct {
+			event   string
+			allowed map[string]bool
+		}{
+			{"attendance.changed", map[string]bool{employee.id: true, manager.id: true, hr.id: true}},
+			{"leave.changed", map[string]bool{employee.id: true, manager.id: true, hr.id: true}},
+			{"users.changed", map[string]bool{employee.id: true, manager.id: true, hr.id: true}},
+			{"notifications.changed", map[string]bool{employee.id: true}},
+			{"document-checklists.changed", map[string]bool{manager.id: true, finance.id: true}},
+		} {
+			for _, a := range []actor{employee, manager, hr, finance, outsider} {
+				ws := dial(remote.URL, a)
+				service.Changed(ctx, test.event, 0, employee.id, 0)
+				if test.allowed[a.id] {
+					await(ws, test.event, employee.id)
+				} else {
+					ws.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+					if _, payload, e := ws.ReadMessage(); e == nil {
+						t.Fatalf("private %s delivered to %s: %s", test.event, a.id, payload)
+					}
+				}
+				ws.Close()
+			}
+		}
+		// A rejected mutation must not notify the employee.
+		status, _ = request(employee, "POST", "/attendance/clock-in", map[string]any{"mode": "INVALID"})
+		if status != 400 {
+			t.Fatal(status)
+		}
+		own.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+		if _, _, e := own.ReadMessage(); e == nil {
+			t.Fatal("failed mutation published an event")
+		}
+	})
 	t.Run("websocket recipient isolation", func(t *testing.T) {
 		dial := func(a actor) *websocket.Conn {
 			t.Helper()
@@ -603,7 +696,7 @@ func TestRevisionIntegration(t *testing.T) {
 			return c
 		}
 		inside, second, outside := dial(pe), dial(qa), dial(outsider)
-		task := mustTask(manager, "POST", fmt.Sprintf("/workspaces/%d/tasks", division), map[string]any{"title": "socket task", "assigneeIds": []string{}})
+		task := mustTask(manager, "POST", fmt.Sprintf("/workspaces/%d/tasks", division), map[string]any{"title": "socket task", "requiresQa": true, "assigneeIds": []string{}})
 		inside.SetReadDeadline(time.Now().Add(3 * time.Second))
 		_, data, e := inside.ReadMessage()
 		if e != nil {
@@ -641,13 +734,13 @@ func TestRevisionIntegration(t *testing.T) {
 		task = mustTask(pe, "PATCH", path, map[string]any{"version": task.Version, "status": "IN_PROGRESS"})
 		awaitChange(inside, task)
 		awaitChange(second, task)
-		task = mustTask(pe, "PATCH", path+"/qa", map[string]any{"version": task.Version, "decision": "DONE"})
+		task = mustTask(qa, "PATCH", path+"/qa", map[string]any{"version": task.Version, "decision": "DONE"})
 		awaitChange(inside, task)
 		awaitChange(second, task)
 		status, response := request(pe, "GET", path, nil)
 		var fresh map[string]json.RawMessage
 		_ = json.Unmarshal(response["task"], &fresh)
-		if status != 200 || string(fresh["qaValidatedBy"]) != fmt.Sprintf("%q", pe.id) {
+		if status != 200 || string(fresh["qaValidatedBy"]) != fmt.Sprintf("%q", qa.id) {
 			t.Fatal("peer cannot read committed validation")
 		}
 		s, _ := request(pe, "POST", "/auth/logout", nil)
@@ -693,6 +786,19 @@ func TestRevisionIntegration(t *testing.T) {
 		}
 		if !bytes.Contains(payload, []byte("relay-test")) {
 			t.Fatal("wrong relay payload")
+		}
+		for _, event := range []string{"attendance.changed", "leave.changed", "users.changed", "notifications.changed", "document-checklists.changed", "reports.changed"} {
+			(&notification.Service{DB: database}).Changed(ctx, event, 0, qa.id, 0)
+			ws.SetReadDeadline(time.Now().Add(3 * time.Second))
+			for {
+				var change notification.Change
+				if err := ws.ReadJSON(&change); err != nil {
+					t.Fatalf("relay missed %s: %v", event, err)
+				}
+				if change.Event == event && change.EntityID == qa.id {
+					break
+				}
+			}
 		}
 	})
 }

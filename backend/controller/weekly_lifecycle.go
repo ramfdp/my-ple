@@ -12,6 +12,7 @@ import (
 	"my-ple-backend/db"
 	"my-ple-backend/email"
 	"my-ple-backend/model"
+	"my-ple-backend/notification"
 	"os"
 	"path/filepath"
 	"strings"
@@ -145,6 +146,7 @@ func (s *WeeklyLifecycle) finalize(ctx context.Context, a *model.WeeklyArchive, 
 		return err
 	}
 	a.Status = "finalized"
+	(&notification.Service{DB: s.DB}).Changed(ctx, "reports.changed", 0, a.ID, 0)
 	return nil
 }
 
@@ -192,6 +194,9 @@ func (s *WeeklyLifecycle) Run(ctx context.Context, now time.Time) error {
 			if _, updateErr := s.DB.Conn.ExecContext(ctx, `UPDATE weekly_report_archives SET status=CASE WHEN status='finalized' THEN status ELSE 'failed' END,last_error='PDF generation/storage failed' WHERE id=$1`, a.ID); updateErr != nil {
 				return updateErr
 			}
+			if a.Status != "failed" && a.Status != "finalized" {
+				(&notification.Service{DB: s.DB}).Changed(ctx, "reports.changed", 0, a.ID, 0)
+			}
 			continue
 		}
 		if a.Status != "finalized" {
@@ -207,6 +212,7 @@ func (s *WeeklyLifecycle) Run(ctx context.Context, now time.Time) error {
 				log.Printf("weekly reset skipped archive=%s: %v", a.ID, e)
 			} else {
 				log.Printf("weekly reset completed archive=%s rows=%d", a.ID, n)
+				(&notification.Service{DB: s.DB}).Changed(ctx, "reports.changed", 0, a.ID, 0)
 			}
 		}
 	}

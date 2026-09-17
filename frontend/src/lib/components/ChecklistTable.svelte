@@ -1,10 +1,14 @@
 <script lang="ts">
- import { onMount } from 'svelte';
+ import { onMount, tick } from 'svelte';
+ import { subscribeChanges } from '$lib/realtime';
  import { api, type Job } from '$lib/api';
  import type { DocumentChecklist, ChecklistSigner, ChecklistItem } from '$lib/document-checklist';
  let { job }: {job: Job} = $props();
  let checklist = $state<DocumentChecklist | null>(null), loading = $state(true), busy = $state(false), error = $state(''), notice = $state('');
  let dialog: HTMLDialogElement;
+ let root: HTMLDivElement;
+ let pending = false, disposed = false, generation = 0;
+ const editingCell = () => root?.contains(document.activeElement) && document.activeElement?.matches('input,textarea');
  let digital = $state(false), internalCount = $state<number | undefined>(0), externalCount = $state<number | undefined>(0);
  let internal = $state<ChecklistSigner[]>([]), external = $state<ChecklistSigner[]>([]), configVersion = $state(0);
  let newDocument = $state(''), modalError = $state('');
@@ -13,13 +17,27 @@
  const archived = $derived(checklist?.signers.filter(s => s.archived) ?? []);
  const groups = $derived(['internal', 'external'].map(type => ({type, label: type === 'internal' ? 'Internal' : 'External', signers: active.filter(s => s.type === type)})).filter(g => g.signers.length));
  const valid = $derived(Number.isInteger(internalCount) && Number.isInteger(externalCount) && (internalCount ?? -1) >= 0 && (externalCount ?? -1) >= 0 && internal.length === internalCount && external.length === externalCount && [...internal, ...external].every(s => s.name.trim() && s.position.trim()));
- async function load() {
-  loading = true; error = '';
-  try { checklist = (await api<{checklist: DocumentChecklist | null}>(endpoint)).checklist; }
-  catch(e) { error = (e as Error).message; }
-  finally { loading = false; }
+ async function load(background = false) {
+  if(background && (busy || editingCell())) { pending = true; return; }
+  const request = ++generation;
+  pending = false;
+  if(!background) loading = true;
+  error = '';
+  try {
+   const result = (await api<{checklist: DocumentChecklist | null}>(endpoint)).checklist;
+   if(disposed || request !== generation) return;
+   if(background && (busy || editingCell())) { pending = true; return; }
+   checklist = result;
+  }
+  catch(e) { if(!disposed && request === generation) error = (e as Error).message; }
+  finally { if(request === generation) loading = false; }
  }
- onMount(load);
+ async function flush() { await tick(); if(!disposed && pending && !busy && !editingCell()) await load(true); }
+ onMount(() => {
+  void load();
+  const stop = subscribeChanges(['document-checklists.changed'], () => load(true), change => !change.entityId || change.entityId === String(job.id));
+  return () => { disposed = true; generation++; stop(); };
+ });
  function resize(type: 'internal' | 'external', count: number | undefined) {
   if (!Number.isInteger(count) || count === undefined || count < 0) return;
   const old = type === 'internal' ? internal : external;
@@ -36,21 +54,21 @@
   const signers = [...internal, ...external];
   const changed = active.some(s => !signers.some(n => n.id === s.id && n.type === s.type && n.name.trim() === s.name && n.position.trim() === s.position));
   if (changed && !confirm('Penandatangan yang dihapus atau diubah akan diarsipkan beserta status lamanya. Penandatangan pengganti dimulai tanpa centang. Lanjutkan?')) return;
-  busy = true; modalError = '';
+  busy = true; generation++; modalError = '';
   try {
    checklist = (await api<{checklist: DocumentChecklist}>(endpoint, {method: configVersion ? 'PUT' : 'POST', body: JSON.stringify({requireDigitalSignature: digital, version: configVersion, internalCount, externalCount, signers})})).checklist;
    dialog.close(); notice = 'Struktur checklist tersimpan.';
   } catch(e) { modalError = (e as Error).message; }
-  finally { busy = false; }
+  finally { busy = false; void flush(); }
  }
  async function mutate(path: string, method: string, body?: object) {
   if (busy) return false;
-  busy = true; error = ''; notice = '';
+  busy = true; generation++; error = ''; notice = '';
   try {
    checklist = (await api<{checklist: DocumentChecklist}>(endpoint + path, {method, body: body ? JSON.stringify(body) : undefined})).checklist;
    notice = 'Perubahan tersimpan.'; return true;
   } catch(e) { error = (e as Error).message; return false; }
-  finally { busy = false; }
+  finally { busy = false; void flush(); }
  }
  async function edit(item: ChecklistItem, field: 'documentName' | 'documentPosition' | 'sentDate' | 'notes', input: HTMLInputElement | HTMLTextAreaElement) {
   const old = item[field] ?? '';
@@ -62,8 +80,8 @@
   if (!await mutate('/items/' + item.id, 'PATCH', {field: signerId ? 'signature' : 'digitalSigned', checked: input.checked, ...(signerId ? {signerId} : {})})) input.checked = signerId ? !!item.signatures[signerId] : item.digitalSigned;
  }
 </script>
-<div class="checklist">
- {#if error}<p role="alert">{error}</p><button disabled={busy} onclick={load}>Muat ulang checklist</button>{/if}
+<div class="checklist" bind:this={root} onfocusout={() => void flush()}>
+ {#if error}<p role="alert">{error}</p><button disabled={busy} onclick={() => load()}>Muat ulang checklist</button>{/if}
  {#if notice}<p role="status">{notice}</p>{/if}
  {#if loading}<p role="status">Memuat checklist...</p>
  {:else if !checklist && !error}<p>Pekerjaan ini belum mempunyai checklist.</p><button class="ws-primary" onclick={configure}>+ Buat Tabel Checklist</button>

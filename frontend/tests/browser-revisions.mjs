@@ -45,7 +45,7 @@ await context.route('**/*',async route=>{
   const format=u.pathname.split('.').at(-1);
   return route.fulfill({body:await readFile(new URL('../../graphify-out/long-report.'+format,import.meta.url)),headers:{'Content-Type':format==='pdf'?'application/pdf':'application/vnd.openxmlformats-officedocument.wordprocessingml.document','Access-Control-Expose-Headers':'Content-Disposition','Content-Disposition':'attachment; filename="report.'+format+'"','Access-Control-Allow-Origin':origin,'Access-Control-Allow-Credentials':'true'}});
  }
- if(route.request().method()==='PATCH'&&['/work-items/t1/assignees','/work-items/t1/qa'].includes(u.pathname)){
+ if(route.request().method()==='PATCH'&&['/work-items/t1','/work-items/t1/assignees','/work-items/t1/qa'].includes(u.pathname)){
   const body=route.request().postDataJSON();mutations.push({path:u.pathname,body});
   task.version++;
   if(body.assigneeIds)task.assignees=[member,colleague].filter(m=>body.assigneeIds.includes(m.id));
@@ -105,13 +105,17 @@ try {
  const peer=await context.newPage();peer.on('pageerror',e=>errors.push(e.message));
  await peer.goto(origin+'/workspace/1?task=t1');
  await peer.getByRole('dialog',{name:'Detail Pekerjaan',exact:true}).waitFor();
+ assert.equal(await page.getByLabel('Rekan Divisi',{exact:true}).isDisabled(),true);
+ task.canEdit=true;
+ await page.goto(origin+'/workspace/1?task=t1');
  await page.getByLabel('Rekan Divisi',{exact:true}).check();
- await page.getByRole('button',{name:'Simpan Assignees',exact:true}).click();
- await page.waitForFunction(()=>document.querySelector('dialog[open] button')&&!document.querySelector('dialog[open] fieldset.ws-assignees')?.disabled);
+ await page.getByRole('button',{name:'Simpan Pekerjaan',exact:true}).click();
+ await page.getByRole('dialog',{name:'Detail Pekerjaan',exact:true}).waitFor({state:'hidden'});
  assert.deepEqual(mutations.at(-1).body.assigneeIds,['u1','u2']);
  assert.deepEqual(Object.keys(mutations.at(-1).body).sort(),['assigneeIds','version']);
  for(const ws of sockets)try{ws.send(JSON.stringify({event:'workspace.changed',workspaceId:1,entityId:'t1',revision:task.version}))}catch{}
  await peer.waitForFunction(()=>Array.from(document.querySelectorAll('dialog[open] input[type=checkbox]')).some(el=>el.value==='u2'&&el.checked));
+ await page.goto(origin+'/workspace/1?task=t1');
  await page.getByRole('button',{name:'Validasi QA',exact:true}).click();
  const validation=page.getByRole('dialog',{name:'Validasi QA',exact:true});
  await validation.getByRole('combobox').selectOption('DONE');

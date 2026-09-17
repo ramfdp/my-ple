@@ -147,10 +147,14 @@ Upload diteruskan ke backend; [WebSocket](https://nginx.org/en/docs/http/websock
 juga diteruskan melalui Nginx. Koneksi WebSocket pada replika yang dihentikan
 akan tersambung ulang melalui mekanisme reconnect frontend.
 
-Batasan: hub event WebSocket aplikasi masih berada di memori masing-masing
-backend. Saat memakai beberapa replika, notifikasi realtime dan invalidasi
-workspace/cuti belum tersebar antar-replika; data tetap dapat dibaca melalui API
-atau refresh halaman. Sinkronisasi event lintas replika memerlukan pub/sub bersama.
+Setiap sesi browser memakai satu koneksi `/ws/notifications`. Event perubahan
+diteruskan antar-replika melalui PostgreSQL `LISTEN/NOTIFY` pada database bersama;
+tidak memerlukan layanan pub/sub tambahan. Workspace, laporan, Zoom, pekerjaan,
+karyawan/profil, cuti, absensi, checklist dokumen, dan status baca notifikasi
+memuat ulang data terkait melalui API tanpa reload halaman. Penerima event
+dibatasi sesuai akses fitur; lokasi dan data pribadi tetap diambil melalui API
+yang memeriksa hak akses. Reconnect, tab yang kembali aktif, dan pemeriksaan
+setiap 30 detik memulihkan event yang terlewat. Draf formulir tetap dipertahankan.
 
 `backend/.env` opsional untuk pengaturan aplikasi/SMTP. Compose mengganti
 `DATABASE_URL`, port, origin, dan direktori penyimpanan agar sesuai container.

@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { api, session, setAuthenticated } from '$lib/api';
+	import { api, currentUser, setAuthenticated } from '$lib/api';
 	import { canUseDocumentChecklist } from '$lib/document-checklist';
 
 	// ponytail: native Svelte reactivity for mobile drawer without external drawer lib
@@ -10,14 +10,11 @@
 	let isMobile = $state(false);
 	let sidebar: HTMLElement;
 	let menuButton: HTMLButtonElement;
-	let canManageEmployees = $state(false);
-	let canChecklist = $state(false);
- let canReviewLeave = $state(false);
+	let role = $derived($currentUser?.role?.toLowerCase() ?? '');
+	let canManageEmployees = $derived(['admin', 'management', 'hr'].includes(role));
+	let canChecklist = $derived(canUseDocumentChecklist(role));
+ let canReviewLeave = $derived(['admin', 'management'].includes(role));
 	onMount(() => {
-		const role = session()?.user.role?.toLowerCase() ?? '';
-		canChecklist = canUseDocumentChecklist(role);
-		canManageEmployees = ['admin', 'management', 'hr'].includes(role);
- canReviewLeave = ['admin', 'management'].includes(role);
 		const media = matchMedia('(max-width: 868px)');
 		const resize = () => { isMobile = media.matches; if (!isMobile) mobileOpen = false; };
 		resize();

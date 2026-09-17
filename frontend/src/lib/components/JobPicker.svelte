@@ -1,5 +1,6 @@
 <script lang="ts">
- import { onMount } from 'svelte';
+ import { onMount, untrack } from 'svelte';
+ import { subscribeChanges } from '$lib/realtime';
  import { api, type Job, type JobMasters, type Report } from '$lib/api';
  let { division = $bindable(''), selected = $bindable<Job | null>(null), busy = $bindable(true), existing = null, fixedDivision = false }: { division?: string; selected?: Job | null; busy?: boolean; existing?: Report | null; fixedDivision?: boolean } = $props();
  let masters = $state<JobMasters>({divisions:[],roles:[],categories:[]});
@@ -18,21 +19,29 @@
   const available = masters.categories.filter(c => c.divisionId === divisionId && c.roleId === roleId);
   categoryId = available.find(c => c.name === existing?.workDivision)?.id ?? available[0]?.id ?? null;
  }
- async function loadMasters() {
+ let masterRequest = 0;
+ async function loadMasters(preserve = false) {
+  const request = ++masterRequest;
   error=''; busy=true;
-  try { masters=await api<JobMasters>('/jobs/masters'); if (!masters.divisions.some(d=>d.name===division)) division=masters.divisions[0]?.name ?? ''; resetRole(); loaded=true; }
-  catch(e){ error=e instanceof Error?e.message:'Pilihan tidak dapat dimuat.'; }
+  try { const result=await api<JobMasters>('/jobs/masters'); if(request!==masterRequest)return; masters=result; if (!masters.divisions.some(d=>d.name===division)) division=masters.divisions[0]?.name ?? ''; if(!preserve)resetRole(); loaded=true; }
+  catch(e){ if(request===masterRequest){busy=false; error=e instanceof Error?e.message:'Pilihan tidak dapat dimuat.';} }
  }
- onMount(()=>{void loadMasters();});
+ onMount(()=>{void loadMasters();const stop=subscribeChanges(['jobs.changed'],()=>loadMasters(loaded));return()=>{masterRequest++;stop();};});
+ let lastFilters = '';
  $effect(()=>{
-  if(!loaded || !divisionId)return;
+  masters;
+  if(!loaded)return;
+  if(!divisionId){busy=false;selected=null;jobs=[];return;}
   const d=divisionId,r=roleId,c=categoryId;
+  const key=JSON.stringify([d,r,c]), previous=key===lastFilters?untrack(()=>selected):null;
+  lastFilters=key;
   let cancelled=false;
-  busy=true; selected=null; jobs=[]; error='';
+  busy=true; if(!previous){selected=null;jobs=[];} error='';
   const categoryFilter=selectedRole?.name==='CIHPK'?'':`&job_category_id=${c ?? 0}`;
   api<{jobs:Job[]}>(`/jobs?division_id=${d}&role_id=${r ?? 0}${categoryFilter}&active=true`).then(response=>{
    if(cancelled)return;
    jobs=response.jobs;
+   if(previous?.isActive){selected=jobs.find(j=>j.id===previous.id)??null;return;}
    const roleName=masters.roles.find(x=>x.id===r)?.name ?? '';
    const categoryName=masters.categories.find(x=>x.id===c)?.name ?? '';
    if(existing && division===existing.primaryDivision && roleName===existing.role && (roleName==='CIHPK'||categoryName===existing.workDivision)){

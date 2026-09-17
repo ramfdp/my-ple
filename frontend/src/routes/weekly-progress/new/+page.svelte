@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
+	import { subscribeChanges } from '$lib/realtime';
 	import JobPicker from '$lib/components/JobPicker.svelte';
 	import ToastNotification from '$lib/components/ToastNotification.svelte';
 	import { api, type Job, type Report, type ReportInput, type ReportingPeriod } from '$lib/api';
@@ -18,7 +19,7 @@
 		finally { if (division === selected) checking = false; }
 	}
 	$effect(() => { if (mounted) void checkPeriod(division); });
-	onMount(() => { const requested=new URLSearchParams(location.search).get('division'); if(requested)division=requested; mounted=true; });
+	onMount(() => { const requested=new URLSearchParams(location.search).get('division'); if(requested)division=requested; mounted=true; return subscribeChanges(['reports.changed'], () => checkPeriod(division)); });
 	async function saveReport(event: SubmitEvent) {
 		if (checking || readOnly || jobsBusy || !selected || submitting) { event.preventDefault(); return; }
 		event.preventDefault(); error = ''; submitting = true; toast.visible = false;

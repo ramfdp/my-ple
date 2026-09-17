@@ -96,11 +96,7 @@ func (c *LeaveController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, notifyErr := c.DB.NotifyLeave(r.Context(), item.ID)
 	if notifyErr != nil {
 		log.Printf("leave notification request=%s category=enqueue_failed", item.ID)
-	} else if c.Notifications != nil && c.Notifications.Hub != nil {
-		recipients, recipientErr := c.DB.LeaveRecipients(r.Context(), item.ID, item.Status)
-		if recipientErr == nil {
-			c.Notifications.Hub.SendEvent(recipients, map[string]string{"event": "leave.changed"}, "")
-		}
 	}
+	c.Notifications.Changed(r.Context(), "leave.changed", 0, item.UserID, 0)
 	WriteJSON(w, 200, map[string]any{"request": item})
 }

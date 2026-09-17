@@ -1,6 +1,7 @@
 <script lang="ts">
  import { onMount } from 'svelte';
- import { api } from '$lib/api';
+ import { api, session } from '$lib/api';
+ import { subscribeChanges } from '$lib/realtime';
 
  type Mode = 'WFO' | 'WFA';
  interface Attendance { id: string; date: string; mode: Mode; clockIn: string; clockOut: string | null; latitude: number | null; longitude: number | null }
@@ -13,10 +14,12 @@
  let error = $state(''), status = $state('');
  let active = $derived(data?.open ?? data?.today);
 
- async function load() {
-  ready = false; loading = true;
-  try { data = await api<History>(`/attendance?month=${encodeURIComponent(month)}`); ready = true; }
-  finally { loading = false; }
+ let generation = 0, pending = false;
+ async function load(background = false) {
+  const request = ++generation;
+  if (!background) { ready = false; loading = true; }
+  try { const result = await api<History>(`/attendance?month=${encodeURIComponent(month)}`); if(request === generation) { data = result; ready = true; } }
+  finally { if(request === generation) loading = false; }
  }
  async function refresh() {
   if (busy || loading) return;
@@ -28,7 +31,11 @@
   const focus = () => { void refresh(); };
   window.addEventListener('focus', focus);
   const timer = window.setInterval(() => { if (data && data.todayDate !== jakartaDate()) void refresh(); }, 60000);
-  return () => { window.removeEventListener('focus', focus); window.clearInterval(timer); };
+  const stop = subscribeChanges(['attendance.changed'], async () => {
+   if(busy) { pending = true; return; }
+   try { await load(true); } catch { error = 'Data absensi belum dapat dimuat. Coba muat ulang.'; }
+  }, change => !change.entityId || change.entityId === session()?.user.id);
+  return () => { generation++; stop(); window.removeEventListener('focus', focus); window.clearInterval(timer); };
  });
 
  function locate(): Promise<GeolocationPosition> {
@@ -65,7 +72,8 @@
    error = failure instanceof Error ? failure.message : 'Absensi gagal diproses. Coba lagi.';
   } finally {
    // Reconcile even when the response was lost: the server may have saved the action.
-   if (submitted) {
+   if (submitted || pending) {
+    pending = false;
     try { await load(); }
     catch { error = 'Status penyimpanan belum dapat diperiksa. Muat ulang data sebelum mencoba lagi.'; }
    }

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { subscribeChanges } from '$lib/realtime';
 	import { api, assetUrl, upload, type User } from '$lib/api';
 	import EmployeeStatusBadge from '$lib/components/EmployeeStatusBadge.svelte';
 	import ProfileAvatar from '$lib/components/ProfileAvatar.svelte';
@@ -10,11 +11,14 @@
 	let error = $state('');
 	let editing = $state(false), saving = $state(false), editError = $state('');
 	let phoneNumber = $state(''), residence = $state(''), avatar = $state<File | null>(null);
+	let generation = 0;
 
 	async function loadProfile() {
+		if (saving) return;
+		const request = ++generation;
 		error = '';
-		try { user = (await api<{ user: User }>('/me')).user; }
-		catch (cause) { error = cause instanceof Error ? cause.message : 'Gagal memuat profil.'; }
+		try { const result = (await api<{ user: User }>('/me')).user; if(request === generation) user = result; }
+		catch (cause) { if(request === generation) error = cause instanceof Error ? cause.message : 'Gagal memuat profil.'; }
 	}
 
 	const display = (value?: string) => value?.trim() || '-';
@@ -51,6 +55,7 @@
 			return;
 		}
 		saving = true;
+		generation++;
 		editError = '';
 		try {
 			user = (await api<{ user: User }>('/profile', { method: 'PATCH', body: JSON.stringify({ phoneNumber, residence }) })).user;
@@ -60,14 +65,14 @@
 			}
 			editing = false;
 		} catch (cause) { editError = cause instanceof Error ? cause.message : 'Failed to update profile.'; }
-		finally { saving = false; }
+		finally { saving = false; void loadProfile(); }
 	}
 
 	function closeBackdrop(event: MouseEvent) {
 		if (event.target === event.currentTarget) editing = false;
 	}
 
-	onMount(loadProfile);
+	onMount(() => { void loadProfile(); const stop = subscribeChanges(['users.changed'], loadProfile, change => !change.entityId || change.entityId === user?.id); return () => { generation++; stop(); }; });
 </script>
 
 <svelte:head><title>My Profile | MyHIS</title></svelte:head>
