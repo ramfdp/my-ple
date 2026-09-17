@@ -313,6 +313,103 @@ func TestRevisionIntegration(t *testing.T) {
 		}
 	})
 
+	t.Run("workspace archive and restore", func(t *testing.T) {
+		prefix := "archive-" + db.NewID()
+		task := mustTask(member, "POST", fmt.Sprintf("/workspaces/%d/tasks", division), map[string]any{"title": prefix, "description": "Original description", "relatedUrl": "https://example.test", "assigneeIds": []string{pe.id}, "dueDate": "2026-09-20"})
+		path := "/work-items/" + task.ID
+		task = mustTask(member, "PATCH", path, map[string]any{"version": task.Version, "status": "DONE"})
+		if _, err := conn.Exec(`UPDATE work_items SET requires_qa=true,qa_stage='COMPLETE',qa_validated_at=NOW(),qa_validated_by=$2 WHERE id=$1`, task.ID, manager.id); err != nil {
+			t.Fatal(err)
+		}
+		task = mustTask(member, "GET", path, nil)
+		if code, _ := request(member, "POST", path+"/comments", map[string]any{"content": "Preserved comment"}); code != 204 {
+			t.Fatal("comment", code)
+		}
+		if code, _ := request(member, "DELETE", path, map[string]any{"version": task.Version}); code != 204 {
+			t.Fatal("archive", code)
+		}
+		archived := mustTask(member, "GET", path+"?archived=true", nil)
+		if archived.ArchivedAt == nil || !archived.CanRestore || archived.CanEdit || archived.CanDelete || archived.CanCheckQA {
+			t.Fatal("archive permissions", archived)
+		}
+		for _, suffix := range []string{"", "/comments", "/activity"} {
+			if code, _ := request(member, "GET", path+suffix+"?archived=true", nil); code != 200 {
+				t.Fatal("archive read", suffix, code)
+			}
+			if code, _ := request(outsider, "GET", path+suffix+"?archived=true", nil); code != 403 {
+				t.Fatal("archive leaked", suffix, code)
+			}
+		}
+		for _, mutation := range []struct {
+			method, suffix string
+			body           any
+		}{{"PATCH", "", map[string]any{"version": archived.Version, "title": "changed"}}, {"PATCH", "/priority", map[string]any{"version": archived.Version, "priority": "HIGH"}}, {"PATCH", "/qa", map[string]any{"version": archived.Version, "decision": "DONE"}}, {"POST", "/comments", map[string]any{"content": "new"}}, {"DELETE", "", map[string]any{"version": archived.Version}}} {
+			if code, _ := request(member, mutation.method, path+mutation.suffix+"?archived=true", mutation.body); code != 404 {
+				t.Fatal("archived mutation allowed", mutation, code)
+			}
+		}
+		if code, _ := request(pe, "POST", path+"/restore", map[string]any{"version": archived.Version}); code != 403 {
+			t.Fatal("assignee restore", code)
+		}
+		if code, _ := request(outsider, "POST", path+"/restore", map[string]any{"version": archived.Version}); code != 403 {
+			t.Fatal("outsider restore", code)
+		}
+		if code, _ := request(member, "POST", path+"/restore", map[string]any{"version": task.Version}); code != 409 {
+			t.Fatal("stale restore", code)
+		}
+		for i := 0; i < 101; i++ {
+			if _, err := conn.Exec(`INSERT INTO work_items(id,division_id,title,archived_at,created_by) VALUES($1,$2,$3,NOW(),$4)`, db.NewID(), division, prefix+fmt.Sprint(i), member.id); err != nil {
+				t.Fatal(err)
+			}
+		}
+		defer conn.Exec(`DELETE FROM work_items WHERE title LIKE $1`, prefix+"%")
+		list := fmt.Sprintf("/workspaces/%d/tasks?search=%s", division, prefix)
+		for _, tc := range []struct {
+			suffix      string
+			want, total int
+		}{{"", 0, 0}, {"&archived=true&limit=100&sort=archived", 100, 102}, {"&archived=true&limit=100&offset=100", 2, 102}, {"&archived=true&status=DONE", 1, 1}} {
+			code, body := request(member, "GET", list+tc.suffix, nil)
+			var items []model.WorkItem
+			var total int
+			json.Unmarshal(body["tasks"], &items)
+			json.Unmarshal(body["total"], &total)
+			if code != 200 || len(items) != tc.want || total != tc.total {
+				t.Fatalf("archive list %s: %d/%d code %d", tc.suffix, len(items), total, code)
+			}
+		}
+		restored := mustTask(member, "POST", path+"/restore", map[string]any{"version": archived.Version})
+		if restored.ArchivedAt != nil || restored.RequiresQA != task.RequiresQA || restored.QAStage != task.QAStage || restored.QAValidatedAt == nil || !restored.QAValidatedAt.Equal(*task.QAValidatedAt) || restored.QAValidatedBy == nil || *restored.QAValidatedBy != *task.QAValidatedBy || restored.Status != task.Status || restored.Description != task.Description || restored.RelatedURL != task.RelatedURL || restored.DueDate != task.DueDate || len(restored.Assignees) != 1 || restored.Assignees[0].ID != pe.id || restored.CommentCount != 1 || restored.Version != archived.Version+1 {
+			t.Fatal("restore lost data", restored)
+		}
+		if code, _ := request(member, "DELETE", path, map[string]any{"version": restored.Version}); code != 204 {
+			t.Fatal(code)
+		}
+		archived = mustTask(manager, "GET", path+"?archived=true", nil)
+		var wg sync.WaitGroup
+		results := make(chan int, 2)
+		for i := 0; i < 2; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				code, _ := request(manager, "POST", path+"/restore", map[string]any{"version": archived.Version})
+				results <- code
+			}()
+		}
+		wg.Wait()
+		close(results)
+		winners := 0
+		for code := range results {
+			if code == 200 {
+				winners++
+			} else if code != 409 && code != 404 {
+				t.Fatal("concurrent restore", code)
+			}
+		}
+		if winners != 1 || count(`SELECT count(*) FROM work_item_activity WHERE work_item_id=$1 AND action='RESTORE'`, task.ID) != 2 {
+			t.Fatal("restore not atomic", winners)
+		}
+	})
+
 	t.Run("assignment outbox priority and QA", func(t *testing.T) {
 		input := map[string]any{"title": "Revision test task", "requiresQa": true, "assigneeIds": []string{pe.id}, "requestId": db.NewID(), "dueDate": "2026-09-20"}
 		task := mustTask(manager, "POST", fmt.Sprintf("/workspaces/%d/tasks", division), input)

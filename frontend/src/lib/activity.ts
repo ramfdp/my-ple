@@ -7,7 +7,7 @@ const statusLabels: Record<string, string> = {
 const actionLabels: Record<string, string> = {
  CREATE: 'membuat pekerjaan', STATUS_CHANGE: 'mengubah status pekerjaan',
  ASSIGN: 'menetapkan penanggung jawab', UNASSIGN: 'menghapus penanggung jawab',
- UPDATE: 'memperbarui pekerjaan', COMMENT: 'menambahkan komentar', ARCHIVE: 'mengarsipkan pekerjaan',
+ UPDATE: 'memperbarui pekerjaan', COMMENT: 'menambahkan komentar', ARCHIVE: 'mengarsipkan pekerjaan', RESTORE: 'memulihkan pekerjaan',
  PRIORITY_CHANGE: 'mengubah prioritas pekerjaan', DATE_CHANGE: 'mengubah tanggal pekerjaan'
 };
 

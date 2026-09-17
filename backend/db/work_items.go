@@ -72,19 +72,24 @@ const workJSON = `jsonb_build_object('id',t.id,'workspaceId',t.division_id,'jobI
  'requiresQa',t.requires_qa,'qaStage',t.qa_stage,
  'qaValidatedAt',t.qa_validated_at,'qaValidatedBy',t.qa_validated_by,'qaValidatedByName',COALESCE((SELECT name FROM users WHERE id=t.qa_validated_by),''),
  'title',t.title,'description',t.description,'relatedUrl',t.related_url,'startDate',COALESCE(t.start_date::text,''),'dueDate',COALESCE(t.due_date::text,''),
- 'status',t.status,'priority',t.priority,'createdBy',COALESCE(t.created_by::text,''),'createdAt',t.created_at,'updatedAt',t.updated_at,'version',t.version,
+ 'status',t.status,'priority',t.priority,'createdBy',COALESCE(t.created_by::text,''),'createdAt',t.created_at,'updatedAt',t.updated_at,'version',t.version,'archivedAt',t.archived_at,
  'assignees',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',u.id,'name',u.name,'avatarUrl',u.avatar_url) ORDER BY u.name,u.id)
  FROM work_item_assignees a JOIN users u ON u.id=a.user_id WHERE a.work_item_id=t.id),'[]'),
  'commentCount',(SELECT count(*) FROM work_item_comments c WHERE c.work_item_id=t.id))`
 
 func workPermissions(t *model.WorkItem, userID string, manager bool) {
+	if t.ArchivedAt != nil {
+		t.CanRestore = manager || t.CreatedBy == userID
+		t.CanEdit, t.CanDelete, t.CanCheckQA = false, false, false
+		return
+	}
 	t.CanDelete = manager || t.CreatedBy == userID
 	t.CanEdit = t.CanDelete
 	for _, u := range t.Assignees {
 		t.CanEdit = t.CanEdit || u.ID == userID
 	}
 }
-func (db *Database) WorkItem(ctx context.Context, userID, id string) (model.WorkItem, error) {
+func (db *Database) WorkItem(ctx context.Context, userID, id string, archived ...bool) (model.WorkItem, error) {
 	var t model.WorkItem
 	if !workspaceUUID(id) {
 		return t, ErrWorkspaceInvalid
@@ -98,7 +103,7 @@ func (db *Database) WorkItem(ctx context.Context, userID, id string) (model.Work
 		return t, err
 	}
 	var raw []byte
-	err = db.Conn.QueryRowContext(ctx, `SELECT `+workJSON+` FROM work_items t LEFT JOIN jobs j ON j.id=t.job_id WHERE t.id=$1 AND t.archived_at IS NULL`, id).Scan(&raw)
+	err = db.Conn.QueryRowContext(ctx, `SELECT `+workJSON+` FROM work_items t LEFT JOIN jobs j ON j.id=t.job_id WHERE t.id=$1 AND (t.archived_at IS NOT NULL)=$2`, id, len(archived) > 0 && archived[0]).Scan(&raw)
 	if err != nil {
 		return t, err
 	}
@@ -106,6 +111,9 @@ func (db *Database) WorkItem(ctx context.Context, userID, id string) (model.Work
 		return t, err
 	}
 	workPermissions(&t, userID, manager)
+	if t.ArchivedAt != nil {
+		return t, nil
+	}
 	t.CanCheckQA, err = db.WorkspaceQA(ctx, userID, t.WorkspaceID)
 	if err != nil {
 		return t, err
@@ -114,6 +122,7 @@ func (db *Database) WorkItem(ctx context.Context, userID, id string) (model.Work
 }
 
 type WorkFilter struct {
+	Archived                                             bool
 	Search, Assignee, Status, Priority, Start, End, Sort string
 	JobID, Limit, Offset                                 int
 }
@@ -142,12 +151,16 @@ func (db *Database) WorkItems(ctx context.Context, userID string, division int, 
 	if f.Start != "" && f.End != "" && f.End < f.Start {
 		return nil, 0, ErrWorkspaceInvalid
 	}
-	order := map[string]string{"title": "t.title,t.id", "due": "t.due_date NULLS LAST,t.id", "priority": "CASE t.priority WHEN 'URGENT' THEN 0 WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 ELSE 3 END,t.id", "updated": "t.updated_at DESC,t.id"}[f.Sort]
+	order := map[string]string{"title": "t.title,t.id", "due": "t.due_date NULLS LAST,t.id", "priority": "CASE t.priority WHEN 'URGENT' THEN 0 WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 ELSE 3 END,t.id", "updated": "t.updated_at DESC,t.id", "archived": "t.archived_at DESC,t.id"}[f.Sort]
 	if order == "" {
 		order = "t.created_at DESC,t.id"
 	}
 	args := []any{division, f.Search, f.Assignee, f.Status, f.Priority, f.JobID, f.Start, f.End}
-	where := `t.division_id=$1 AND t.archived_at IS NULL AND ($2='' OR t.title ILIKE '%'||$2||'%' OR t.description ILIKE '%'||$2||'%')
+	archiveCondition := "t.archived_at IS NULL"
+	if f.Archived {
+		archiveCondition = "t.archived_at IS NOT NULL"
+	}
+	where := `t.division_id=$1 AND ` + archiveCondition + ` AND ($2='' OR t.title ILIKE '%'||$2||'%' OR t.description ILIKE '%'||$2||'%')
  AND ($3='' OR EXISTS(SELECT 1 FROM work_item_assignees a WHERE a.work_item_id=t.id AND a.user_id=NULLIF($3,'')::uuid))
 	AND ($4='' OR t.status=$4 OR ($4='ACTIVE' AND t.status<>'DONE')) AND ($5='' OR t.priority=$5) AND ($6=0 OR t.job_id=$6)
  AND ($7='' OR COALESCE(t.due_date,t.start_date)>=NULLIF($7,'')::date) AND ($8='' OR COALESCE(t.start_date,t.due_date)<=NULLIF($8,'')::date)`
@@ -435,8 +448,8 @@ func workspaceNotification(ctx context.Context, tx *sql.Tx, id, actor, message s
 	return queueWorkNotificationEmail(ctx, tx, notificationID)
 }
 
-func (db *Database) WorkComments(ctx context.Context, userID, id string) ([]model.WorkComment, error) {
-	if _, err := db.WorkItem(ctx, userID, id); err != nil {
+func (db *Database) WorkComments(ctx context.Context, userID, id string, archived ...bool) ([]model.WorkComment, error) {
+	if _, err := db.WorkItem(ctx, userID, id, archived...); err != nil {
 		return nil, err
 	}
 	rows, err := db.Conn.QueryContext(ctx, `SELECT c.id,COALESCE(c.user_id::text,''),COALESCE(u.name,''),c.content,c.created_at FROM work_item_comments c LEFT JOIN users u ON u.id=c.user_id WHERE c.work_item_id=$1 ORDER BY c.created_at,c.id`, id)
@@ -498,12 +511,12 @@ func (db *Database) AddWorkComment(ctx context.Context, userID, id, content stri
 	}
 	return tx.Commit()
 }
-func (db *Database) WorkActivity(ctx context.Context, userID string, division int, id string) ([]model.WorkActivity, error) {
+func (db *Database) WorkActivity(ctx context.Context, userID string, division int, id string, archived ...bool) ([]model.WorkActivity, error) {
 	if _, err := db.WorkspaceAccess(ctx, userID, division); err != nil {
 		return nil, err
 	}
 	if id != "" {
-		t, err := db.WorkItem(ctx, userID, id)
+		t, err := db.WorkItem(ctx, userID, id, archived...)
 		if err != nil {
 			return nil, err
 		}
@@ -526,4 +539,41 @@ func (db *Database) WorkActivity(ctx context.Context, userID string, division in
 		items = append(items, a)
 	}
 	return items, rows.Err()
+}
+
+// Restore preserves the job's content and workflow state.
+func (db *Database) RestoreWorkItem(ctx context.Context, userID, id string, version int) (model.WorkItem, error) {
+	t, err := db.WorkItem(ctx, userID, id, true)
+	if err != nil {
+		return model.WorkItem{}, err
+	}
+	if !t.CanRestore {
+		return model.WorkItem{}, ErrWorkspaceForbidden
+	}
+	if version != t.Version {
+		return model.WorkItem{}, ErrWorkspaceConflict
+	}
+	tx, err := db.Conn.BeginTx(ctx, nil)
+	if err != nil {
+		return model.WorkItem{}, err
+	}
+	defer tx.Rollback()
+	result, err := tx.ExecContext(ctx, `UPDATE work_items SET archived_at=NULL, updated_at=NOW(), version=version+1 WHERE id=$1 AND version=$2 AND archived_at IS NOT NULL`, id, version)
+	if err != nil {
+		return model.WorkItem{}, err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return model.WorkItem{}, err
+	}
+	if n == 0 {
+		return model.WorkItem{}, ErrWorkspaceConflict
+	}
+	if err = recordWorkActivity(ctx, tx, id, userID, "RESTORE", "", nil, t.Title); err != nil {
+		return model.WorkItem{}, err
+	}
+	if err = tx.Commit(); err != nil {
+		return model.WorkItem{}, err
+	}
+	return db.WorkItem(ctx, userID, id)
 }

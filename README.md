@@ -318,3 +318,21 @@ Verifikasi: `npm test`, `npm run check`, `npm run build` dari `frontend`, serta
 checklist yang terisolasi. Dengan fixture browser checklist di port 3001 dan Vite
 di 5189, jalankan `node tests/language.browser.mjs` untuk memeriksa kedua bahasa,
 sinkronisasi antarsesi, kartu/sidebar, formulir terbuka, dan tinggi kalender Zoom.
+
+### Arsip pekerjaan workspace
+
+Tombol **Arsip Pekerjaan / Archived Jobs** menampilkan pekerjaan yang diarsipkan
+pada workspace saat ini, dengan pencarian, filter, dan paginasi. Detail, komentar,
+dan riwayat tetap dapat dibaca. Pembuat pekerjaan dan pengelola workspace dapat
+memulihkan pekerjaan dengan status, penugasan, dan validasi QA sebelumnya.
+
+API daftar `/workspaces/{id}/tasks` serta GET detail, komentar, dan aktivitas
+`/work-items/{id}` menerima `archived=true` untuk membaca arsip. Tanpa parameter
+ini, perilaku aktif tetap berlaku. `POST /work-items/{id}/restore` menerima
+`{ "version": number }`, mengembalikan `{ "task": ... }`, dan memancarkan
+`workspace.changed`. Tidak ada migrasi baru. Rilis backend sebelum frontend.
+
+Uji integrasi arsip menggunakan `TestRevisionIntegration/workspace_archive_and_restore`
+dan database lokal `TEST_DATABASE_URL` yang sama dengan pengujian revisi.
+Uji browser: jalankan fixture `TestDocumentChecklistBrowserServer` dan Vite seperti
+pengujian bahasa, lalu `node tests/workspace-archive.browser.mjs` dari `frontend`.

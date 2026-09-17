@@ -10,6 +10,7 @@ export interface WorkspaceJob {id:number;name:string;label?:string;isActive:bool
 export const qaStages={WAITING:'Menunggu QA',CHECKING:'Progress Checking',COMPLETE:'QA Validated'} as const;
 export const taskStatus=(task:Pick<Task,'status'|'qaStage'>)=>task.status==='DONE'?statuses.DONE:task.qaStage?qaStages[task.qaStage]:statuses[task.status];
 export interface Task {
+ archivedAt:string|null;canRestore:boolean;
  qaValidatedAt:string|null;qaValidatedBy:string|null;qaValidatedByName:string;
  requiresQa:boolean;qaStage:''|keyof typeof qaStages;canCheckQa:boolean;
  id:string;workspaceId:number;jobId:number|null;jobName:string;title:string;description:string;relatedUrl:string;

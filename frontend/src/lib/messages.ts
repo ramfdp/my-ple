@@ -1,4 +1,12 @@
 export const messages = {
+  "Arsip Pekerjaan": ["Arsip Pekerjaan", "Archived Jobs"],
+  "Kembali ke pekerjaan aktif": ["Kembali ke pekerjaan aktif", "Back to active jobs"],
+  "Belum ada pekerjaan yang diarsipkan.": ["Belum ada pekerjaan yang diarsipkan.", "No archived jobs found."],
+  "Tanggal diarsipkan": ["Tanggal diarsipkan", "Archived on"],
+  "Pulihkan": ["Pulihkan", "Restore"],
+  "Pulihkan pekerjaan ini ke workspace aktif?": ["Pulihkan pekerjaan ini ke workspace aktif?", "Restore this job to the active workspace?"],
+  "Ya, pulihkan": ["Ya, pulihkan", "Yes, restore"],
+  "memulihkan pekerjaan": ["memulihkan pekerjaan", "restored a job"],
   "{actor} menambahkan komentar": ["{actor} menambahkan komentar", "{actor} added a comment"],
  " (Nonaktif)": [" (Nonaktif)", " (Inactive)"],
  " (tersimpan — nonaktif/legacy)": [" (tersimpan — nonaktif/legacy)", " (saved — inactive/legacy)"],
