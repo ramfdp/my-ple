@@ -272,6 +272,19 @@ sebelumnya/berikutnya untuk memilih tabel, lalu **Edit Tabel Checklist** untuk m
 judul dan penandatangan. **Tambah Isi Dokumen** menambah baris; isi sel tetap disimpan
 otomatis. Kolom Aksi dan tombol hapus tidak ditampilkan.
 
+**Ekspor PDF pekerjaan** mengunduh semua tabel pekerjaan yang dipilih melalui
+`GET /document-checklists/{jobId}/pdf`, dengan izin akses checklist yang sama.
+PDF memuat status TTD digital/hardcopy dan memecah catatan panjang ke halaman berikutnya.
+Label TTD Basah kini **TTD Hardcopy**; posisi panah pemilih tabel tetap sama.
+
+Kalender Zoom menampilkan tiga hari mulai hari ini (sembilan kolom untuk tiga resource),
+dengan navigasi maju/mundur tiga hari. Pembuat dan assignee aktif pekerjaan dapat
+mengatur assignee dari anggota divisi; izin server berlaku pada kedua endpoint edit.
+Detail riwayat laporan menggunakan `groups` dari `GET /reports/history/{id}`, yang
+dibentuk dari snapshot arsip oleh pengelompokan yang sama dengan laporan aktif dan PDF.
+Tombol Kembali tersedia pada layout bersama, dengan fallback dashboard saat halaman
+dibuka langsung; tombol nonaktif pada login atau dashboard tanpa riwayat navigasi.
+
 Migrasi otomatis mempertahankan tabel, dokumen, dan riwayat tanda tangan yang ada,
 memberi judul awal **Checklist Dokumen**, dan menghapus batas satu tabel per pekerjaan.
 Data checklist pekerjaan non-PE tetap tersimpan tetapi tidak tersedia pada fitur ini.

@@ -65,7 +65,7 @@
  <label>{$translate("Status")}<select bind:value={input.status}>{#each Object.entries(statuses).filter(([key])=>!task?key==='TODO':key!=='DONE'||!input.requiresQa||task.status==='DONE') as [key,label]}<option value={key}>{$translate(label)}</option>{/each}</select></label>
  <label>{$translate("Priority")}<select bind:value={input.priority}>{#each Object.entries(priorities) as [key,label]}<option value={key}>{$translate(label)}</option>{/each}</select></label>
  <label>{$translate("Start Date")}<input type="date" bind:value={input.startDate}/></label><label>{$translate("Due Date")}<input type="date" min={input.startDate||undefined} bind:value={input.dueDate}/></label>
- <fieldset class="ws-full ws-assignees" disabled={!!task&&task.createdBy!==$currentUser?.id}><legend>{$translate("Assignees")}</legend>{#each members as m}<label><input type="checkbox" value={m.id} bind:group={input.assigneeIds}/>{m.name}</label>{/each}{#if !members.length}<p>{$translate("Belum ada anggota divisi.")}</p>{/if}</fieldset>
+ <fieldset class="ws-full ws-assignees" disabled={!!task&&task.createdBy!==$currentUser?.id&&!task.assignees.some(a=>a.id===$currentUser?.id)}><legend>{$translate("Assignees")}</legend>{#each members as m}<label><input type="checkbox" value={m.id} bind:group={input.assigneeIds}/>{m.name}</label>{/each}{#if !members.length}<p>{$translate("Belum ada anggota divisi.")}</p>{/if}</fieldset>
  <label class="ws-full">{$translate("Deskripsi")}<textarea rows="5" maxlength="10000" bind:value={input.description}></textarea></label>
  {#if !task}<label class="ws-full">{$translate("Related URL")}<input type="url" placeholder="https://…" maxlength="2000" bind:value={input.relatedUrl}/></label>{/if}
  </fieldset>

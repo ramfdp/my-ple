@@ -2,7 +2,7 @@
  import { t as translate } from '$lib/i18n';
  import { onMount, tick } from 'svelte';
  import { subscribeChanges } from '$lib/realtime';
- import { api, type Job } from '$lib/api';
+ import { api, download, type Job } from '$lib/api';
  import type { DocumentChecklist, ChecklistSigner, ChecklistItem } from '$lib/document-checklist';
  let { job }: {job: Job} = $props();
  let checklists = $state<DocumentChecklist[]>([]), selectedId = $state(0);
@@ -17,6 +17,18 @@
  let internal = $state<ChecklistSigner[]>([]), external = $state<ChecklistSigner[]>([]), configVersion = $state(0);
  let title = $state(''), editingId = $state(0), configuring = $state(false);
  let saving: Promise<boolean> | null = null;
+ let exporting = $state(false);
+ async function exportPDF() {
+  if (busy || exporting) return;
+  const focused = document.activeElement;
+  if (focused instanceof HTMLElement && root.contains(focused)) focused.blur();
+  await tick();
+  if (saving && !await saving) return;
+  exporting = true; error = '';
+  try { await download(endpoint + '/pdf'); }
+  catch (e) { error = (e as Error).message; }
+  finally { exporting = false; }
+ }
  let newDocument = $state(''), modalError = $state('');
  const endpoint = $derived('/document-checklists/' + job.id);
  const tableEndpoint = $derived(endpoint + '/tables/' + selectedId);
@@ -124,6 +136,7 @@
    <span aria-live="polite">{checklist.title} ({selectedIndex + 1} / {checklists.length})</span>
   </div>
   <p>{$translate("Perubahan sel disimpan setelah selesai mengisi.")}</p>
+  <button type="button" disabled={busy || exporting} onpointerdown={e => e.preventDefault()} onclick={exportPDF}>{$translate("Ekspor PDF pekerjaan")}</button>
   <form class="add-document" onsubmit={async e => {e.preventDefault(); if (newDocument.trim() && await mutate('/items', 'POST', {field: 'documentName', value: newDocument})) newDocument = '';}}>
    <label>{$translate("Dokumen baru")}<input aria-label={$translate("Dokumen baru")} required maxlength="255" bind:value={newDocument} disabled={busy}/></label><button class="ws-primary" disabled={busy || !newDocument.trim()}>{$translate("+ Tambah Isi Dokumen")}</button>
   </form>
@@ -131,7 +144,7 @@
    <table>
     <thead>
      <tr><th class="table-title" colspan={5 + active.length + (checklist.requireDigitalSignature ? 1 : 0)}>{checklist.title}</th></tr>
-     <tr><th rowspan={active.length ? 3 : 1} scope="col">{$translate("No.")}</th><th rowspan={active.length ? 3 : 1} scope="col">{$translate("Dokumen")}</th>{#if checklist.requireDigitalSignature}<th rowspan={active.length ? 3 : 1} scope="col">{$translate("TTD Digital")}</th>{/if}{#if active.length}<th colspan={active.length} scope="colgroup">{$translate("TTD Basah")}</th>{/if}<th rowspan={active.length ? 3 : 1} scope="col">{$translate("Posisi Dokumen")}</th><th rowspan={active.length ? 3 : 1} scope="col">{$translate("Tanggal Kirim Dokumen")}</th><th rowspan={active.length ? 3 : 1} scope="col">{$translate("Catatan")}</th></tr>
+     <tr><th rowspan={active.length ? 3 : 1} scope="col">{$translate("No.")}</th><th rowspan={active.length ? 3 : 1} scope="col">{$translate("Dokumen")}</th>{#if checklist.requireDigitalSignature}<th rowspan={active.length ? 3 : 1} scope="col">{$translate("TTD Digital")}</th>{/if}{#if active.length}<th colspan={active.length} scope="colgroup">{$translate("TTD Hardcopy")}</th>{/if}<th rowspan={active.length ? 3 : 1} scope="col">{$translate("Posisi Dokumen")}</th><th rowspan={active.length ? 3 : 1} scope="col">{$translate("Tanggal Kirim Dokumen")}</th><th rowspan={active.length ? 3 : 1} scope="col">{$translate("Catatan")}</th></tr>
      {#if active.length}<tr>{#each groups as group}<th colspan={group.signers.length} scope="colgroup">{$translate(group.label)}</th>{/each}</tr><tr>{#each groups as group}{#each group.signers as signer (signer.id)}<th scope="col">{signer.name}<small>{signer.position}</small></th>{/each}{/each}</tr>{/if}
     </thead>
     <tbody>

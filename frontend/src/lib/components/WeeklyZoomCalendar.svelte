@@ -5,7 +5,7 @@
 
 	let { monday, bookings, resources, now, onselect }: { monday: Date; bookings: ZoomBooking[]; resources: ZoomResource[]; now: Date; onselect: (booking: ZoomBooking) => void } = $props();
 	const hours = Array.from({ length: 24 }, (_, hour) => hour);
-	let days = $derived(weekDays(monday));
+	let days = $derived(weekDays(monday).slice(0, 3));
 	const time = (value: string) => new Date(value).toLocaleTimeString($locale, { hour: '2-digit', minute: '2-digit' });
 	const laneBookings = (day: Date, resourceId: number) => bookings.filter((booking) => booking.zoomResource.id === resourceId && localDate(new Date(booking.startAt)) === localDate(day));
 	const top = (booking: ZoomBooking) => { const value = new Date(booking.startAt); return (value.getHours() * 60 + value.getMinutes()) * 0.8; };
@@ -13,7 +13,7 @@
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_tabindex: scrollable calendar must be keyboard-focusable -->
-<div class="calendar-scroll" role="region" tabindex="0" aria-label={$translate("Kalender booking Zoom mingguan")}>
+<div class="calendar-scroll" role="region" tabindex="0" aria-label={$translate("Kalender booking Zoom 3 hari")}>
 	<div class="zoom-calendar" style:--calendar-columns={days.length*resources.length} style:grid-template-columns={'var(--calendar-axis) repeat('+(days.length*resources.length)+', minmax(var(--calendar-column), 1fr))'}>
 		<div class="calendar-corner">{$translate("LOKAL")}</div>
 		{#each days as day, dayIndex}<div class:today={localDate(day) === localDate(now)} class="calendar-day-head" style={`grid-column:${2 + dayIndex * resources.length}/span ${resources.length}`}><strong>{day.toLocaleDateString($locale, { weekday: 'short' })}</strong><span>{day.toLocaleDateString($locale, { day: 'numeric', month: 'short' })}</span></div>{/each}

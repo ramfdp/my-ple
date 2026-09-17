@@ -66,6 +66,7 @@ try {
   await saved(async()=>{const field=a.getByLabel(label,{exact:true});await field.fill(value);await field.press('Tab')});
  }
  await add(a,'Laporan Mingguan');await add(a,'Laporan Final');
+ assert.equal(await a.getByRole('columnheader',{name:'TTD Hardcopy',exact:true}).count(),1);
  assert.equal(await a.getByRole('columnheader',{name:'Aksi',exact:true}).count(),0);
  assert.equal(await a.getByRole('button',{name:/Hapus/}).count(),0);
  assert.equal(await a.getByRole('button',{name:'Tabel sebelumnya',exact:true}).isDisabled(),true);
@@ -93,6 +94,11 @@ try {
  await saved(async()=>{const field=a.getByLabel('Catatan Berita Acara',{exact:true});await field.fill('Menunggu tanda tangan client');await field.press('Tab')});
  const tables=(await api('/document-checklists/'+jobs[0].id)).checklists;
  assert.equal(tables.length,2);assert.equal(tables[0].items.length,3);assert.equal(tables[1].items.length,1);
+ const downloading=page.waitForEvent('download');
+ await a.getByRole('button',{name:'Ekspor PDF pekerjaan',exact:true}).click();
+ const pdf=await downloading;
+ assert.equal(pdf.suggestedFilename(),'Checklist_Job_'+jobs[0].id+'.pdf');
+ assert.equal(await pdf.failure(),null);
  for(const job of (await api('/document-checklists')).jobs)assert.equal(job.role,'Project Engineer');
  assert.equal(await a.locator('.table-title').getAttribute('colspan'),'9');
  await a.getByRole('button',{name:'Tabel berikutnya',exact:true}).click();
@@ -137,6 +143,20 @@ try {
   await login(role);await page.locator('.sidebar-nav').getByRole('link',{name:'Checklist Dokumen Pekerjaan',exact:true}).click();
   await a.getByRole('button',{name:new RegExp(names[0])}).waitFor();
  }
+ await page.locator('.sidebar-nav').getByRole('link',{name:'Booking Zoom',exact:true}).click();
+ await page.locator('.calendar-lane').first().waitFor();
+ assert.equal(await page.locator('.calendar-day-head').count(),3);
+ assert.equal(await page.locator('.calendar-lane').count(),9);
+ const firstPeriod=await page.locator('#week-title').textContent();
+ await page.getByRole('button',{name:'3 hari berikutnya',exact:true}).click();
+ await page.waitForFunction(previous=>document.querySelector('#week-title')?.textContent!==previous,firstPeriod);
+ await page.getByRole('button',{name:'3 hari sebelumnya',exact:true}).click();
+ await page.waitForFunction(previous=>document.querySelector('#week-title')?.textContent===previous,firstPeriod);
+ await page.locator('.page-back button').click();
+ await page.waitForURL('**/document-checklists');
+ await page.reload();
+ await page.locator('.page-back button').click();
+ await page.waitForURL('**/dashboard');
  await login('HR');assert.equal(await page.locator('.sidebar-nav').getByRole('link',{name:'Checklist Dokumen Pekerjaan',exact:true}).count(),0);
  await page.goto(origin+'/document-checklists');await page.getByRole('alert').filter({hasText:'Akses ditolak'}).waitFor();
  const denied=await context.request.get(backend+'/document-checklists');assert.equal(denied.status(),403);

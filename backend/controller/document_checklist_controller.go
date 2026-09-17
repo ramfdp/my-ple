@@ -3,6 +3,7 @@ package controller
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"my-ple-backend/db"
 	"my-ple-backend/middleware"
@@ -71,6 +72,32 @@ func (c *DocumentChecklistController) ServeHTTP(w http.ResponseWriter, r *http.R
 	}
 	if job.Role != "Project Engineer" {
 		fail(sql.ErrNoRows)
+		return
+	}
+	if len(parts) == 2 && parts[1] == "pdf" {
+		if r.Method != "GET" {
+			w.WriteHeader(405)
+			return
+		}
+		tables, err := c.DB.DocumentChecklists(r.Context(), jobID)
+		if err != nil {
+			fail(err)
+			return
+		}
+		if len(tables) == 0 {
+			WriteJSON(w, 409, map[string]string{"error": "Pekerjaan ini belum mempunyai checklist."})
+			return
+		}
+		data, err := checklistPDF(job.Name, tables)
+		if err != nil {
+			fail(err)
+			return
+		}
+		w.Header().Set("Content-Type", "application/pdf")
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="Checklist_Job_%d.pdf"`, jobID))
+		w.Header().Set("Cache-Control", "private, no-store")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Write(data)
 		return
 	}
 	tableID := 0

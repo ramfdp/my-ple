@@ -2,7 +2,10 @@
  import { locale, t as translate } from '$lib/i18n';
 	import { onMount } from 'svelte';
 	import {subscribeChanges} from '$lib/realtime';
-	import { api, currentUser, download, type WeeklyArchive } from '$lib/api';
+	import { api, currentUser, download, type WeeklyArchive, type WeeklyRoleGroup } from '$lib/api';
+	import { groupReports } from '$lib/utils/report-table';
+	let groups = $state<WeeklyRoleGroup[]>([]);
+	const tableRows = $derived(groupReports(groups));
 	let division = $state(''), date = $state(''), page = $state(1);
 	let archives = $state<WeeklyArchive[]>([]), detail = $state<WeeklyArchive | null>(null);
 	let loading = $state(true), hasMore = $state(false), error = $state(''), downloading = $state('');
@@ -23,7 +26,7 @@
 	}
 	async function openDetail(id: string) {
 		error = ''; detail = null;
-		try { detail = (await api<{ archive: WeeklyArchive }>(`/reports/history/${id}`)).archive; }
+		try { const result = await api<{ archive: WeeklyArchive; groups: WeeklyRoleGroup[] }>(`/reports/history/${id}`); detail = result.archive; groups = result.groups; }
 		catch (e) { error = e instanceof Error ? e.message : 'Arsip tidak dapat dimuat.'; }
 	}
 	async function savePDF(id: string) {
@@ -62,8 +65,14 @@
 	{#if detail}<section class="task-list" aria-label={$translate("Isi arsip")}>
 		<h2>{detail.division} — {period(detail)}</h2><p>{$translate("Snapshot saat finalisasi; perubahan data saat ini tidak mengubah arsip ini.")}</p>
 		<button class="report-button" onclick={() => (detail = null)}>{$translate("Tutup detail")}</button>
-		<div class="work-table-wrap"><table class="work-table"><thead><tr><th scope="col">{$translate("Pegawai")}</th><th scope="col">{$translate("Role")}</th><th scope="col">{$translate("Kategori")}</th><th scope="col">{$translate("Pekerjaan")}</th><th scope="col">{$translate("Laporan")}</th></tr></thead><tbody>
-			{#each detail.items ?? [] as item}<tr><td>{item.employeeName}</td><td>{item.role || '—'}</td><td>{item.workDivision}</td><td>{item.work || '—'}</td><td>{item.description}</td></tr>{/each}
+		<div class="work-table-wrap"><table class="work-table current-report-table"><thead><tr><th scope="col">{$translate("Role")}</th><th scope="col">{$translate("Kategori")}</th><th scope="col">{$translate("No.")}</th><th scope="col">{$translate("Pekerjaan yang dilakukan")}</th></tr></thead><tbody>
+			{#each tableRows as row}
+				{#if row.type === 'work'}<tr class="work-group-row">
+					{#if row.role}<td rowspan={row.roleRowSpan} class="task-role">{$translate(row.role)}</td>{/if}
+					{#if row.category}<td rowspan={row.categoryRowSpan} class="task-category">{row.category}</td>{/if}
+					<td colspan="2" class="task-work-title"><div class="job-heading"><span>{row.work}</span>{#if row.pics?.length}<small>{$translate("PIC:")} {row.pics.map(pic=>pic.name+(pic.isActive?'':' (Nonaktif)')).join(', ')}</small>{/if}</div></td>
+				</tr>{:else}<tr><td class="task-number">{row.displayNumber}</td><td class="task-description">{row.report.description}</td></tr>{/if}
+			{/each}
 		</tbody></table></div>
 	</section>{/if}
 </div></main>

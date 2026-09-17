@@ -428,7 +428,7 @@ func TestRevisionIntegration(t *testing.T) {
 		if status != 204 || count(`SELECT count(*) FROM notifications n JOIN notification_recipients r ON r.notification_id=n.id WHERE n.entity_id=$1 AND n.type='workspace_task' AND r.user_id=$2`, task.ID, qa.id) != 1 || count(`SELECT count(*) FROM zoom_booking_email_deliveries WHERE work_item_id=$1 AND recipient_user_id=$2 AND notification_type='workspace_task'`, task.ID, qa.id) != 1 {
 			t.Fatal("mention notification/email missing", status)
 		}
-		for _, actor := range []actor{member, pe} {
+		for _, actor := range []actor{member} {
 			for _, suffix := range []string{"", "/assignees"} {
 				s, _ := request(actor, "PATCH", path+suffix, map[string]any{"version": task.Version, "assigneeIds": []string{qa.id}})
 				if s != 403 {
@@ -436,7 +436,7 @@ func TestRevisionIntegration(t *testing.T) {
 				}
 			}
 		}
-		// Only the creator can change assignments.
+		// Unassigned colleagues cannot change assignments, even through the dedicated endpoint.
 		for _, body := range []map[string]any{
 			{"version": task.Version, "assigneeIds": []string{outsider.id}},
 			{"version": task.Version, "assigneeIds": []string{qa.id}, "title": "smuggled"},
@@ -446,11 +446,12 @@ func TestRevisionIntegration(t *testing.T) {
 				t.Fatal("invalid assignment accepted", s)
 			}
 		}
-		task = mustTask(manager, "PATCH", path+"/assignees", map[string]any{"version": task.Version, "assigneeIds": []string{pe.id, qa.id, invalid.id}})
+		task = mustTask(pe, "PATCH", path+"/assignees", map[string]any{"version": task.Version, "assigneeIds": []string{pe.id, qa.id, invalid.id}})
 		if assignmentCount() != 3 {
 			t.Fatal("multiple new recipients")
 		}
-		task = mustTask(manager, "PATCH", path+"/assignees", map[string]any{"version": task.Version, "assigneeIds": []string{pe.id, qa.id, invalid.id}})
+		// A newly assigned person can also save assignments through the main edit form.
+		task = mustTask(qa, "PATCH", path, map[string]any{"version": task.Version, "assigneeIds": []string{pe.id, qa.id, invalid.id}})
 		if assignmentCount() != 3 {
 			t.Fatal("unchanged assignees duplicated assignment")
 		}

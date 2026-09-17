@@ -84,6 +84,7 @@ func TestDocumentChecklistIntegration(t *testing.T) {
 		return result
 	}
 	request("GET", "/document-checklists", nil, 401)
+	request("GET", "/document-checklists/1/pdf", nil, 401)
 	for i, role := range []string{"Project Engineer", "Finance", "Admin", "Management", "HR", "IT", "PMO", "Business Development"} {
 		username := fmt.Sprintf("checklist-api-%d", i)
 		checklistTestUser(t, database, role, username)
@@ -94,6 +95,7 @@ func TestDocumentChecklistIntegration(t *testing.T) {
 		}
 		request("GET", "/document-checklists", nil, want)
 		if want == 403 {
+			request("GET", "/document-checklists/1/pdf", nil, 403)
 			for _, method := range []string{"GET", "POST", "PUT"} {
 				request(method, "/document-checklists/1", nil, 403)
 			}
@@ -168,6 +170,8 @@ func TestDocumentChecklistIntegration(t *testing.T) {
 	request("POST", a, invalid, 400)
 	request("POST", a, map[string]any{"internalCount": 1.5}, 400)
 	c := decode(request("POST", a, config, 200))
+	request("GET", b+"/pdf", nil, 409)
+	request("POST", a+"/pdf", nil, 405)
 	second := decode(request("POST", a, config, 200))
 	var tables []model.DocumentChecklist
 	if err := json.Unmarshal(request("GET", a, nil, 200)["checklists"], &tables); err != nil {
@@ -175,6 +179,19 @@ func TestDocumentChecklistIntegration(t *testing.T) {
 	}
 	if len(tables) != 2 || tables[0].ID != c.ID || tables[1].ID != second.ID {
 		t.Fatal("multiple table ordering")
+	}
+	req, _ := http.NewRequest("GET", server.URL+a+"/pdf", nil)
+	for _, cookie := range cookies {
+		req.AddCookie(cookie)
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := io.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil || res.StatusCode != 200 || res.Header.Get("Content-Type") != "application/pdf" || !bytes.HasPrefix(data, []byte("%PDF-")) || bytes.Count(data, []byte("/Type /Page\n")) != 2 {
+		t.Fatal("per-job PDF must include both tables", err)
 	}
 	secondPath := fmt.Sprintf("%s/tables/%d", a, second.ID)
 	a = fmt.Sprintf("%s/tables/%d", a, c.ID)

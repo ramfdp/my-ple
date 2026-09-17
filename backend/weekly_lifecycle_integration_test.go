@@ -183,9 +183,26 @@ func TestWeeklyLifecycleAutomaticRollover(t *testing.T) {
 		get(role, "/reports/history", 200)
 		var detail struct {
 			Archive model.WeeklyArchive `json:"archive"`
+			Groups  []struct {
+				Categories []struct {
+					Jobs []struct {
+						Progress []struct {
+							Number int
+							Report model.WeeklyReport
+						}
+					}
+				}
+			} `json:"groups"`
 		}
 		if e := json.Unmarshal(get(role, path, 200), &detail); e != nil || len(detail.Archive.Items) != 1 || detail.Archive.Items[0].Description != oldID {
 			t.Fatal("history detail lost content", e)
+		}
+		if len(detail.Groups) != 1 || len(detail.Groups[0].Categories) != 1 || len(detail.Groups[0].Categories[0].Jobs) != 1 || len(detail.Groups[0].Categories[0].Jobs[0].Progress) != 1 {
+			t.Fatal("history grouping missing")
+		}
+		progress := detail.Groups[0].Categories[0].Jobs[0].Progress[0]
+		if progress.Number != 1 || progress.Report.Description != oldID {
+			t.Fatal("history grouping must use archived data and per-job numbering")
 		}
 		pdf := get(role, path+"/pdf", 200)
 		if !bytes.HasPrefix(pdf, []byte("%PDF-")) || !bytes.Contains(pdf, []byte("%%EOF")) {

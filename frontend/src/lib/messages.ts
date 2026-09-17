@@ -1,4 +1,12 @@
 export const messages = {
+  "Kembali": ["Kembali", "Back"],
+  "TTD Hardcopy": ["TTD Hardcopy", "Hardcopy signature"],
+  "Ekspor PDF pekerjaan": ["Ekspor PDF pekerjaan", "Export job PDF"],
+  "Kalender booking Zoom 3 hari": ["Kalender booking Zoom 3 hari", "3-day Zoom booking calendar"],
+  "3 hari sebelumnya": ["3 hari sebelumnya", "Previous 3 days"],
+  "3 hari berikutnya": ["3 hari berikutnya", "Next 3 days"],
+  "JADWAL 3 HARI": ["JADWAL 3 HARI", "3-DAY SCHEDULE"],
+  "Belum ada booking Zoom pada periode ini.": ["Belum ada booking Zoom pada periode ini.", "No Zoom bookings in this period."],
   "Laporan diarsipkan otomatis setiap Selasa mulai 00:00 WIB. Ekspor manual tidak diperlukan. PDF dapat diunduh dari Riwayat Laporan Mingguan.": ["Laporan diarsipkan otomatis setiap Selasa mulai 00:00 WIB. Ekspor manual tidak diperlukan. PDF dapat diunduh dari Riwayat Laporan Mingguan.", "Reports are archived automatically every Tuesday from 00:00 WIB. No manual export is needed. PDFs can be downloaded from Weekly Report History."],
   "Arsip Pekerjaan": ["Arsip Pekerjaan", "Archived Jobs"],
   "Kembali ke pekerjaan aktif": ["Kembali ke pekerjaan aktif", "Back to active jobs"],

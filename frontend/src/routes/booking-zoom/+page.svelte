@@ -8,9 +8,9 @@
 	import ZoomBookingForm from '$lib/components/ZoomBookingForm.svelte';
 	import ZoomInformationPanel from '$lib/components/ZoomInformationPanel.svelte';
 	import ZoomResourceForm from '$lib/components/ZoomResourceForm.svelte';
-	import { addDays, bookingStatus, canEditZoomResources, startOfWeek } from '$lib/utils/booking-calendar';
+	import { addDays, bookingStatus, canEditZoomResources } from '$lib/utils/booking-calendar';
 
-	let weekStart = $state(startOfWeek(new Date()));
+	let weekStart = $state(new Date(new Date().setHours(0, 0, 0, 0)));
 	let bookings = $state<ZoomBooking[]>([]);
 	let resources = $state<ZoomResource[]>([]);
 	let now = $state(new Date());
@@ -25,14 +25,14 @@
 	const currentUserID = session()?.user.id;
 	let generation=0;
 	const canEditResources = canEditZoomResources(session()?.user.role);
-	let weekLabel = $derived(`${weekStart.toLocaleDateString($locale, { day: 'numeric', month: 'short' })} – ${addDays(weekStart, 6).toLocaleDateString($locale, { day: 'numeric', month: 'short', year: 'numeric' })}`);
+	let weekLabel = $derived(`${weekStart.toLocaleDateString($locale, { day: 'numeric', month: 'short' })} – ${addDays(weekStart, 2).toLocaleDateString($locale, { day: 'numeric', month: 'short', year: 'numeric' })}`);
 
 	function notify(message: string, type: 'success' | 'error' = 'success') { toast = { visible: true, message, type }; }
 	async function loadBookings() {
 		const sequence=++generation;
 		if(!bookings.length)loading = true;
 		try {
-			const end = addDays(weekStart, 7);
+			const end = addDays(weekStart, 3);
 			const result=await api<{ bookings: ZoomBooking[] }>(`/zoom-bookings?start=${encodeURIComponent(weekStart.toISOString())}&end=${encodeURIComponent(end.toISOString())}`);
 			if(sequence!==generation)return;bookings=result.bookings??[];
 			if(selected)selected=bookings.find(b=>b.id===selected?.id)??null;
@@ -94,9 +94,9 @@
 	<a class="booking-back" href="/dashboard">{$translate("← Kembali ke dashboard")}</a>
 	<header class="booking-header"><div><p class="zoom-kicker">{$translate("BOOKING ZOOM")}</p><h1>{$translate("Booking Zoom")}</h1><p>{$translate("Jadwalkan dan kelola meeting Zoom Anda.")}</p></div><button class="zoom-primary" type="button" onclick={() => { editing = null; formOpen = true; }}>{$translate("+ Buat Booking")}</button></header>
 	<div class="booking-workspace"><section class="schedule-card" aria-labelledby="week-title">
-		<div class="schedule-toolbar"><button type="button" class="week-button" onclick={() => void moveWeek(-7)} aria-label={$translate("Minggu sebelumnya")}>←</button><div><p>{$translate("JADWAL MINGGUAN")}</p><h2 id="week-title">{weekLabel}</h2></div><div class="week-actions"><button type="button" class="today-button" onclick={() => { weekStart = startOfWeek(new Date()); void loadBookings(); }}>{$translate("Hari ini")}</button><button type="button" class="week-button" onclick={() => void moveWeek(7)} aria-label={$translate("Minggu berikutnya")}>→</button></div></div>
+		<div class="schedule-toolbar"><button type="button" class="week-button" onclick={() => void moveWeek(-3)} aria-label={$translate("3 hari sebelumnya")}>←</button><div><p>{$translate("JADWAL 3 HARI")}</p><h2 id="week-title">{weekLabel}</h2></div><div class="week-actions"><button type="button" class="today-button" onclick={() => { weekStart = new Date(new Date().setHours(0, 0, 0, 0)); void loadBookings(); }}>{$translate("Hari ini")}</button><button type="button" class="week-button" onclick={() => void moveWeek(3)} aria-label={$translate("3 hari berikutnya")}>→</button></div></div>
 		{#if loading}<div class="calendar-state" aria-live="polite">{$translate("Memuat booking…")}</div>
-		{:else if resources.length}{#if bookings.length === 0}<div class="empty-booking"><strong>{$translate("Belum ada booking Zoom minggu ini.")}</strong><button type="button" onclick={() => (formOpen = true)}>{$translate("Buat booking pertama")}</button></div>{/if}<WeeklyZoomCalendar monday={weekStart} {bookings} {resources} {now} onselect={(booking) => (selected = booking)} />{/if}
+		{:else if resources.length}{#if bookings.length === 0}<div class="empty-booking"><strong>{$translate("Belum ada booking Zoom pada periode ini.")}</strong><button type="button" onclick={() => (formOpen = true)}>{$translate("Buat booking pertama")}</button></div>{/if}<WeeklyZoomCalendar monday={weekStart} {bookings} {resources} {now} onselect={(booking) => (selected = booking)} />{/if}
 	</section><ZoomInformationPanel {resources} canEdit={canEditResources} onedit={(resource) => (editingResource = resource)} /></div>
 </div></main>
 

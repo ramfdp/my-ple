@@ -81,7 +81,7 @@ func (c *WeeklyController) History(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(parts) == 1 {
-		WriteJSON(w, 200, map[string]any{"archive": a})
+		WriteJSON(w, 200, map[string]any{"archive": a, "groups": exportGroups(a.Reports())})
 		return
 	}
 	if a.Status != "finalized" {

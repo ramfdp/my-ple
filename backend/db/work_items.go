@@ -220,7 +220,8 @@ func (db *Database) SaveWorkItem(ctx context.Context, userID string, division in
 		if old.WorkspaceID != division || (!old.CanEdit && !in.PriorityOnly && !in.AssigneesOnly && !in.QAOnly) {
 			return empty, ErrWorkspaceForbidden
 		}
-		if (assignmentsProvided || in.AssigneesOnly) && old.CreatedBy != userID {
+		canAssign := old.CreatedBy == userID || slices.ContainsFunc(old.Assignees, func(a model.WorkspaceMember) bool { return a.ID == userID })
+		if (assignmentsProvided || in.AssigneesOnly) && !canAssign {
 			return empty, ErrWorkspaceForbidden
 		}
 		if in.PriorityOnly || in.QAOnly || in.AssigneesOnly {
