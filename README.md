@@ -336,3 +336,18 @@ Uji integrasi arsip menggunakan `TestRevisionIntegration/workspace_archive_and_r
 dan database lokal `TEST_DATABASE_URL` yang sama dengan pengujian revisi.
 Uji browser: jalankan fixture `TestDocumentChecklistBrowserServer` dan Vite seperti
 pengujian bahasa, lalu `node tests/workspace-archive.browser.mjs` dari `frontend`.
+
+### Automatic weekly rollover
+
+Weekly reports close on Tuesday at 00:00 WIB. The background worker runs at
+startup and every minute, snapshots overdue weeks, saves their PDFs, then resets
+only the archived working rows. Manual export is not required; PDFs are available
+from Weekly Report History. A PDF/storage failure retains working data for retry.
+
+The week-selection SQL applies `AT TIME ZONE` to the complete Tuesday timestamp
+expression, not the added interval. Regression coverage is
+`go test . -run TestWeeklyLifecycleAutomaticRollover -count=1` from `backend`, with
+`CHECKLIST_TEST_DATABASE_URL` set to the isolated local checklist test database.
+The test creates and removes a disposable database and disables email delivery.
+After rollout, check `weekly reset completed` logs and the recovered History
+periods; retained overdue reports are processed automatically without a migration.

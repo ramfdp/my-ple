@@ -40,6 +40,7 @@
 <main class="weekly-progress-page"><div class="weekly-progress-shell">
 	<a class="back-link" href="/weekly-progress">{$translate("← Weekly Progress")}</a>
 	<header class="weekly-header"><p class="weekly-kicker">{$translate("WEEKLY REPORT")}</p><h1>{$translate("Weekly Report History")}</h1><p>{$translate("Arsip permanen laporan mingguan. Semua tanggal menggunakan WIB.")}</p></header>
+ <p>{$translate("Laporan diarsipkan otomatis setiap Selasa mulai 00:00 WIB. Ekspor manual tidak diperlukan. PDF dapat diunduh dari Riwayat Laporan Mingguan.")}</p>
 	<form class="report-form" onsubmit={(event) => { event.preventDefault(); void load(); }}>
 		<label>{$translate("Divisi")}<select bind:value={division}>{#if divisions.length>1}<option value="">{$translate("Semua divisi")}</option>{/if}{#each divisions as item}<option>{$translate(item)}</option>{/each}</select></label>
 		<label>{$translate("Tanggal dalam periode")}<input type="date" bind:value={date} /></label>

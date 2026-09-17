@@ -1,4 +1,5 @@
 export const messages = {
+  "Laporan diarsipkan otomatis setiap Selasa mulai 00:00 WIB. Ekspor manual tidak diperlukan. PDF dapat diunduh dari Riwayat Laporan Mingguan.": ["Laporan diarsipkan otomatis setiap Selasa mulai 00:00 WIB. Ekspor manual tidak diperlukan. PDF dapat diunduh dari Riwayat Laporan Mingguan.", "Reports are archived automatically every Tuesday from 00:00 WIB. No manual export is needed. PDFs can be downloaded from Weekly Report History."],
   "Arsip Pekerjaan": ["Arsip Pekerjaan", "Archived Jobs"],
   "Kembali ke pekerjaan aktif": ["Kembali ke pekerjaan aktif", "Back to active jobs"],
   "Belum ada pekerjaan yang diarsipkan.": ["Belum ada pekerjaan yang diarsipkan.", "No archived jobs found."],

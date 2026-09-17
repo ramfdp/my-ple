@@ -117,6 +117,7 @@
 		<a class="back-link" href="/dashboard">{$translate("← Kembali ke dashboard")}</a>
 		<header class="weekly-header"><p class="weekly-kicker">{$translate("WEEKLY PROGRESS")}</p><h1>{$translate("Progres kerja per divisi.")}</h1><p>{$translate("Pilih divisi terlebih dahulu untuk melihat daftar pekerjaan minggu ini.")}</p></header>
 		<section class="division-selection" aria-labelledby="division-title">
+			<p class="report-period">{$translate("Laporan diarsipkan otomatis setiap Selasa mulai 00:00 WIB. Ekspor manual tidak diperlukan. PDF dapat diunduh dari Riwayat Laporan Mingguan.")}</p>
 			<a class="report-button" href="/weekly-progress/history">{$translate("Weekly Report History")}</a>
 			<h2 id="division-title">{$translate("Pilih divisi")}</h2><p>{$translate("Daftar ini menentukan pekerjaan yang akan ditampilkan.")}</p>
 			<div class="division-grid">{#each divisions as division, index}<button class:selected={selectedDivision === index} class="division-button" type="button" aria-pressed={selectedDivision === index} onclick={() => void selectDivision(index)}>{$translate(division)}<span aria-hidden="true">→</span></button>{/each}</div>
