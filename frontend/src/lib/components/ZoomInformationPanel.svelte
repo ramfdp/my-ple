@@ -1,4 +1,5 @@
 <script lang="ts">
+ import { t as translate } from '$lib/i18n';
 	import { onDestroy } from 'svelte';
 	import type { ZoomResource } from '$lib/api';
 	let { resources, canEdit = false, onedit }: { resources: ZoomResource[]; canEdit?: boolean; onedit: (resource: ZoomResource) => void } = $props();
@@ -25,16 +26,16 @@
 </script>
 
 <aside class="zoom-info-panel" aria-labelledby="zoom-info-title">
-	<header><p class="zoom-kicker">RESOURCE</p><h2 id="zoom-info-title">Zoom Information</h2></header>
+	<header><p class="zoom-kicker">{$translate("RESOURCE")}</p><h2 id="zoom-info-title">{$translate("Zoom Information")}</h2></header>
 	{#each resources as resource}
 		<section class="zoom-info-item">
-			<div class="zoom-info-heading"><div><h3>{resource.name}</h3><span>{resource.code}</span></div>{#if canEdit}<button type="button" onclick={() => onedit(resource)}>Edit</button>{/if}</div>
+			<div class="zoom-info-heading"><div><h3>{resource.name}</h3><span>{resource.code}</span></div>{#if canEdit}<button type="button" onclick={() => onedit(resource)}>{$translate("Edit")}</button>{/if}</div>
 			<dl>
-				<div><dt>Meeting ID</dt><dd>{resource.meetingId || 'Belum dikonfigurasi'}</dd></div>
-				<div><dt>Passcode</dt><dd>{resource.passcode || 'Belum dikonfigurasi'}</dd></div>
-				<div><dt>Host key</dt><dd>{resource.hostKey || 'Belum dikonfigurasi'}</dd></div>
-				<div><dt>Meeting URL</dt><dd>{#if resource.meetingUrl}<a href={resource.meetingUrl} target="_blank" rel="noreferrer">{resource.meetingUrl}</a><div class="copy-actions"><button type="button" aria-label={'Salin link ' + resource.name} onclick={() => void copy(resource)}>Salin</button><span role="status">{feedback[resource.id] || ''}</span></div>{:else}Belum dikonfigurasi{/if}</dd></div>
-				<div><dt>Deskripsi</dt><dd>{resource.description || 'Belum dikonfigurasi'}</dd></div>
+				<div><dt>{$translate("Meeting ID")}</dt><dd>{resource.meetingId || $translate('Belum dikonfigurasi')}</dd></div>
+				<div><dt>{$translate("Passcode")}</dt><dd>{resource.passcode || $translate('Belum dikonfigurasi')}</dd></div>
+				<div><dt>{$translate("Host key")}</dt><dd>{resource.hostKey || $translate('Belum dikonfigurasi')}</dd></div>
+				<div><dt>{$translate("Meeting URL")}</dt><dd>{#if resource.meetingUrl}<a href={resource.meetingUrl} target="_blank" rel="noreferrer">{resource.meetingUrl}</a><div class="copy-actions"><button type="button" aria-label={$translate('Salin link ') + resource.name} onclick={() => void copy(resource)}>{$translate("Salin")}</button><span role="status">{$translate(feedback[resource.id] || '')}</span></div>{:else}{$translate("Belum dikonfigurasi")}{/if}</dd></div>
+				<div><dt>{$translate("Deskripsi")}</dt><dd>{resource.description || $translate('Belum dikonfigurasi')}</dd></div>
 			</dl>
 		</section>
 	{/each}

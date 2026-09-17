@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { page } from '$app/state';
+ import { t as translate } from '$lib/i18n';
+	import { restoreLanguage } from '$lib/i18n';
+ import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { api, currentUser, setAuthenticated, type User } from '$lib/api';
@@ -17,6 +19,7 @@
 	let initializing = $state(true);
 	let auth = $derived(initializing ? 'loading' : $currentUser ? 'authenticated' : 'unauthenticated');
 	onMount(async () => {
+ restoreLanguage();
 		localStorage.removeItem('session');
 		try {
 			const { user } = await api<{ user: User }>('/auth/me');
@@ -40,7 +43,7 @@
 </svelte:head>
 
 {#if auth === 'loading'}
-	<p role="status" aria-live="polite">Memeriksa sesi…</p>
+	<p role="status" aria-live="polite">{$translate("Memeriksa sesi…")}</p>
 {:else if showSidebar && auth === 'authenticated'}
 	<div class="feature-shell">
 		<Sidebar bind:mobileOpen={mobileNavigationOpen} />

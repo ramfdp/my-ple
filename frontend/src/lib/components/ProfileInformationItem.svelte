@@ -1,4 +1,5 @@
 <script lang="ts">
+ import { t as translate } from '$lib/i18n';
 	// ponytail: lightweight inline SVG icon registry to avoid 50kb+ lucide package load
 	let {
 		icon = 'user',
@@ -41,7 +42,7 @@
 	</div>
 
 	<div class="info-content">
-		<span class="info-label">{label}</span>
+		<span class="info-label">{$translate(label)}</span>
 
 		<div class="info-value">
 			{#if value !== undefined && value !== null && value !== ''}

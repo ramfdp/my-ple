@@ -288,3 +288,33 @@ dengan `CHECKLIST_TEST_DATABASE_URL` ke database lokal terisolasi
 dengan `CHECKLIST_BROWSER_SERVER=1`, Vite port 5189 dengan
 `VITE_API_URL=http://127.0.0.1:3001`, lalu dari `frontend` jalankan
 `node tests/document-checklist.browser.mjs`.
+
+
+### Bahasa, menu, dan kalender Zoom
+
+Pemilih **Bahasa Indonesia / English** di samping notifikasi dashboard menyimpan
+pilihan pada akun. Akun lama maupun baru memakai `id` secara default. Browser
+mengingat bahasa terakhir untuk halaman masuk; preferensi akun mengambil alih
+setelah login dan tersinkron melalui event pengguna pada sesi lain yang terbuka.
+`PATCH /profile/language` menerima `{language: "id" | "en"}` dan mengembalikan
+`{user}` dengan properti `language`. Endpoint hanya mengubah akun yang sedang login.
+Migrasi kolom bahasa bersifat tambahan; rilis backend sebelum atau bersama frontend.
+
+Terjemahan mencakup antarmuka situs, tanggal, status, notifikasi sistem, serta pesan
+kesalahan. Nama, judul, catatan, isi laporan, email, dan file unduhan tetap seperti
+semula. Tambahkan kedua bahasa untuk label baru pada `frontend/src/lib/messages.ts`,
+lalu gunakan store terjemahan dari `i18n.ts` saat menampilkan label. Nilai formulir,
+role untuk otorisasi, dan enum API tidak diterjemahkan. Respons error mempertahankan
+field lama dan menambahkan `messageCode`; pesan yang belum dikenal memakai fallback
+terjemahan di klien.
+
+Dashboard dan sidebar memakai `navigation.ts` dengan aturan akses yang sama.
+Dashboard dan Keluar tetap merupakan navigasi/aksi, bukan kartu layanan.
+Kalender Zoom desktop mengikuti tinggi panel informasi melalui CSS; tablet dan
+ponsel mempertahankan susunan bertumpuk dan area kalender yang dapat digulir.
+
+Verifikasi: `npm test`, `npm run check`, `npm run build` dari `frontend`, serta
+`go test ./...` dari `backend`. `TestLanguagePreference` menggunakan database uji
+checklist yang terisolasi. Dengan fixture browser checklist di port 3001 dan Vite
+di 5189, jalankan `node tests/language.browser.mjs` untuk memeriksa kedua bahasa,
+sinkronisasi antarsesi, kartu/sidebar, formulir terbuka, dan tinggi kalender Zoom.

@@ -1,4 +1,5 @@
 <script lang="ts">
+ import { locale, t as translate } from '$lib/i18n';
  import { onMount } from 'svelte';
  import { api, APIError, session } from '$lib/api';
  import { subscribeChanges } from '$lib/realtime';
@@ -7,7 +8,7 @@
  interface Employee { userId: string; name: string; role: string; status: Status; leaveTypes: string; mode: string; clockIn: string | null; clockOut: string | null; latitude: number | null; longitude: number | null }
  interface Overview { date: string; todayDate: string; employees: Employee[] }
  const jakartaDate = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
- const formatTime = (value: string) => new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+ const formatTime = (value: string) => new Intl.DateTimeFormat($locale, { timeZone: 'Asia/Jakarta', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
  let date = $state(''), today = $state(jakartaDate()), search = $state(''), filter = $state('');
  let data = $state<Overview | null>(null), allowed = $state(false), loading = $state(true), error = $state('');
  let missingLabel = $derived(data?.date === data?.todayDate ? 'Belum Clock In' : 'Tidak ada Clock In');
@@ -52,44 +53,44 @@
  });
 </script>
 
-<svelte:head><title>Absensi Karyawan | MyHIS</title><meta name="description" content="Rekap kehadiran, izin, dan cuti karyawan per tanggal." /></svelte:head>
+<svelte:head><title>{$translate("Absensi Karyawan | MyHIS")}</title><meta name="description" content={$translate("Rekap kehadiran, izin, dan cuti karyawan per tanggal.")} /></svelte:head>
 
 <main class="overview-page">
- <header><p class="eyebrow">KEHADIRAN</p><h1>Absensi Karyawan</h1><p>Rekap Clock In dan Clock Out karyawan. Semua waktu dalam WIB, tanpa perhitungan keterlambatan.</p></header>
+ <header><p class="eyebrow">{$translate("KEHADIRAN")}</p><h1>{$translate("Absensi Karyawan")}</h1><p>{$translate("Rekap Clock In dan Clock Out karyawan. Semua waktu dalam WIB, tanpa perhitungan keterlambatan.")}</p></header>
  {#if !allowed && !loading}
-  <p class="notice" role="alert">Akses rekap absensi hanya untuk HR, Management, dan Admin.</p>
+  <p class="notice" role="alert">{$translate("Akses rekap absensi hanya untuk HR, Management, dan Admin.")}</p>
  {:else if allowed}
   <section class="overview-panel" aria-labelledby="overview-title" aria-busy={loading}>
-   <div class="heading"><h2 id="overview-title">Kehadiran per tanggal</h2><a href="/attendance">Absensi saya</a></div>
+   <div class="heading"><h2 id="overview-title">{$translate("Kehadiran per tanggal")}</h2><a href="/attendance">{$translate("Absensi saya")}</a></div>
    <div class="filters">
-    <label>Tanggal<input type="date" min="0001-01-01" max={today} bind:value={date} disabled={loading} onchange={() => void load()} /></label>
-    <label>Cari nama<input type="search" bind:value={search} placeholder="Nama karyawan" /></label>
-    <label>Status<select aria-label="Status" bind:value={filter}><option value="">Semua status</option><option value="PRESENT">Hadir</option><option value="LEAVE">Izin/Cuti</option><option value="MISSING">{missingLabel}</option></select></label>
-    <button disabled={loading} onclick={refresh}>Muat ulang</button>
+    <label>{$translate("Tanggal")}<input type="date" min="0001-01-01" max={today} bind:value={date} disabled={loading} onchange={() => void load()} /></label>
+    <label>{$translate("Cari nama")}<input type="search" bind:value={search} placeholder={$translate("Nama karyawan")} /></label>
+    <label>{$translate("Status")}<select aria-label={$translate("Status")} bind:value={filter}><option value="">{$translate("Semua status")}</option><option value="PRESENT">{$translate("Hadir")}</option><option value="LEAVE">{$translate("Izin/Cuti")}</option><option value="MISSING">{$translate(missingLabel)}</option></select></label>
+    <button disabled={loading} onclick={refresh}>{$translate("Muat ulang")}</button>
    </div>
-   {#if loading}<p role="status">Memuat absensi karyawan…</p>
-   {:else if error}<p class="error" role="alert">{error}</p>
+   {#if loading}<p role="status">{$translate("Memuat absensi karyawan…")}</p>
+   {:else if error}<p class="error" role="alert">{$translate(error)}</p>
    {:else if data}
-    <dl class="summary" aria-label="Ringkasan kehadiran">
-     <div><dt>Karyawan aktif</dt><dd>{data.employees.length}</dd></div>
-     <div><dt>Hadir</dt><dd>{counts.PRESENT}</dd></div>
-     <div><dt>Izin/Cuti</dt><dd>{counts.LEAVE}</dd></div>
-     <div><dt>{missingLabel}</dt><dd>{counts.MISSING}</dd></div>
+    <dl class="summary" aria-label={$translate("Ringkasan kehadiran")}>
+     <div><dt>{$translate("Karyawan aktif")}</dt><dd>{data.employees.length}</dd></div>
+     <div><dt>{$translate("Hadir")}</dt><dd>{counts.PRESENT}</dd></div>
+     <div><dt>{$translate("Izin/Cuti")}</dt><dd>{counts.LEAVE}</dd></div>
+     <div><dt>{$translate(missingLabel)}</dt><dd>{counts.MISSING}</dd></div>
     </dl>
-    <p class="hint">Izin/Cuti hanya mencakup pengajuan yang disetujui. Karyawan yang sudah Clock In tetap ditampilkan sebagai Hadir.</p>
-    <p class="hint" role="status">Menampilkan {rows.length} dari {data.employees.length} karyawan.</p>
-    {#if !data.employees.length}<p>Belum ada karyawan aktif pada tanggal ini.</p>
-    {:else if !rows.length}<p>Tidak ada karyawan yang sesuai dengan pencarian atau filter.</p>
+    <p class="hint">{$translate("Izin/Cuti hanya mencakup pengajuan yang disetujui. Karyawan yang sudah Clock In tetap ditampilkan sebagai Hadir.")}</p>
+    <p class="hint" role="status">{$translate("Menampilkan")} {rows.length} {$translate("dari")} {data.employees.length} {$translate("karyawan.")}</p>
+    {#if !data.employees.length}<p>{$translate("Belum ada karyawan aktif pada tanggal ini.")}</p>
+    {:else if !rows.length}<p>{$translate("Tidak ada karyawan yang sesuai dengan pencarian atau filter.")}</p>
     {:else}
      <div class="table-scroll"><table>
-      <thead><tr><th scope="col">Karyawan</th><th scope="col">Role</th><th scope="col">Status</th><th scope="col">Mode</th><th scope="col">Clock In (WIB)</th><th scope="col">Clock Out (WIB)</th><th scope="col">Lokasi Clock In</th></tr></thead>
+      <thead><tr><th scope="col">{$translate("Karyawan")}</th><th scope="col">{$translate("Role")}</th><th scope="col">{$translate("Status")}</th><th scope="col">{$translate("Mode")}</th><th scope="col">{$translate("Clock In (WIB)")}</th><th scope="col">{$translate("Clock Out (WIB)")}</th><th scope="col">{$translate("Lokasi Clock In")}</th></tr></thead>
       <tbody>{#each rows as employee (employee.userId)}<tr>
-       <td data-label="Karyawan">{employee.name}</td><td data-label="Role">{employee.role}</td>
-       <td data-label="Status"><span class:present={employee.status === 'PRESENT'} class="badge">{employee.status === 'PRESENT' ? 'Hadir' : employee.status === 'LEAVE' ? employee.leaveTypes.replace('CUTI', 'Cuti').replace('IZIN', 'Izin') : missingLabel}</span></td>
-       <td data-label="Mode">{employee.mode || '—'}</td>
-       <td data-label="Clock In (WIB)">{employee.clockIn ? formatTime(employee.clockIn) : '—'}</td>
-       <td data-label="Clock Out (WIB)">{employee.clockOut ? formatTime(employee.clockOut) : employee.clockIn ? 'Belum Clock Out' : '—'}</td>
-       <td data-label="Lokasi Clock In">{#if employee.mode === 'WFA' && employee.latitude !== null && employee.longitude !== null}<span>{employee.latitude}, {employee.longitude}</span><br/><a href={`https://www.google.com/maps?q=${employee.latitude},${employee.longitude}`} target="_blank" rel="noopener noreferrer" aria-label={`Lihat lokasi ${employee.name} di Google Maps (tab baru)`}>Lihat di Google Maps</a>{:else if employee.mode === 'WFO'}Dalam radius kantor (100 m){:else}—{/if}</td>
+       <td data-label={$translate("Karyawan")}>{employee.name}</td><td data-label={$translate("Role")}>{$translate(employee.role)}</td>
+       <td data-label={$translate("Status")}><span class:present={employee.status === 'PRESENT'} class="badge">{employee.status === 'PRESENT' ? $translate('Hadir') : employee.status === 'LEAVE' ? employee.leaveTypes.replace('CUTI', $translate('Cuti')).replace('IZIN', $translate('Izin')) : $translate(missingLabel)}</span></td>
+       <td data-label={$translate("Mode")}>{employee.mode || '—'}</td>
+       <td data-label={$translate("Clock In (WIB)")}>{employee.clockIn ? formatTime(employee.clockIn) : '—'}</td>
+       <td data-label={$translate("Clock Out (WIB)")}>{employee.clockOut ? formatTime(employee.clockOut) : employee.clockIn ? $translate('Belum Clock Out') : '—'}</td>
+       <td data-label={$translate("Lokasi Clock In")}>{#if employee.mode === 'WFA' && employee.latitude !== null && employee.longitude !== null}<span>{employee.latitude}, {employee.longitude}</span><br/><a href={`https://www.google.com/maps?q=${employee.latitude},${employee.longitude}`} target="_blank" rel="noopener noreferrer" aria-label={`Lihat lokasi ${employee.name} di Google Maps (tab baru)`}>{$translate("Lihat di Google Maps")}</a>{:else if employee.mode === 'WFO'}{$translate("Dalam radius kantor (100 m)")}{:else}—{/if}</td>
       </tr>{/each}</tbody>
      </table></div>
     {/if}

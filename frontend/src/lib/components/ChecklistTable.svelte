@@ -1,4 +1,5 @@
 <script lang="ts">
+ import { t as translate } from '$lib/i18n';
  import { onMount, tick } from 'svelte';
  import { subscribeChanges } from '$lib/realtime';
  import { api, type Job } from '$lib/api';
@@ -62,7 +63,7 @@
   e.preventDefault(); if (!valid || busy) return;
   const signers = [...internal, ...external];
   const changed = editingId && active.some(s => !signers.some(n => n.id === s.id && n.type === s.type && n.name.trim() === s.name && n.position.trim() === s.position));
-  if (changed && !confirm('Penandatangan yang dihapus atau diubah akan diarsipkan beserta status lamanya. Penandatangan pengganti dimulai tanpa centang. Lanjutkan?')) return;
+  if (changed && !confirm($translate('Penandatangan yang dihapus atau diubah akan diarsipkan beserta status lamanya. Penandatangan pengganti dimulai tanpa centang. Lanjutkan?'))) return;
   busy = true; generation++; modalError = '';
   try {
    const saved = (await api<{checklist: DocumentChecklist}>(editingId ? endpoint + '/tables/' + editingId : endpoint, {method: editingId ? 'PUT' : 'POST', body: JSON.stringify({title, requireDigitalSignature: digital, version: configVersion, internalCount, externalCount, signers})})).checklist;
@@ -110,59 +111,59 @@
  }
 </script>
 <div class="checklist" bind:this={root} onfocusout={() => void flush()}>
- {#if error}<p role="alert">{error}</p><button disabled={busy} onclick={() => load()}>Muat ulang checklist</button>{/if}
- {#if notice}<p role="status">{notice}</p>{/if}
- {#if loading}<p role="status">Memuat checklist...</p>
- {:else if !checklist && !error}<p>Pekerjaan ini belum mempunyai checklist.</p><button class="ws-primary" onclick={() => configure(true)}>+ Buat Tabel Checklist</button>
+ {#if error}<p role="alert">{$translate(error)}</p><button disabled={busy} onclick={() => load()}>{$translate("Muat ulang checklist")}</button>{/if}
+ {#if notice}<p role="status">{$translate(notice)}</p>{/if}
+ {#if loading}<p role="status">{$translate("Memuat checklist...")}</p>
+ {:else if !checklist && !error}<p>{$translate("Pekerjaan ini belum mempunyai checklist.")}</p><button class="ws-primary" onclick={() => configure(true)}>{$translate("+ Buat Tabel Checklist")}</button>
  {:else if checklist}
   <div class="ws-row table-controls">
-   <button class="ws-primary" disabled={busy} onclick={() => configure(true)}>+ Buat Tabel Checklist</button>
-   <button disabled={busy || selectedIndex <= 0} aria-label="Tabel sebelumnya" onpointerdown={e => e.preventDefault()} onclick={() => navigate(-1)}>&larr;</button>
-   <button disabled={busy} onclick={() => configure()}>Edit Tabel Checklist</button>
-   <button disabled={busy || selectedIndex >= checklists.length - 1} aria-label="Tabel berikutnya" onpointerdown={e => e.preventDefault()} onclick={() => navigate(1)}>&rarr;</button>
+   <button class="ws-primary" disabled={busy} onclick={() => configure(true)}>{$translate("+ Buat Tabel Checklist")}</button>
+   <button disabled={busy || selectedIndex <= 0} aria-label={$translate("Tabel sebelumnya")} onpointerdown={e => e.preventDefault()} onclick={() => navigate(-1)}>&larr;</button>
+   <button disabled={busy} onclick={() => configure()}>{$translate("Edit Tabel Checklist")}</button>
+   <button disabled={busy || selectedIndex >= checklists.length - 1} aria-label={$translate("Tabel berikutnya")} onpointerdown={e => e.preventDefault()} onclick={() => navigate(1)}>&rarr;</button>
    <span aria-live="polite">{checklist.title} ({selectedIndex + 1} / {checklists.length})</span>
   </div>
-  <p>Perubahan sel disimpan setelah selesai mengisi.</p>
+  <p>{$translate("Perubahan sel disimpan setelah selesai mengisi.")}</p>
   <form class="add-document" onsubmit={async e => {e.preventDefault(); if (newDocument.trim() && await mutate('/items', 'POST', {field: 'documentName', value: newDocument})) newDocument = '';}}>
-   <label>Dokumen baru<input aria-label="Dokumen baru" required maxlength="255" bind:value={newDocument} disabled={busy}/></label><button class="ws-primary" disabled={busy || !newDocument.trim()}>+ Tambah Isi Dokumen</button>
+   <label>{$translate("Dokumen baru")}<input aria-label={$translate("Dokumen baru")} required maxlength="255" bind:value={newDocument} disabled={busy}/></label><button class="ws-primary" disabled={busy || !newDocument.trim()}>{$translate("+ Tambah Isi Dokumen")}</button>
   </form>
-  <div class="table-scroll" role="region" aria-label={'Checklist '+job.name}>
+  <div class="table-scroll" role="region" aria-label={$translate('Checklist ')+job.name}>
    <table>
     <thead>
      <tr><th class="table-title" colspan={5 + active.length + (checklist.requireDigitalSignature ? 1 : 0)}>{checklist.title}</th></tr>
-     <tr><th rowspan={active.length ? 3 : 1} scope="col">No</th><th rowspan={active.length ? 3 : 1} scope="col">Dokumen</th>{#if checklist.requireDigitalSignature}<th rowspan={active.length ? 3 : 1} scope="col">TTD Digital</th>{/if}{#if active.length}<th colspan={active.length} scope="colgroup">TTD Basah</th>{/if}<th rowspan={active.length ? 3 : 1} scope="col">Posisi Dokumen</th><th rowspan={active.length ? 3 : 1} scope="col">Tanggal Kirim Dokumen</th><th rowspan={active.length ? 3 : 1} scope="col">Catatan</th></tr>
-     {#if active.length}<tr>{#each groups as group}<th colspan={group.signers.length} scope="colgroup">{group.label}</th>{/each}</tr><tr>{#each groups as group}{#each group.signers as signer (signer.id)}<th scope="col">{signer.name}<small>{signer.position}</small></th>{/each}{/each}</tr>{/if}
+     <tr><th rowspan={active.length ? 3 : 1} scope="col">{$translate("No.")}</th><th rowspan={active.length ? 3 : 1} scope="col">{$translate("Dokumen")}</th>{#if checklist.requireDigitalSignature}<th rowspan={active.length ? 3 : 1} scope="col">{$translate("TTD Digital")}</th>{/if}{#if active.length}<th colspan={active.length} scope="colgroup">{$translate("TTD Basah")}</th>{/if}<th rowspan={active.length ? 3 : 1} scope="col">{$translate("Posisi Dokumen")}</th><th rowspan={active.length ? 3 : 1} scope="col">{$translate("Tanggal Kirim Dokumen")}</th><th rowspan={active.length ? 3 : 1} scope="col">{$translate("Catatan")}</th></tr>
+     {#if active.length}<tr>{#each groups as group}<th colspan={group.signers.length} scope="colgroup">{$translate(group.label)}</th>{/each}</tr><tr>{#each groups as group}{#each group.signers as signer (signer.id)}<th scope="col">{signer.name}<small>{signer.position}</small></th>{/each}{/each}</tr>{/if}
     </thead>
     <tbody>
      {#each checklist.items as item, index (item.id)}
-      <tr><td>{index + 1}</td><td><input aria-label={'Dokumen '+(index+1)} required maxlength="255" value={item.documentName} disabled={busy} onchange={e => edit(item, 'documentName', e.currentTarget)}/></td>
-       {#if checklist.requireDigitalSignature}<td class="signature"><input type="checkbox" aria-label={'TTD Digital '+item.documentName} checked={item.digitalSigned} disabled={busy} onchange={e => check(item,e.currentTarget)}/></td>{/if}
+      <tr><td>{index + 1}</td><td><input aria-label={$translate('Dokumen ')+(index+1)} required maxlength="255" value={item.documentName} disabled={busy} onchange={e => edit(item, 'documentName', e.currentTarget)}/></td>
+       {#if checklist.requireDigitalSignature}<td class="signature"><input type="checkbox" aria-label={$translate('TTD Digital ')+item.documentName} checked={item.digitalSigned} disabled={busy} onchange={e => check(item,e.currentTarget)}/></td>{/if}
        {#each groups as group}{#each group.signers as signer (signer.id)}<td class="signature"><input type="checkbox" aria-label={signer.name+' — '+item.documentName} checked={!!item.signatures[signer.id]} disabled={busy} onchange={e => check(item,e.currentTarget,signer.id)}/></td>{/each}{/each}
-       <td><input aria-label={'Posisi '+item.documentName} maxlength="255" value={item.documentPosition} disabled={busy} onchange={e => edit(item,'documentPosition',e.currentTarget)}/></td>
-       <td><input type="date" aria-label={'Tanggal kirim '+item.documentName} value={item.sentDate ?? ''} disabled={busy} onchange={e => edit(item,'sentDate',e.currentTarget)}/></td>
-       <td><textarea aria-label={'Catatan '+item.documentName} maxlength="4000" value={item.notes} disabled={busy} onchange={e => edit(item,'notes',e.currentTarget)}></textarea></td>
+       <td><input aria-label={$translate('Posisi ')+item.documentName} maxlength="255" value={item.documentPosition} disabled={busy} onchange={e => edit(item,'documentPosition',e.currentTarget)}/></td>
+       <td><input type="date" aria-label={$translate('Tanggal kirim ')+item.documentName} value={item.sentDate ?? ''} disabled={busy} onchange={e => edit(item,'sentDate',e.currentTarget)}/></td>
+       <td><textarea aria-label={$translate('Catatan ')+item.documentName} maxlength="4000" value={item.notes} disabled={busy} onchange={e => edit(item,'notes',e.currentTarget)}></textarea></td>
       </tr>
-     {:else}<tr><td colspan={5 + active.length + (checklist.requireDigitalSignature ? 1 : 0)}>Belum ada dokumen. Tambahkan dokumen pertama di atas.</td></tr>{/each}
+     {:else}<tr><td colspan={5 + active.length + (checklist.requireDigitalSignature ? 1 : 0)}>{$translate("Belum ada dokumen. Tambahkan dokumen pertama di atas.")}</td></tr>{/each}
     </tbody>
    </table>
   </div>
-  {#if archived.length}<details><summary>Riwayat penandatangan yang diarsipkan ({archived.length})</summary>{#each archived as signer}<p><strong>{signer.name}</strong> — {signer.position} ({signer.type})</p><ul>{#each checklist.items as item}<li>{item.documentName}: {item.signatures[signer.id] ? 'Sudah ditandatangani' : 'Belum ditandatangani'}</li>{/each}</ul>{/each}</details>{/if}
+  {#if archived.length}<details><summary>{$translate("Riwayat penandatangan yang diarsipkan (")}{archived.length})</summary>{#each archived as signer}<p><strong>{signer.name}</strong> — {signer.position} ({$translate(signer.type === 'internal' ? 'Internal' : 'External')})</p><ul>{#each checklist.items as item}<li>{item.documentName}: {item.signatures[signer.id] ? $translate('Sudah ditandatangani') : $translate('Belum ditandatangani')}</li>{/each}</ul>{/each}</details>{/if}
  {/if}
 </div>
 <dialog bind:this={dialog} aria-labelledby={'config-title-'+job.id} onclose={() => {configuring = false; void flush();}} oncancel={e => {if(busy)e.preventDefault();}}>
  <form onsubmit={saveConfig}>
-  <h2 id={'config-title-'+job.id}>{editingId ? 'Edit Tabel Checklist' : 'Buat Tabel Checklist'} — {job.name}</h2>
-  {#if modalError}<p role="alert">{modalError}</p>{/if}
+  <h2 id={'config-title-'+job.id}>{editingId ? $translate('Edit Tabel Checklist') : $translate('Buat Tabel Checklist')} — {job.name}</h2>
+  {#if modalError}<p role="alert">{$translate(modalError)}</p>{/if}
   <fieldset disabled={busy}>
-   <label>Judul Tabel<input required maxlength="255" bind:value={title}/></label>
-   <label class="digital"><input type="checkbox" bind:checked={digital}/> Butuh TTD Digital?</label>
-   <label>Berapa banyak TTD Internal?<input type="number" min="0" step="1" required bind:value={internalCount} oninput={e => {internalCount=e.currentTarget.valueAsNumber;resize('internal',internalCount);}}/></label>
-   {#each internal as signer, i}<fieldset><legend>TTD Internal {i+1}</legend><label>Nama<input required maxlength="255" bind:value={signer.name}/></label><label>Sebagai<input required maxlength="255" bind:value={signer.position}/></label></fieldset>{/each}
-   <label>Berapa banyak TTD External?<input type="number" min="0" step="1" required bind:value={externalCount} oninput={e => {externalCount=e.currentTarget.valueAsNumber;resize('external',externalCount);}}/></label>
-   {#each external as signer, i}<fieldset><legend>TTD External {i+1}</legend><label>Nama<input required maxlength="255" bind:value={signer.name}/></label><label>Sebagai<input required maxlength="255" bind:value={signer.position}/></label></fieldset>{/each}
+   <label>{$translate("Judul Tabel")}<input required maxlength="255" bind:value={title}/></label>
+   <label class="digital"><input type="checkbox" bind:checked={digital}/> {$translate("Butuh TTD Digital?")}</label>
+   <label>{$translate("Berapa banyak TTD Internal?")}<input type="number" min="0" step="1" required bind:value={internalCount} oninput={e => {internalCount=e.currentTarget.valueAsNumber;resize('internal',internalCount);}}/></label>
+   {#each internal as signer, i}<fieldset><legend>{$translate("TTD Internal")} {i+1}</legend><label>{$translate("Nama")}<input required maxlength="255" bind:value={signer.name}/></label><label>{$translate("Sebagai")}<input required maxlength="255" bind:value={signer.position}/></label></fieldset>{/each}
+   <label>{$translate("Berapa banyak TTD External?")}<input type="number" min="0" step="1" required bind:value={externalCount} oninput={e => {externalCount=e.currentTarget.valueAsNumber;resize('external',externalCount);}}/></label>
+   {#each external as signer, i}<fieldset><legend>{$translate("TTD External")} {i+1}</legend><label>{$translate("Nama")}<input required maxlength="255" bind:value={signer.name}/></label><label>{$translate("Sebagai")}<input required maxlength="255" bind:value={signer.position}/></label></fieldset>{/each}
   </fieldset>
-  <p>Perubahan identitas penandatangan membuat kolom baru. Status lama tetap tersedia di riwayat arsip.</p>
-  <div class="ws-row"><button type="button" disabled={busy} onclick={() => dialog.close()}>Batal</button><button class="ws-primary" disabled={busy || !valid}>{busy ? 'Menyimpan...' : 'Simpan'}</button></div>
+  <p>{$translate("Perubahan identitas penandatangan membuat kolom baru. Status lama tetap tersedia di riwayat arsip.")}</p>
+  <div class="ws-row"><button type="button" disabled={busy} onclick={() => dialog.close()}>{$translate("Batal")}</button><button class="ws-primary" disabled={busy || !valid}>{busy ? $translate('Menyimpan...') : $translate('Simpan')}</button></div>
  </form>
 </dialog>
 <style>

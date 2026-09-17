@@ -1,4 +1,5 @@
 <script lang="ts">
+ import { t as translate } from '$lib/i18n';
  import type {WorkspaceJob} from '$lib/workspace';
  let {jobs,value=$bindable<number|null>(null)}:{jobs:WorkspaceJob[];value?:number|null}=$props();
  const uid=$props.id();
@@ -23,18 +24,18 @@
 
 <svelte:window onpointerdown={(e)=>{if(root&&!root.contains(e.target as Node))close()}} />
 <div bind:this={root} class="project-picker ws-full">
- <label for={uid}>Project / Pekerjaan</label>
+ <label for={uid}>{$translate("Project / Pekerjaan")}</label>
  <input id={uid} role="combobox" aria-autocomplete="list" aria-expanded={open} aria-controls={uid+'-list'} aria-activedescendant={open&&active>=0?uid+'-'+active:undefined}
-  autocomplete="off" placeholder="Pilih atau cari project..." value={open?query:selected?.label??selected?.name??(noProjectChosen?'Tanpa project':'')}
+  autocomplete="off" placeholder={$translate("Pilih atau cari project...")} value={open?query:selected?.label??selected?.name??(noProjectChosen?$translate('Tanpa project'):'')}
   onfocus={()=>{open=true;query='';active=-1}} onclick={()=>open=true} oninput={(e)=>{query=e.currentTarget.value;open=true;active=-1}} onkeydown={keydown}
   onblur={()=>close()} />
  {#if open}
-  <ul id={uid+'-list'} role="listbox" aria-label="Project / Pekerjaan">
+  <ul id={uid+'-list'} role="listbox" aria-label={$translate("Project / Pekerjaan")}>
    {#each choices as job,i (job.id)}
     <li id={uid+'-'+i} role="option" aria-selected={value===job.id} class:active={active===i}>
-     <button type="button" tabindex="-1" onpointerdown={(e)=>e.preventDefault()} onclick={()=>choose(job.id)}>{job.label??job.name}</button>
+     <button type="button" tabindex="-1" onpointerdown={(e)=>e.preventDefault()} onclick={()=>choose(job.id)}>{job.id===null?$translate('Tanpa project'):job.label??job.name}</button>
     </li>
-   {:else}<li role="presentation">Tidak ada project ditemukan</li>{/each}
+   {:else}<li role="presentation">{$translate("Tidak ada project ditemukan")}</li>{/each}
   </ul>
  {/if}
 </div>

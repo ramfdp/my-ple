@@ -1,8 +1,11 @@
+import { errorMessages } from './messages';
+import { setLanguage, hasMessage } from './i18n';
 import { get, writable } from 'svelte/store';
 
 export const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 export interface User {
+ language: 'id' | 'en';
 	id: string; name: string; email: string; username: string; roleId: number; role: string;
 	jobTitle: string; salary: number; residence: string; phoneNumber: string;
 	employmentStatus: string; avatarUrl: string; isActive: boolean; createdAt: string; updatedAt: string;
@@ -49,7 +52,7 @@ export interface Notification {
 
 export const currentUser = writable<User | null>(null);
 export function session(): { user: User } | null { const user = get(currentUser); return user ? { user } : null; }
-export function setAuthenticated(user: User | null) { currentUser.set(user); }
+export function setAuthenticated(user: User | null) { currentUser.set(user); if(user) setLanguage(user.language); }
 
 export class APIError extends Error {
  constructor(message:string, public status:number, public data:Record<string,unknown>){super(message)}
@@ -59,22 +62,27 @@ async function checked(response: Response, fallback: string) {
 		setAuthenticated(null);
 		if (typeof window !== 'undefined' && location.pathname !== '/') location.assign('/');
 	}
-	if (!response.ok) { const data=await response.json().catch(()=>({})); throw new APIError(data.error||fallback,response.status,data); }
+	if (!response.ok) { const data=await response.json().catch(()=>({})); throw new APIError((Object.hasOwn(errorMessages,data.messageCode) ? errorMessages[data.messageCode] : undefined) || (hasMessage(data.error) ? data.error : hasMessage(fallback) ? fallback : 'Terjadi kesalahan. Coba lagi.'),response.status,data); }
 	return response;
 }
 
+async function fetchResponse(url: string, options: RequestInit) {
+ try { return await fetch(url,options); }
+ catch { throw new APIError('Request failed.',0,{}); }
+}
+
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
-	const response = await checked(await fetch(`${apiUrl}${path}`, { ...options, credentials: 'include', headers: { 'Content-Type': 'application/json', ...options.headers } }), 'Request failed.');
+	const response = await checked(await fetchResponse(`${apiUrl}${path}`, { ...options, credentials: 'include', headers: { 'Content-Type': 'application/json', ...options.headers } }), 'Request failed.');
 	return response.status === 204 ? undefined as T : response.json();
 }
 
 export async function upload<T>(path: string, body: FormData): Promise<T> {
-	const response = await checked(await fetch(`${apiUrl}${path}`, { method: 'POST', body, credentials: 'include' }), 'Upload failed.');
+	const response = await checked(await fetchResponse(`${apiUrl}${path}`, { method: 'POST', body, credentials: 'include' }), 'Upload failed.');
 	return response.json();
 }
 
 export async function download(path: string): Promise<void> {
-	const response = await checked(await fetch(`${apiUrl}${path}`, { credentials: 'include' }), 'Download failed.');
+	const response = await checked(await fetchResponse(`${apiUrl}${path}`, { credentials: 'include' }), 'Download failed.');
 	const filename = response.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] ?? 'Weekly_Report.pdf';
 	const url = URL.createObjectURL(await response.blob());
 	const link = document.createElement('a');

@@ -1,4 +1,5 @@
 <script lang="ts">
+ import { t as translate } from '$lib/i18n';
  import { onMount, untrack } from 'svelte';
  import { subscribeChanges } from '$lib/realtime';
  import { api, type Job, type JobMasters, type Report } from '$lib/api';
@@ -57,9 +58,9 @@
  });
 </script>
 
-<label>Divisi<select bind:value={division} disabled={fixedDivision || !loaded} onchange={resetRole}>{#each masters.divisions as d}<option value={d.name}>{d.name}</option>{/each}</select></label>
-{#if roles.length}<label>Role<select bind:value={roleId} onchange={resetCategory}><option value={null}>Tanpa role</option>{#each roles as r}<option value={r.id}>{r.name}</option>{/each}</select></label>{/if}
-{#if selectedRole?.name === 'CIHPK'}<label>Kategori<input value="MK/Supervisi" readonly /></label>{/if}
-{#if categories.length}<label>Kategori<select bind:value={categoryId}><option value={null}>Tanpa kategori</option>{#each categories as c}<option value={c.id}>{c.name}</option>{/each}</select></label>{/if}
-<label>Pekerjaan<select value={selected?.id ?? ''} disabled={busy} required onchange={(e)=>selected=jobs.find(j=>j.id===Number(e.currentTarget.value)) ?? null}><option value="" disabled>Pilih pekerjaan</option>{#each jobs as job}<option value={job.id}>{job.name}{!job.isActive ? ' (tersimpan — nonaktif/legacy)' : ''}</option>{/each}</select></label>
-{#if busy && !error}<p role="status">Memuat pekerjaan…</p>{:else if error}<p role="alert">{error} <button type="button" onclick={()=>{loaded=false;void loadMasters();}}>Coba lagi</button></p>{:else if !jobs.length}<p role="status">Belum ada pekerjaan pada kategori ini.</p>{/if}
+<label>{$translate("Divisi")}<select bind:value={division} disabled={fixedDivision || !loaded} onchange={resetRole}>{#each masters.divisions as d}<option value={d.name}>{d.name}</option>{/each}</select></label>
+{#if roles.length}<label>{$translate("Role")}<select bind:value={roleId} onchange={resetCategory}><option value={null}>{$translate("Tanpa role")}</option>{#each roles as r}<option value={r.id}>{$translate(r.name)}</option>{/each}</select></label>{/if}
+{#if selectedRole?.name === 'CIHPK'}<label>{$translate("Kategori")}<input value="MK/Supervisi" readonly /></label>{/if}
+{#if categories.length}<label>{$translate("Kategori")}<select bind:value={categoryId}><option value={null}>{$translate("Tanpa kategori")}</option>{#each categories as c}<option value={c.id}>{c.name}</option>{/each}</select></label>{/if}
+<label>{$translate("Pekerjaan")}<select value={selected?.id ?? ''} disabled={busy} required onchange={(e)=>selected=jobs.find(j=>j.id===Number(e.currentTarget.value)) ?? null}><option value="" disabled>{$translate("Pilih pekerjaan")}</option>{#each jobs as job}<option value={job.id}>{job.name}{!job.isActive ? $translate(' (tersimpan — nonaktif/legacy)') : ''}</option>{/each}</select></label>
+{#if busy && !error}<p role="status">{$translate("Memuat pekerjaan…")}</p>{:else if error}<p role="alert">{$translate(error)} <button type="button" onclick={()=>{loaded=false;void loadMasters();}}>{$translate("Coba lagi")}</button></p>{:else if !jobs.length}<p role="status">{$translate("Belum ada pekerjaan pada kategori ini.")}</p>{/if}

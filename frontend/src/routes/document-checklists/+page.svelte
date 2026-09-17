@@ -1,4 +1,5 @@
 <script lang="ts">
+ import { t as translate } from '$lib/i18n';
  import { onMount } from 'svelte';
  import { subscribeChanges } from '$lib/realtime';
  import { api, currentUser, type Job } from '$lib/api';
@@ -20,19 +21,19 @@
  }
  onMount(() => { void load(); const stop = subscribeChanges(['jobs.changed'], () => load(true)); return () => { generation++; stop(); }; });
 </script>
-<svelte:head><title>Checklist Dokumen Pekerjaan | MyHIS</title></svelte:head>
+<svelte:head><title>{$translate("Checklist Dokumen Pekerjaan | MyHIS")}</title></svelte:head>
 <main class="workspace-page">
- <header><p class="dashboard-kicker">DOKUMEN PEKERJAAN</p><h1>Checklist Dokumen Pekerjaan</h1><p>Pantau dokumen dan kelengkapan tanda tangan setiap pekerjaan.</p></header>
- {#if !authorized}<p role="alert">Akses ditolak. Fitur ini tersedia untuk Project Engineer, Keuangan, Admin, dan Management.</p>
- {:else if loading}<p role="status">Memuat pekerjaan...</p>
- {:else if error && !jobs.length}<p role="alert">{error}</p><button onclick={() => load()}>Coba lagi</button>
- {:else if !jobs.length}<p>Belum ada pekerjaan.</p>
+ <header><p class="dashboard-kicker">{$translate("DOKUMEN PEKERJAAN")}</p><h1>{$translate("Checklist Dokumen Pekerjaan")}</h1><p>{$translate("Pantau dokumen dan kelengkapan tanda tangan setiap pekerjaan.")}</p></header>
+ {#if !authorized}<p role="alert">{$translate("Akses ditolak. Fitur ini tersedia untuk Project Engineer, Keuangan, Admin, dan Management.")}</p>
+ {:else if loading}<p role="status">{$translate("Memuat pekerjaan...")}</p>
+ {:else if error && !jobs.length}<p role="alert">{$translate(error)}</p><button onclick={() => load()}>{$translate("Coba lagi")}</button>
+ {:else if !jobs.length}<p>{$translate("Belum ada pekerjaan.")}</p>
  {:else}
-  {#if error}<p role="alert">{error}</p>{/if}
+  {#if error}<p role="alert">{$translate(error)}</p>{/if}
   {#each jobs as job (job.id)}
    <section class="ws-panel job">
     <button class="job-heading" aria-expanded={!!expanded[job.id]} aria-controls={'checklist-'+job.id} onclick={() => expanded[job.id] = !expanded[job.id]}>
-     <span><strong>{job.name}</strong><small>{[job.division, job.role, job.category].filter(Boolean).join(' / ')}{job.isActive ? '' : ' · Nonaktif'}</small></span><span aria-hidden="true">{expanded[job.id] ? '−' : '+'}</span>
+     <span><strong>{job.name}</strong><small>{[job.division, job.role, job.category].filter(Boolean).join(' / ')}{job.isActive ? '' : $translate(' · Nonaktif')}</small></span><span aria-hidden="true">{expanded[job.id] ? '−' : '+'}</span>
     </button>
     <div id={'checklist-'+job.id} hidden={!expanded[job.id]}>{#if expanded[job.id]}<ChecklistTable {job}/>{/if}</div>
    </section>

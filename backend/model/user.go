@@ -11,6 +11,7 @@ type Role struct {
 
 // ponytail: single unified User model accommodating all profile fields
 type User struct {
+	Language         string    `json:"language"`
 	ID               string    `json:"id"`
 	Name             string    `json:"name"`
 	Email            string    `json:"email"`
@@ -76,6 +77,7 @@ type UpdateUserInput struct {
 
 func PublicUser(u User) map[string]any {
 	return map[string]any{
+		"language":         u.Language,
 		"id":               u.ID,
 		"name":             u.Name,
 		"email":            u.Email,

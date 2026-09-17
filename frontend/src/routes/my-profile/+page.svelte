@@ -1,4 +1,5 @@
 <script lang="ts">
+ import { locale, t as translate } from '$lib/i18n';
 	import { onMount } from 'svelte';
 	import { subscribeChanges } from '$lib/realtime';
 	import { api, assetUrl, upload, type User } from '$lib/api';
@@ -22,10 +23,10 @@
 	}
 
 	const display = (value?: string) => value?.trim() || '-';
-	const salary = (value: number) => value > 0 ? formatRupiah(value) : '-';
+	const salary = (value: number) => value > 0 ? formatRupiah(value, $locale) : '-';
 	const joinedOn = (value: string) => {
 		const date = new Date(value);
-		return Number.isNaN(date.getTime()) ? '-' : new Intl.DateTimeFormat('en-GB', { dateStyle: 'long' }).format(date);
+		return Number.isNaN(date.getTime()) ? '-' : new Intl.DateTimeFormat($locale, { dateStyle: 'long' }).format(date);
 	};
 
 	function openEdit() {
@@ -75,21 +76,21 @@
 	onMount(() => { void loadProfile(); const stop = subscribeChanges(['users.changed'], loadProfile, change => !change.entityId || change.entityId === user?.id); return () => { generation++; stop(); }; });
 </script>
 
-<svelte:head><title>My Profile | MyHIS</title></svelte:head>
+<svelte:head><title>{$translate("My Profile | MyHIS")}</title></svelte:head>
 
 <main class="profile-page">
 	<div class="page-intro">
-		<p class="eyebrow">ACCOUNT</p><h1>My Profile</h1>
-		<p>Your employee information from the company directory.</p>
+		<p class="eyebrow">{$translate("ACCOUNT")}</p><h1>{$translate("My Profile")}</h1>
+		<p>{$translate("Your employee information from the company directory.")}</p>
 	</div>
 
 	{#if error}
 		<section class="state-card error-state" role="alert">
-			<div><h2>Unable to load your profile</h2><p>{error}</p></div>
-			<button type="button" onclick={loadProfile}>Try again</button>
+			<div><h2>{$translate("Unable to load your profile")}</h2><p>{$translate(error)}</p></div>
+			<button type="button" onclick={loadProfile}>{$translate("Try again")}</button>
 		</section>
 	{:else if !user}
-		<section class="profile-card loading-card" aria-busy="true" aria-label="Loading profile">
+		<section class="profile-card loading-card" aria-busy="true" aria-label={$translate("Loading profile")}>
 			<div class="loading-cover"></div><div class="loading-body"><span></span><div><i></i><i></i></div></div>
 		</section>
 		<section class="details-card loading-details" aria-hidden="true">
@@ -102,28 +103,28 @@
 				<div class="avatar-wrap"><ProfileAvatar src={assetUrl(user.avatarUrl)} alt={`${user.name}'s profile photo`} size={112} borderWidth={5} /></div>
 				<div class="identity-copy">
 					<div class="name-row"><h2 id="profile-name">{display(user.name)}</h2><EmployeeStatusBadge status={user.isActive ? 'Active Employee' : 'Inactive'} /></div>
-					<p>{display(user.jobTitle)}{user.role ? ` · ${user.role}` : ''}</p>
+					<p>{display(user.jobTitle)}{user.role ? ` · ${$translate(user.role)}` : ''}</p>
 				</div>
-				<div class="join-date"><span>Account created</span><strong>{joinedOn(user.createdAt)}</strong></div>
+				<div class="join-date"><span>{$translate("Account created")}</span><strong>{joinedOn(user.createdAt)}</strong></div>
 			</div>
 		</section>
 
 		<section class="details-card" aria-labelledby="details-heading">
 			<header>
-				<div><h2 id="details-heading">Profile Details</h2><p>Personal and employment information</p></div>
-				<button class="edit-button" type="button" onclick={openEdit}>Edit Profile</button>
+				<div><h2 id="details-heading">{$translate("Profile Details")}</h2><p>{$translate("Personal and employment information")}</p></div>
+				<button class="edit-button" type="button" onclick={openEdit}>{$translate("Edit Profile")}</button>
 			</header>
 			<div class="details-grid">
-				<ProfileInformationItem icon="user" label="Full Name" value={display(user.name)} />
-				<ProfileInformationItem icon="mail" label="Email" value={display(user.email)} />
-				<ProfileInformationItem icon="shield" label="Username / Employee ID" value={display(user.username)} />
-				<ProfileInformationItem icon="phone" label="Phone Number" value={display(user.phoneNumber)} />
-				<ProfileInformationItem icon="briefcase" label="Role" value={display(user.role)} />
-				<ProfileInformationItem icon="briefcase" label="Job Title" value={display(user.jobTitle)} />
-				<ProfileInformationItem icon="map-pin" label="Address / Residence" value={display(user.residence)} />
-				<ProfileInformationItem icon="shield" label="Account Created" value={joinedOn(user.createdAt)} />
-				<ProfileInformationItem icon="briefcase" label="Employment Status"><EmployeeStatusBadge status={display(user.employmentStatus)} /></ProfileInformationItem>
-				<ProfileInformationItem icon="wallet" label="Salary" value={salary(user.salary)} />
+				<ProfileInformationItem icon="user" label={$translate("Full Name")} value={display(user.name)} />
+				<ProfileInformationItem icon="mail" label={$translate("Email")} value={display(user.email)} />
+				<ProfileInformationItem icon="shield" label={$translate("Username / Employee ID")} value={display(user.username)} />
+				<ProfileInformationItem icon="phone" label={$translate("Phone Number")} value={display(user.phoneNumber)} />
+				<ProfileInformationItem icon="briefcase" label={$translate("Role")} value={$translate(display(user.role))} />
+				<ProfileInformationItem icon="briefcase" label={$translate("Job Title")} value={display(user.jobTitle)} />
+				<ProfileInformationItem icon="map-pin" label={$translate("Address / Residence")} value={display(user.residence)} />
+				<ProfileInformationItem icon="shield" label={$translate("Account Created")} value={joinedOn(user.createdAt)} />
+				<ProfileInformationItem icon="briefcase" label={$translate("Employment Status")}><EmployeeStatusBadge status={display(user.employmentStatus)} /></ProfileInformationItem>
+				<ProfileInformationItem icon="wallet" label={$translate("Salary")} value={salary(user.salary)} />
 			</div>
 		</section>
 	{/if}
@@ -132,12 +133,12 @@
 		<div class="modal-backdrop" role="presentation" onclick={closeBackdrop}>
 			<div class="edit-modal" role="dialog" aria-modal="true" aria-labelledby="edit-title">
 				<form onsubmit={saveProfile}>
-					<header><div><h2 id="edit-title">Edit Profile</h2><p>Update your contact information and profile photo.</p></div><button type="button" class="close" aria-label="Close" onclick={() => (editing = false)}>×</button></header>
-					{#if editError}<p class="edit-error" role="alert">{editError}</p>{/if}
-					<label>Profile Photo<input type="file" accept="image/jpeg,image/png,image/gif" onchange={chooseAvatar} /><small>JPEG, PNG, or GIF; max. 1 MB.</small></label>
-					<label>Phone Number<input type="tel" bind:value={phoneNumber} maxlength="50" required placeholder="+62 812-3456-7890" /></label>
-					<label>Address / Residence<textarea bind:value={residence} maxlength="255" rows="4"></textarea></label>
-					<div class="modal-actions"><button type="button" class="cancel" onclick={() => (editing = false)}>Cancel</button><button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</button></div>
+					<header><div><h2 id="edit-title">{$translate("Edit Profile")}</h2><p>{$translate("Update your contact information and profile photo.")}</p></div><button type="button" class="close" aria-label={$translate("Close")} onclick={() => (editing = false)}>×</button></header>
+					{#if editError}<p class="edit-error" role="alert">{$translate(editError)}</p>{/if}
+					<label>{$translate("Profile Photo")}<input type="file" accept="image/jpeg,image/png,image/gif" onchange={chooseAvatar} /><small>{$translate("JPEG, PNG, or GIF; max. 1 MB.")}</small></label>
+					<label>{$translate("Phone Number")}<input type="tel" bind:value={phoneNumber} maxlength="50" required placeholder="+62 812-3456-7890" /></label>
+					<label>{$translate("Address / Residence")}<textarea bind:value={residence} maxlength="255" rows="4"></textarea></label>
+					<div class="modal-actions"><button type="button" class="cancel" onclick={() => (editing = false)}>{$translate("Cancel")}</button><button type="submit" disabled={saving}>{saving ? $translate('Saving…') : $translate('Save Changes')}</button></div>
 				</form>
 			</div>
 		</div>

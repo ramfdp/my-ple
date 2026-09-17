@@ -1,4 +1,5 @@
 <script lang="ts">
+ import { t as translate } from '$lib/i18n';
 	import type { ZoomBooking, ZoomBookingInput, ZoomResource } from '$lib/api';
 	import { localDate } from '$lib/utils/booking-calendar';
 
@@ -34,20 +35,20 @@
 
 <svelte:window onkeydown={(event) => event.key === 'Escape' && !busy && onclose()} />
 <div class="zoom-modal-layer">
-	<button class="zoom-modal-backdrop" type="button" aria-label="Tutup formulir" onclick={onclose}></button>
+	<button class="zoom-modal-backdrop" type="button" aria-label={$translate("Tutup formulir")} onclick={onclose}></button>
 	<div class="zoom-modal" role="dialog" aria-modal="true" aria-labelledby="booking-form-title">
-		<header><div><p class="zoom-kicker">BOOKING ZOOM</p><h2 id="booking-form-title">{booking ? 'Edit booking' : 'Buat booking baru'}</h2></div><button type="button" class="zoom-close" aria-label="Tutup" onclick={onclose}>×</button></header>
+		<header><div><p class="zoom-kicker">{$translate("BOOKING ZOOM")}</p><h2 id="booking-form-title">{booking ? $translate('Edit booking') : $translate('Buat booking baru')}</h2></div><button type="button" class="zoom-close" aria-label={$translate("Tutup")} onclick={onclose}>×</button></header>
 		<form onsubmit={submit}>
-			<label>Judul meeting <span>*</span><input bind:value={title} required maxlength="200" /></label>
-			<label>Deskripsi<textarea bind:value={description} maxlength="1000" rows="3" placeholder="Catatan singkat (opsional)"></textarea></label>
-			<label>Zoom Resource <span>*</span><select bind:value={zoomResourceId} required><option value={0} disabled>Pilih Zoom</option>{#each resources as resource}<option value={resource.id}>{resource.name} — {resource.code}</option>{/each}</select></label>
+			<label>{$translate("Judul meeting")} <span>*</span><input bind:value={title} required maxlength="200" /></label>
+			<label>{$translate("Deskripsi")}<textarea bind:value={description} maxlength="1000" rows="3" placeholder={$translate("Catatan singkat (opsional)")}></textarea></label>
+			<label>{$translate("Zoom Resource")} <span>*</span><select bind:value={zoomResourceId} required><option value={0} disabled>{$translate("Pilih Zoom")}</option>{#each resources as resource}<option value={resource.id}>{resource.name} — {resource.code}</option>{/each}</select></label>
 			<div class="zoom-form-grid">
-				<label>Tanggal <span>*</span><input type="date" bind:value={date} required /></label>
-				<label>Mulai <span>*</span><input type="time" bind:value={startTime} required /></label>
-				<label>Selesai <span>*</span><input type="time" bind:value={endTime} required /></label>
+				<label>{$translate("Tanggal")} <span>*</span><input type="date" bind:value={date} required /></label>
+				<label>{$translate("Mulai")} <span>*</span><input type="time" bind:value={startTime} required /></label>
+				<label>{$translate("Selesai")} <span>*</span><input type="time" bind:value={endTime} required /></label>
 			</div>
-			{#if error}<p class="zoom-form-error" role="alert">{error}</p>{/if}
-			<footer><button type="button" class="zoom-secondary" onclick={onclose} disabled={busy}>Batal</button><button type="submit" class="zoom-primary" disabled={busy}>{busy ? 'Menyimpan…' : 'Simpan booking'}</button></footer>
+			{#if error}<p class="zoom-form-error" role="alert">{$translate(error)}</p>{/if}
+			<footer><button type="button" class="zoom-secondary" onclick={onclose} disabled={busy}>{$translate("Batal")}</button><button type="submit" class="zoom-primary" disabled={busy}>{busy ? $translate('Menyimpan…') : $translate('Simpan booking')}</button></footer>
 		</form>
 	</div>
 </div>

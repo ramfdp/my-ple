@@ -1,21 +1,22 @@
 <script lang="ts">
+ import { locale, t as translate } from '$lib/i18n';
 	import type { ZoomBooking, ZoomResource } from '$lib/api';
 	import { bookingStatus, localDate, weekDays } from '$lib/utils/booking-calendar';
 
 	let { monday, bookings, resources, now, onselect }: { monday: Date; bookings: ZoomBooking[]; resources: ZoomResource[]; now: Date; onselect: (booking: ZoomBooking) => void } = $props();
 	const hours = Array.from({ length: 24 }, (_, hour) => hour);
 	let days = $derived(weekDays(monday));
-	const time = (value: string) => new Date(value).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+	const time = (value: string) => new Date(value).toLocaleTimeString($locale, { hour: '2-digit', minute: '2-digit' });
 	const laneBookings = (day: Date, resourceId: number) => bookings.filter((booking) => booking.zoomResource.id === resourceId && localDate(new Date(booking.startAt)) === localDate(day));
 	const top = (booking: ZoomBooking) => { const value = new Date(booking.startAt); return (value.getHours() * 60 + value.getMinutes()) * 0.8; };
 	const height = (booking: ZoomBooking) => Math.max(1, (new Date(booking.endAt).getTime() - new Date(booking.startAt).getTime()) / 75000 - 2);
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_tabindex: scrollable calendar must be keyboard-focusable -->
-<div class="calendar-scroll" role="region" tabindex="0" aria-label="Kalender booking Zoom mingguan">
+<div class="calendar-scroll" role="region" tabindex="0" aria-label={$translate("Kalender booking Zoom mingguan")}>
 	<div class="zoom-calendar" style:--calendar-columns={days.length*resources.length} style:grid-template-columns={'var(--calendar-axis) repeat('+(days.length*resources.length)+', minmax(var(--calendar-column), 1fr))'}>
-		<div class="calendar-corner">LOKAL</div>
-		{#each days as day, dayIndex}<div class:today={localDate(day) === localDate(now)} class="calendar-day-head" style={`grid-column:${2 + dayIndex * resources.length}/span ${resources.length}`}><strong>{day.toLocaleDateString('id-ID', { weekday: 'short' })}</strong><span>{day.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</span></div>{/each}
+		<div class="calendar-corner">{$translate("LOKAL")}</div>
+		{#each days as day, dayIndex}<div class:today={localDate(day) === localDate(now)} class="calendar-day-head" style={`grid-column:${2 + dayIndex * resources.length}/span ${resources.length}`}><strong>{day.toLocaleDateString($locale, { weekday: 'short' })}</strong><span>{day.toLocaleDateString($locale, { day: 'numeric', month: 'short' })}</span></div>{/each}
 		{#each days as day, dayIndex}{#each resources as resource, resourceIndex}<div class="calendar-resource-head" style={`grid-column:${2 + dayIndex * resources.length + resourceIndex}`}><strong>{resource.name}</strong><span>{resource.code}</span></div>{/each}{/each}
 		<div class="time-axis">{#each hours as hour}<span style={`top:${hour * 48}px`}>{String(hour).padStart(2, '0')}:00</span>{/each}</div>
 		{#each days as day, dayIndex}{#each resources as resource, resourceIndex}

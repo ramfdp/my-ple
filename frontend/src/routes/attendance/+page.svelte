@@ -1,4 +1,5 @@
 <script lang="ts">
+ import { locale, t as translate } from '$lib/i18n';
  import { onMount } from 'svelte';
  import { api, session } from '$lib/api';
  import { subscribeChanges } from '$lib/realtime';
@@ -7,7 +8,7 @@
  interface Attendance { id: string; date: string; mode: Mode; clockIn: string; clockOut: string | null; latitude: number | null; longitude: number | null }
  interface History { records: Attendance[]; today: Attendance | null; open: Attendance | null; todayDate: string; officeConfigured: boolean }
  const jakartaDate = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
- const formatTime = (value: string) => new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+ const formatTime = (value: string) => new Intl.DateTimeFormat($locale, { timeZone: 'Asia/Jakarta', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
  let month = $state(jakartaDate().slice(0, 7));
  let data = $state<History | null>(null), mode = $state<Mode | null>(null);
  let busy = $state(false), loading = $state(true), ready = $state(false);
@@ -82,47 +83,47 @@
  }
 </script>
 
-<svelte:head><title>Absensi | MyHIS</title><meta name="description" content="Clock In, Clock Out, dan riwayat absensi pribadi." /></svelte:head>
+<svelte:head><title>{$translate("Absensi | MyHIS")}</title><meta name="description" content={$translate("Clock In, Clock Out, dan riwayat absensi pribadi.")} /></svelte:head>
 
 <main class="attendance-page">
- <header><p class="eyebrow">KEHADIRAN</p><h1>Absensi saya</h1><p>Catat kehadiran dan lihat riwayat kerja Anda. Semua waktu dalam WIB.</p></header>
+ <header><p class="eyebrow">{$translate("KEHADIRAN")}</p><h1>{$translate("Absensi saya")}</h1><p>{$translate("Catat kehadiran dan lihat riwayat kerja Anda. Semua waktu dalam WIB.")}</p></header>
  <section class="clock-panel" aria-labelledby="clock-title" aria-busy={busy || loading}>
-  <div class="section-heading"><h2 id="clock-title">{data?.open && data.open.date !== data.todayDate ? 'Absensi belum selesai' : 'Kehadiran hari ini'}</h2>{#if active}<span class="badge">{active.mode}</span>{/if}</div>
-  {#if loading && !data}<p role="status">Memuat absensi…</p>
+  <div class="section-heading"><h2 id="clock-title">{data?.open && data.open.date !== data.todayDate ? $translate('Absensi belum selesai') : $translate('Kehadiran hari ini')}</h2>{#if active}<span class="badge">{active.mode}</span>{/if}</div>
+  {#if loading && !data}<p role="status">{$translate("Memuat absensi…")}</p>
   {:else if active}
-   {#if data?.open && data.open.date !== data.todayDate}<p class="notice">Absensi tanggal {data.open.date} masih terbuka. Selesaikan Clock Out sebelum memulai hari ini.</p>{/if}
-   <dl><div><dt>Clock In</dt><dd>{formatTime(active.clockIn)}</dd></div><div><dt>Clock Out</dt><dd>{active.clockOut ? formatTime(active.clockOut) : 'Belum Clock Out'}</dd></div></dl>
-   {#if data?.open}<button class="primary" disabled={busy || loading || !ready} onclick={clock}>Clock Out</button><p class="hint">Clock Out mencatat waktu saja dan tidak memerlukan lokasi.</p>
-   {:else}<p class="complete">Absensi hari ini selesai.</p>{/if}
+   {#if data?.open && data.open.date !== data.todayDate}<p class="notice">{$translate("Absensi tanggal")} {data.open.date} {$translate("masih terbuka. Selesaikan Clock Out sebelum memulai hari ini.")}</p>{/if}
+   <dl><div><dt>{$translate("Clock In")}</dt><dd>{formatTime(active.clockIn)}</dd></div><div><dt>{$translate("Clock Out")}</dt><dd>{active.clockOut ? formatTime(active.clockOut) : $translate('Belum Clock Out')}</dd></div></dl>
+   {#if data?.open}<button class="primary" disabled={busy || loading || !ready} onclick={clock}>{$translate("Clock Out")}</button><p class="hint">{$translate("Clock Out mencatat waktu saja dan tidak memerlukan lokasi.")}</p>
+   {:else}<p class="complete">{$translate("Absensi hari ini selesai.")}</p>{/if}
   {:else if data}
-   <p>Pilih lokasi kerja Anda hari ini.</p>
-   <div class="modes" role="group" aria-label="Lokasi kerja">
-    <button class:selected={mode === 'WFO'} aria-pressed={mode === 'WFO'} disabled={busy || loading || !ready} onclick={() => { mode = 'WFO'; error = ''; status = ''; }}><strong>WFO</strong><span>Work From Office</span></button>
-    <button class:selected={mode === 'WFA'} aria-pressed={mode === 'WFA'} disabled={busy || loading || !ready} onclick={() => { mode = 'WFA'; error = ''; status = ''; }}><strong>WFA</strong><span>Work From Anywhere</span></button>
+   <p>{$translate("Pilih lokasi kerja Anda hari ini.")}</p>
+   <div class="modes" role="group" aria-label={$translate("Lokasi kerja")}>
+    <button class:selected={mode === 'WFO'} aria-pressed={mode === 'WFO'} disabled={busy || loading || !ready} onclick={() => { mode = 'WFO'; error = ''; status = ''; }}><strong>{$translate("WFO")}</strong><span>{$translate("Work From Office")}</span></button>
+    <button class:selected={mode === 'WFA'} aria-pressed={mode === 'WFA'} disabled={busy || loading || !ready} onclick={() => { mode = 'WFA'; error = ''; status = ''; }}><strong>{$translate("WFA")}</strong><span>{$translate("Work From Anywhere")}</span></button>
    </div>
    {#if mode}
-    <p class="hint">{mode === 'WFO' ? 'Aktifkan GPS/lokasi presisi. Clock In tersedia dalam radius 100 meter dari kantor. Lokasi hanya diperiksa, tidak disimpan.' : 'Aktifkan GPS/lokasi perangkat. Waktu dan lokasi Anda disimpan saat Clock In. Tidak ada pelacakan latar belakang.'}</p>
-    {#if mode === 'WFO' && !data.officeConfigured}<p class="notice">Lokasi kantor belum dikonfigurasi. Hubungi administrator untuk absensi WFO.</p>{/if}
-    <button class="primary" disabled={busy || loading || !ready || (mode === 'WFO' && !data.officeConfigured)} onclick={clock}>Clock In</button>
+    <p class="hint">{mode === 'WFO' ? $translate('Aktifkan GPS/lokasi presisi. Clock In tersedia dalam radius 100 meter dari kantor. Lokasi hanya diperiksa, tidak disimpan.') : $translate('Aktifkan GPS/lokasi perangkat. Waktu dan lokasi Anda disimpan saat Clock In. Tidak ada pelacakan latar belakang.')}</p>
+    {#if mode === 'WFO' && !data.officeConfigured}<p class="notice">{$translate("Lokasi kantor belum dikonfigurasi. Hubungi administrator untuk absensi WFO.")}</p>{/if}
+    <button class="primary" disabled={busy || loading || !ready || (mode === 'WFO' && !data.officeConfigured)} onclick={clock}>{$translate("Clock In")}</button>
    {/if}
   {/if}
-  <p class="status" role="status">{status}</p>
-  {#if error}<p class="error" role="alert">{error}</p>{/if}
-  {#if !ready && !loading}<button disabled={busy} onclick={refresh}>Muat ulang data</button>{/if}
-  <p class="hint policy">Absensi hanya mencatat waktu Clock In dan Clock Out, tanpa perhitungan keterlambatan atau lembur.</p>
+  <p class="status" role="status">{$translate(status)}</p>
+  {#if error}<p class="error" role="alert">{$translate(error)}</p>{/if}
+  {#if !ready && !loading}<button disabled={busy} onclick={refresh}>{$translate("Muat ulang data")}</button>{/if}
+  <p class="hint policy">{$translate("Absensi hanya mencatat waktu Clock In dan Clock Out, tanpa perhitungan keterlambatan atau lembur.")}</p>
  </section>
 
  <section class="history-panel" aria-labelledby="history-title" aria-busy={loading}>
-  <div class="section-heading"><h2 id="history-title">Riwayat absensi</h2><label>Bulan <input type="month" min="0001-01" max="9999-12" bind:value={month} disabled={busy || loading} onchange={() => { if (!month) month = jakartaDate().slice(0, 7); void refresh(); }} /></label></div>
-  {#if loading}<p role="status">Memuat riwayat…</p>
-  {:else if !ready}<p>Riwayat belum tersedia. Muat ulang data untuk mencoba lagi.</p>
-  {:else if !data?.records.length}<p>Belum ada absensi pada bulan ini.</p>
+  <div class="section-heading"><h2 id="history-title">{$translate("Riwayat absensi")}</h2><label>{$translate("Bulan")} <input type="month" min="0001-01" max="9999-12" bind:value={month} disabled={busy || loading} onchange={() => { if (!month) month = jakartaDate().slice(0, 7); void refresh(); }} /></label></div>
+  {#if loading}<p role="status">{$translate("Memuat riwayat…")}</p>
+  {:else if !ready}<p>{$translate("Riwayat belum tersedia. Muat ulang data untuk mencoba lagi.")}</p>
+  {:else if !data?.records.length}<p>{$translate("Belum ada absensi pada bulan ini.")}</p>
   {:else}
-   <div class="table-scroll" role="region" aria-label="Riwayat absensi bulanan"><table>
-    <thead><tr><th scope="col">Tanggal</th><th scope="col">Mode</th><th scope="col">Clock In (WIB)</th><th scope="col">Clock Out (WIB)</th><th scope="col">Lokasi Clock In</th></tr></thead>
+   <div class="table-scroll" role="region" aria-label={$translate("Riwayat absensi bulanan")}><table>
+    <thead><tr><th scope="col">{$translate("Tanggal")}</th><th scope="col">{$translate("Mode")}</th><th scope="col">{$translate("Clock In (WIB)")}</th><th scope="col">{$translate("Clock Out (WIB)")}</th><th scope="col">{$translate("Lokasi Clock In")}</th></tr></thead>
     <tbody>{#each data.records as record (record.id)}<tr>
-     <td data-label="Tanggal">{record.date}</td><td data-label="Mode"><span class="badge">{record.mode}</span></td><td data-label="Clock In (WIB)">{formatTime(record.clockIn)}</td><td data-label="Clock Out (WIB)">{record.clockOut ? formatTime(record.clockOut) : 'Belum Clock Out'}</td>
-     <td data-label="Lokasi Clock In">{#if record.mode === 'WFA' && record.latitude !== null && record.longitude !== null}<a href={`https://www.google.com/maps?q=${record.latitude},${record.longitude}`} target="_blank" rel="noopener noreferrer" aria-label={`Lihat lokasi Clock In ${record.date} di Google Maps (tab baru)`}>Lihat lokasi ↗</a>{:else}Tidak disimpan{/if}</td>
+     <td data-label={$translate("Tanggal")}>{record.date}</td><td data-label={$translate("Mode")}><span class="badge">{record.mode}</span></td><td data-label={$translate("Clock In (WIB)")}>{formatTime(record.clockIn)}</td><td data-label={$translate("Clock Out (WIB)")}>{record.clockOut ? formatTime(record.clockOut) : $translate('Belum Clock Out')}</td>
+     <td data-label={$translate("Lokasi Clock In")}>{#if record.mode === 'WFA' && record.latitude !== null && record.longitude !== null}<a href={`https://www.google.com/maps?q=${record.latitude},${record.longitude}`} target="_blank" rel="noopener noreferrer" aria-label={`Lihat lokasi Clock In ${record.date} di Google Maps (tab baru)`}>{$translate("Lihat lokasi ↗")}</a>{:else}{$translate("Tidak disimpan")}{/if}</td>
     </tr>{/each}</tbody>
    </table></div>
   {/if}

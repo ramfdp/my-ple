@@ -1,6 +1,6 @@
 // ponytail: use native standard Intl.NumberFormat and lightweight regex checks
-export function formatRupiah(amount: number): string {
-	return new Intl.NumberFormat('id-ID', {
+export function formatRupiah(amount: number, locale = 'id-ID'): string {
+	return new Intl.NumberFormat(locale, {
 		style: 'currency',
 		currency: 'IDR',
 		maximumFractionDigits: 0

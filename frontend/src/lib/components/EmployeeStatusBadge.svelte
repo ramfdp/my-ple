@@ -1,4 +1,5 @@
 <script lang="ts">
+ import { t as translate } from '$lib/i18n';
 	// ponytail: lookup dictionary replaces multi-level conditional branches
 	let { status = 'Permanent Employee' }: { status: string } = $props();
 
@@ -47,7 +48,7 @@
 	style:border-color={currentStyle.border}
 >
 	<span class="status-dot" style:background-color={currentStyle.dot} aria-hidden="true"></span>
-	{status}
+	{$translate(status)}
 </span>
 
 <style>

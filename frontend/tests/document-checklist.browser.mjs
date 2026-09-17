@@ -10,8 +10,8 @@ page.on('pageerror', e => errors.push(e.message));
 page.on('dialog', d => d.accept());
 async function login(role) {
  await context.clearCookies(); await page.goto(origin);
- await page.getByLabel('Username',{exact:true}).fill('browser-'+role);
- await page.getByLabel('Password',{exact:true}).fill('Checklist-test-only-2026');
+ await page.locator('#username').fill('browser-'+role);
+ await page.locator('#password').fill('Checklist-test-only-2026');
  await page.getByRole('button',{name:/Masuk|Log in|Login/i}).click();
  await page.waitForURL('**/dashboard');
 }
@@ -53,7 +53,7 @@ try {
   await api('/jobs','POST',{divisionId:role.divisionId,roleId:role.id,name:'Excluded '+role.name+' '+stamp,isActive:true});
  }
  for(const name of names){const result=await api('/jobs','POST',{divisionId:pe.divisionId,roleId:pe.id,name,isActive:true});jobs.push(result.job)}
- await page.getByRole('link',{name:'Checklist Dokumen Pekerjaan',exact:true}).click();
+ await page.locator('.sidebar-nav').getByRole('link',{name:'Checklist Dokumen Pekerjaan',exact:true}).click();
  const a=page.locator('section').filter({has:page.getByRole('button',{name:new RegExp(names[0])})});
  const b=page.locator('section').filter({has:page.getByRole('button',{name:new RegExp(names[1])})});
  await a.getByRole('button',{name:new RegExp(names[0])}).click();
@@ -84,11 +84,11 @@ try {
  await a.getByRole('button',{name:'Tabel sebelumnya',exact:true}).click();
  assert.equal(await a.getByLabel('Catatan Berita Acara',{exact:true}).inputValue(),'Saved before navigation');
  // A failed save must not navigate to another table.
- await page.route('**/document-checklists/*/tables/*/items/*', route => route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({error:'Save failed'})}), {times:1});
+ await page.route('**/document-checklists/*/tables/*/items/*', route => route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({error:'Terjadi kesalahan pada server.'})}), {times:1});
  await a.getByLabel('Catatan Berita Acara',{exact:true}).fill('Must not switch');
  const failure=page.waitForResponse(r=>r.status()===500 && r.url().includes('/document-checklists/'));
  await a.getByRole('button',{name:'Tabel berikutnya',exact:true}).click();await failure;
- await a.getByRole('alert').filter({hasText:'Save failed'}).waitFor();
+ await a.getByRole('alert').filter({hasText:'Terjadi kesalahan pada server.'}).waitFor();
  assert.equal(await a.locator('.table-title').textContent(),'Table One');
  await saved(async()=>{const field=a.getByLabel('Catatan Berita Acara',{exact:true});await field.fill('Menunggu tanda tangan client');await field.press('Tab')});
  const tables=(await api('/document-checklists/'+jobs[0].id)).checklists;
@@ -134,10 +134,10 @@ try {
  await page.screenshot({path:'../graphify-out/checklist-mobile.png',fullPage:true});
  await page.setViewportSize({width:1440,height:1000});
  for(const role of ['Project Engineer','Finance','Management']) {
-  await login(role);await page.getByRole('link',{name:'Checklist Dokumen Pekerjaan',exact:true}).click();
+  await login(role);await page.locator('.sidebar-nav').getByRole('link',{name:'Checklist Dokumen Pekerjaan',exact:true}).click();
   await a.getByRole('button',{name:new RegExp(names[0])}).waitFor();
  }
- await login('HR');assert.equal(await page.getByRole('link',{name:'Checklist Dokumen Pekerjaan',exact:true}).count(),0);
+ await login('HR');assert.equal(await page.locator('.sidebar-nav').getByRole('link',{name:'Checklist Dokumen Pekerjaan',exact:true}).count(),0);
  await page.goto(origin+'/document-checklists');await page.getByRole('alert').filter({hasText:'Akses ditolak'}).waitFor();
  const denied=await context.request.get(backend+'/document-checklists');assert.equal(denied.status(),403);
  assert.deepEqual(errors,[]);

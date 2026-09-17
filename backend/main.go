@@ -128,6 +128,10 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 			authCtrl.Logout(w, r)
 			return
 		}
+		if r.Method == http.MethodPatch && r.URL.Path == "/profile/language" {
+			authCtrl.UpdateLanguage(w, r, current.ID)
+			return
+		}
 		if (r.Method == http.MethodGet) && r.URL.Path == "/profile" {
 			authCtrl.Profile(w, r, current.ID)
 			return

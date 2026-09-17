@@ -1,7 +1,9 @@
 package controller
 
 import (
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -26,6 +28,17 @@ func DecodeStrictJSON(w http.ResponseWriter, r *http.Request, target any) bool {
 }
 
 func WriteJSON(w http.ResponseWriter, status int, body any) {
+	// Keep existing errors/codes for clients, with an additive catalog identifier.
+	switch value := body.(type) {
+	case map[string]string:
+		if message := value["error"]; message != "" {
+			value["messageCode"] = fmt.Sprintf("ui_%x", sha256.Sum256([]byte(message)))
+		}
+	case map[string]any:
+		if message, ok := value["error"].(string); ok {
+			value["messageCode"] = fmt.Sprintf("ui_%x", sha256.Sum256([]byte(message)))
+		}
+	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(body)

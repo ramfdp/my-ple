@@ -28,7 +28,7 @@ export const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',
 export const dateValue=(s:string)=>new Date(s+'T00:00:00Z');
 export const dateString=(d:Date)=>d.toISOString().slice(0,10);
 export const addDays=(s:string,n:number)=>{const d=dateValue(s);d.setUTCDate(d.getUTCDate()+n);return dateString(d)};
-export const labelDate=(s:string)=>s?dateValue(s).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}):'Tanpa tanggal';
+export const labelDate=(s:string, locale = 'id-ID')=>s?dateValue(s).toLocaleDateString(locale,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}):locale==='en-GB'?'No date':'Tanpa tanggal';
 export function period(anchor:string,scale:'week'|'month'){
  const d=dateValue(anchor);
  const start=scale==='month'?dateString(new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),1))):addDays(anchor,-((d.getUTCDay()+6)%7));
