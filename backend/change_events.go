@@ -1,6 +1,7 @@
 package main
 
 import (
+	"my-ple-backend/middleware"
 	"my-ple-backend/notification"
 	"net/http"
 	"strings"
@@ -32,11 +33,27 @@ func changeEvents(next http.Handler, s *notification.Service) http.Handler {
 			return
 		}
 		parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
-		event := map[string]string{"reports": "reports.changed", "zoom-bookings": "zoom.changed", "zoom-resources": "zoom.changed", "jobs": "jobs.changed", "users": "users.changed"}[parts[0]]
+		event := map[string]string{"reports": "reports.changed", "zoom-bookings": "zoom.changed", "zoom-resources": "zoom.changed", "jobs": "jobs.changed", "users": "users.changed", "profile": "users.changed", "attendance": "attendance.changed", "document-checklists": "document-checklists.changed", "notifications": "notifications.changed"}[parts[0]]
+		if parts[0] == "billing-documents" {
+			event = "billing-documents.changed"
+		}
 		if event != "" {
 			id := ""
 			if len(parts) > 1 {
 				id = parts[1]
+			}
+			if parts[0] == "billing-documents" {
+				id = ""
+				if len(parts) > 2 {
+					id = parts[2]
+				}
+			}
+			if parts[0] == "profile" || parts[0] == "attendance" || parts[0] == "notifications" {
+				current, ok := middleware.GetClaims(r.Context())
+				if !ok {
+					return
+				}
+				id = current.ID
 			}
 			s.Changed(r.Context(), event, 0, id, 0)
 		}

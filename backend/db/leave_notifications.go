@@ -157,23 +157,3 @@ func (db *Database) RetryLeaveNotifications(ctx context.Context) error {
 	}
 	return nil
 }
-
-// Re-read recipients even on an idempotent retry: the worker may have persisted
-// the notification between the request commit and the controller's enqueue call.
-func (db *Database) LeaveRecipients(ctx context.Context, id, status string) ([]string, error) {
-	kind := map[string]string{"PENDING": "leave_request_created", "APPROVED": "leave_request_approved", "REJECTED": "leave_request_rejected"}[status]
-	rows, err := db.Conn.QueryContext(ctx, `SELECT nr.user_id FROM notification_recipients nr JOIN notifications n ON n.id=nr.notification_id WHERE n.entity_id=$1 AND n.type=$2 AND notification_visible(n.id,nr.user_id)`, id, kind)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	ids := []string{}
-	for rows.Next() {
-		var id string
-		if err = rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
-}

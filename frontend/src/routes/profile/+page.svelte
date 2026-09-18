@@ -1,4 +1,5 @@
 <script lang="ts">
+ import { t as translate } from '$lib/i18n';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 
@@ -8,9 +9,9 @@
 </script>
 
 <svelte:head>
-	<title>Redirecting to My Profile... | MyHIS</title>
+	<title>{$translate("Redirecting to My Profile... | MyHIS")}</title>
 </svelte:head>
 
 <div style="padding: 40px; text-align: center; color: var(--his-muted);">
-	<p>Mengalihkan ke halaman My Profile...</p>
+	<p>{$translate("Mengalihkan ke halaman My Profile...")}</p>
 </div>

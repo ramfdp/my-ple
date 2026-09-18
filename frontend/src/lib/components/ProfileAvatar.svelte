@@ -1,4 +1,5 @@
 <script lang="ts">
+ import { t as translate } from '$lib/i18n';
 	// ponytail: pure native SVG fallback with zero external avatar library dependencies
 	let {
 		src = '',
@@ -25,12 +26,12 @@
 	{#if src && !imageFailed}
 		<img
 			{src}
-			{alt}
+			alt={$translate(alt)}
 			class="avatar-image"
 			onerror={() => (imageFailed = true)}
 		/>
 	{:else}
-		<div class="avatar-fallback" aria-label={alt}>
+		<div class="avatar-fallback" aria-label={$translate(alt)}>
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
 				<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
 				<circle cx="12" cy="7" r="4" />

@@ -1,20 +1,18 @@
 <script lang="ts">
+ import { t as translate } from '$lib/i18n';
 	import { page } from '$app/state';
 	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { api, session, setAuthenticated } from '$lib/api';
+	import { api, currentUser, setAuthenticated } from '$lib/api';
+	import { visibleFeatures } from '$lib/navigation';
 
 	// ponytail: native Svelte reactivity for mobile drawer without external drawer lib
 	let { mobileOpen = $bindable(false) }: { mobileOpen?: boolean } = $props();
 	let isMobile = $state(false);
 	let sidebar: HTMLElement;
 	let menuButton: HTMLButtonElement;
-	let canManageEmployees = $state(false);
- let canReviewLeave = $state(false);
+	let role = $derived($currentUser?.role?.toLowerCase() ?? '');
 	onMount(() => {
-		const role = session()?.user.role?.toLowerCase() ?? '';
-		canManageEmployees = ['admin', 'management', 'hr'].includes(role);
- canReviewLeave = ['admin', 'management'].includes(role);
 		const media = matchMedia('(max-width: 868px)');
 		const resize = () => { isMobile = media.matches; if (!isMobile) mobileOpen = false; };
 		resize();
@@ -45,24 +43,14 @@
 		try { await api('/auth/logout', { method: 'POST' }); } finally { setAuthenticated(null); await goto('/'); }
 	}
 
-	const navItems = [
-		{ name: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
-		{ name: 'Team Workspace', href: '/workspace', icon: 'users' },
-		{ name: 'My Profile', href: '/my-profile', icon: 'user' },
-		{ name: 'Attendance', href: '/attendance', icon: 'calendar' },
-		{ name: 'Izin & Cuti', href: '/leave', icon: 'clock' },
-		{ name: 'Payroll', href: '/payroll', icon: 'wallet' },
-		{ name: 'Documents', href: '/documents', icon: 'file' },
-		{ name: 'Pengaturan Pekerjaan', href: '/settings/jobs', icon: 'settings' }
-	];
-	let visibleNavItems = $derived([...(canManageEmployees ? [{ name: 'Employees', href: '/employees', icon: 'users' }] : []), ...navItems, ...(canReviewLeave ? [{name:'Persetujuan Izin & Cuti',href:'/leave/approvals',icon:'calendar'}] : [])]);
+	let visibleNavItems = $derived([{key:'Dashboard',href:'/dashboard',icon:'dashboard'}, ...visibleFeatures(role)]);
 
 	function isItemActive(href: string): boolean {
 		if (href === '/workspace') return page.url.pathname === href || page.url.pathname.startsWith(href+'/');
 		if (href === '/my-profile') {
 			return page.url.pathname === '/my-profile' || page.url.pathname === '/profile';
 		}
-		return page.url.pathname === href;
+		return page.url.pathname === href || (page.url.pathname.startsWith(href+'/') && !visibleNavItems.some(item => item.href !== href && (page.url.pathname === item.href || page.url.pathname.startsWith(item.href+'/'))));
 	}
 </script>
 
@@ -76,7 +64,7 @@
 		bind:this={menuButton}
 		aria-controls="main-navigation"
 		onclick={() => (mobileOpen = !mobileOpen)}
-		aria-label="Toggle navigation menu"
+		aria-label={$translate("Toggle navigation menu")}
 		aria-expanded={mobileOpen}
 	>
 		{#if mobileOpen}
@@ -93,8 +81,8 @@
 		{/if}
 	</button>
 	<div class="mobile-brand">
-		<img src="/harmoni%20insan%20phooto.webp" alt="MyHIS" class="mobile-logo-img" />
-		<span class="brand-text">MyHIS</span>
+		<img src="/logo%20MyHIS%20terbaru.jpeg" alt={$translate("MyHIS")} class="mobile-logo-img" />
+		<span class="brand-text">{$translate("MyHIS")}</span>
 	</div>
 </div>
 
@@ -104,16 +92,16 @@
 {/if}
 
 <!-- Sidebar -->
-<aside id="main-navigation" bind:this={sidebar} tabindex="-1" inert={isMobile && !mobileOpen} class="sidebar-container" class:open-mobile={mobileOpen} aria-label="Navigasi Utama">
+<aside id="main-navigation" bind:this={sidebar} tabindex="-1" inert={isMobile && !mobileOpen} class="sidebar-container" class:open-mobile={mobileOpen} aria-label={$translate("Navigasi Utama")}>
 	<!-- Logo Section -->
 	<div class="sidebar-header">
-		<button type="button" class="drawer-close-button" aria-label="Tutup navigasi" onclick={() => mobileOpen = false}>×</button>
+		<button type="button" class="drawer-close-button" aria-label={$translate("Tutup navigasi")} onclick={() => mobileOpen = false}>×</button>
 		<a href="/dashboard" class="logo-link" onclick={() => (mobileOpen = false)}>
 			<div class="logo-circle">
-				<img src="/harmoni%20insan%20phooto.webp" alt="MyHIS" class="sidebar-logo" />
+				<img src="/logo%20MyHIS%20terbaru.jpeg" alt={$translate("MyHIS")} class="sidebar-logo" />
 			</div>
 			<div class="brand-details">
-				<span class="brand-title">MyHIS</span>
+				<span class="brand-title">{$translate("MyHIS")}</span>
 			</div>
 		</a>
 	</div>
@@ -129,56 +117,38 @@
 				onclick={() => (mobileOpen = false)}
 			>
 				<span class="nav-icon" aria-hidden="true">
-					{#if item.icon === 'dashboard'}
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						{#if item.icon === 'dashboard'}
 							<rect width="7" height="9" x="3" y="3" rx="1" />
 							<rect width="7" height="5" x="14" y="3" rx="1" />
 							<rect width="7" height="9" x="14" y="12" rx="1" />
 							<rect width="7" height="5" x="3" y="16" rx="1" />
-						</svg>
-					{:else if item.icon === 'users'}
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						{:else if item.icon === 'users'}
 							<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
 							<circle cx="9" cy="7" r="4" />
 							<path d="M22 21v-2a4 4 0 0 0-3-3.87" />
 							<path d="M16 3.13a4 4 0 0 1 0 7.75" />
-						</svg>
-					{:else if item.icon === 'user'}
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						{:else if item.icon === 'user'}
 							<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
 							<circle cx="12" cy="7" r="4" />
-						</svg>
-					{:else if item.icon === 'calendar'}
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						{:else if item.icon === 'calendar'}
 							<rect width="18" height="18" x="3" y="4" rx="2" />
 							<line x1="16" x2="16" y1="2" y2="6" />
 							<line x1="8" x2="8" y1="2" y2="6" />
 							<line x1="3" x2="21" y1="10" y2="10" />
-						</svg>
-					{:else if item.icon === 'clock'}
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						{:else if item.icon === 'clock'}
 							<circle cx="12" cy="12" r="10" />
 							<polyline points="12 6 12 12 16 14" />
-						</svg>
-					{:else if item.icon === 'wallet'}
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-							<rect width="20" height="14" x="2" y="5" rx="2" />
-							<line x1="2" x2="22" y1="10" y2="10" />
-							<circle cx="16" cy="14" r="1" />
-						</svg>
-					{:else if item.icon === 'file'}
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						{:else if item.icon === 'file'}
 							<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
 							<path d="M14 2v4a2 2 0 0 0 2 2h4" />
-						</svg>
-					{:else if item.icon === 'settings'}
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						{:else if item.icon === 'settings'}
 							<circle cx="12" cy="12" r="3" />
 							<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-						</svg>
-					{/if}
+						{/if}
+					</svg>
 				</span>
-				<span class="nav-text">{item.name}</span>
+				<span class="nav-text">{$translate(item.key)}</span>
 			</a>
 		{/each}
 	</nav>
@@ -191,7 +161,7 @@
 				<polyline points="16 17 21 12 16 7" />
 				<line x1="21" x2="9" y1="12" y2="12" />
 			</svg>
-			<span>Log out</span>
+			<span>{$translate("Log out")}</span>
 		</a>
 	</div>
 </aside>

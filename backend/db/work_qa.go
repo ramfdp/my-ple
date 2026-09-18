@@ -22,9 +22,6 @@ func validateQATransition(old model.WorkItem, in model.WorkItemInput, checker bo
 		}
 		return nil
 	}
-	if old.RequiresQA != in.RequiresQA {
-		return ErrWorkspaceInvalid
-	}
 	if in.QAOnly {
 		if !old.RequiresQA || old.Status != model.WorkInProgress {
 			return ErrWorkspaceForbidden
@@ -35,8 +32,11 @@ func validateQATransition(old model.WorkItem, in model.WorkItemInput, checker bo
 		return ErrWorkspaceInvalid
 	}
 	// Historical Done records are retained, not backfilled with fictitious approvals.
-	if old.RequiresQA && in.Status == model.WorkDone && old.Status != model.WorkDone {
+	if in.RequiresQA && in.Status == model.WorkDone && (old.Status != model.WorkDone || !old.RequiresQA) {
 		return ErrQARequired
+	}
+	if !in.RequiresQA && in.QAStage == "" {
+		return nil
 	}
 	if in.QAStage == "COMPLETE" && old.QAValidatedAt == nil && old.Status != model.WorkDone {
 		if !checker {

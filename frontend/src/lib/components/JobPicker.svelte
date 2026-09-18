@@ -1,5 +1,7 @@
 <script lang="ts">
- import { onMount } from 'svelte';
+ import { t as translate } from '$lib/i18n';
+ import { onMount, untrack } from 'svelte';
+ import { subscribeChanges } from '$lib/realtime';
  import { api, type Job, type JobMasters, type Report } from '$lib/api';
  let { division = $bindable(''), selected = $bindable<Job | null>(null), busy = $bindable(true), existing = null, fixedDivision = false }: { division?: string; selected?: Job | null; busy?: boolean; existing?: Report | null; fixedDivision?: boolean } = $props();
  let masters = $state<JobMasters>({divisions:[],roles:[],categories:[]});
@@ -18,21 +20,29 @@
   const available = masters.categories.filter(c => c.divisionId === divisionId && c.roleId === roleId);
   categoryId = available.find(c => c.name === existing?.workDivision)?.id ?? available[0]?.id ?? null;
  }
- async function loadMasters() {
+ let masterRequest = 0;
+ async function loadMasters(preserve = false) {
+  const request = ++masterRequest;
   error=''; busy=true;
-  try { masters=await api<JobMasters>('/jobs/masters'); if (!masters.divisions.some(d=>d.name===division)) division=masters.divisions[0]?.name ?? ''; resetRole(); loaded=true; }
-  catch(e){ error=e instanceof Error?e.message:'Pilihan tidak dapat dimuat.'; }
+  try { const result=await api<JobMasters>('/jobs/masters'); if(request!==masterRequest)return; masters=result; if (!masters.divisions.some(d=>d.name===division)) division=masters.divisions[0]?.name ?? ''; if(!preserve)resetRole(); loaded=true; }
+  catch(e){ if(request===masterRequest){busy=false; error=e instanceof Error?e.message:'Pilihan tidak dapat dimuat.';} }
  }
- onMount(()=>{void loadMasters();});
+ onMount(()=>{void loadMasters();const stop=subscribeChanges(['jobs.changed'],()=>loadMasters(loaded));return()=>{masterRequest++;stop();};});
+ let lastFilters = '';
  $effect(()=>{
-  if(!loaded || !divisionId)return;
+  masters;
+  if(!loaded)return;
+  if(!divisionId){busy=false;selected=null;jobs=[];return;}
   const d=divisionId,r=roleId,c=categoryId;
+  const key=JSON.stringify([d,r,c]), previous=key===lastFilters?untrack(()=>selected):null;
+  lastFilters=key;
   let cancelled=false;
-  busy=true; selected=null; jobs=[]; error='';
+  busy=true; if(!previous){selected=null;jobs=[];} error='';
   const categoryFilter=selectedRole?.name==='CIHPK'?'':`&job_category_id=${c ?? 0}`;
   api<{jobs:Job[]}>(`/jobs?division_id=${d}&role_id=${r ?? 0}${categoryFilter}&active=true`).then(response=>{
    if(cancelled)return;
    jobs=response.jobs;
+   if(previous?.isActive){selected=jobs.find(j=>j.id===previous.id)??null;return;}
    const roleName=masters.roles.find(x=>x.id===r)?.name ?? '';
    const categoryName=masters.categories.find(x=>x.id===c)?.name ?? '';
    if(existing && division===existing.primaryDivision && roleName===existing.role && (roleName==='CIHPK'||categoryName===existing.workDivision)){
@@ -48,9 +58,9 @@
  });
 </script>
 
-<label>Divisi<select bind:value={division} disabled={fixedDivision || !loaded} onchange={resetRole}>{#each masters.divisions as d}<option value={d.name}>{d.name}</option>{/each}</select></label>
-{#if roles.length}<label>Role<select bind:value={roleId} onchange={resetCategory}><option value={null}>Tanpa role</option>{#each roles as r}<option value={r.id}>{r.name}</option>{/each}</select></label>{/if}
-{#if selectedRole?.name === 'CIHPK'}<label>Kategori<input value="MK/Supervisi" readonly /></label>{/if}
-{#if categories.length}<label>Kategori<select bind:value={categoryId}><option value={null}>Tanpa kategori</option>{#each categories as c}<option value={c.id}>{c.name}</option>{/each}</select></label>{/if}
-<label>Pekerjaan<select value={selected?.id ?? ''} disabled={busy} required onchange={(e)=>selected=jobs.find(j=>j.id===Number(e.currentTarget.value)) ?? null}><option value="" disabled>Pilih pekerjaan</option>{#each jobs as job}<option value={job.id}>{job.name}{!job.isActive ? ' (tersimpan — nonaktif/legacy)' : ''}</option>{/each}</select></label>
-{#if busy && !error}<p role="status">Memuat pekerjaan…</p>{:else if error}<p role="alert">{error} <button type="button" onclick={()=>{loaded=false;void loadMasters();}}>Coba lagi</button></p>{:else if !jobs.length}<p role="status">Belum ada pekerjaan pada kategori ini.</p>{/if}
+<label>{$translate("Divisi")}<select bind:value={division} disabled={fixedDivision || !loaded} onchange={resetRole}>{#each masters.divisions as d}<option value={d.name}>{d.name}</option>{/each}</select></label>
+{#if roles.length}<label>{$translate("Role")}<select bind:value={roleId} onchange={resetCategory}><option value={null}>{$translate("Tanpa role")}</option>{#each roles as r}<option value={r.id}>{$translate(r.name)}</option>{/each}</select></label>{/if}
+{#if selectedRole?.name === 'CIHPK'}<label>{$translate("Kategori")}<input value="MK/Supervisi" readonly /></label>{/if}
+{#if categories.length}<label>{$translate("Kategori")}<select bind:value={categoryId}><option value={null}>{$translate("Tanpa kategori")}</option>{#each categories as c}<option value={c.id}>{c.name}</option>{/each}</select></label>{/if}
+<label>{$translate("Pekerjaan")}<select value={selected?.id ?? ''} disabled={busy} required onchange={(e)=>selected=jobs.find(j=>j.id===Number(e.currentTarget.value)) ?? null}><option value="" disabled>{$translate("Pilih pekerjaan")}</option>{#each jobs as job}<option value={job.id}>{job.name}{!job.isActive ? $translate(' (tersimpan — nonaktif/legacy)') : ''}</option>{/each}</select></label>
+{#if busy && !error}<p role="status">{$translate("Memuat pekerjaan…")}</p>{:else if error}<p role="alert">{$translate(error)} <button type="button" onclick={()=>{loaded=false;void loadMasters();}}>{$translate("Coba lagi")}</button></p>{:else if !jobs.length}<p role="status">{$translate("Belum ada pekerjaan pada kategori ini.")}</p>{/if}

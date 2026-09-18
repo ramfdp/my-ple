@@ -1,4 +1,5 @@
 <script lang="ts">
+ import { t as translate } from '$lib/i18n';
 	// ponytail: lightweight self-dismissing toast with zero animation libraries
 	let {
 		message = '',
@@ -7,7 +8,7 @@
 		onclose
 	}: {
 		message: string;
-		type?: 'success' | 'error' | 'info';
+		type?: 'success' | 'error';
 		visible: boolean;
 		onclose?: () => void;
 	} = $props();
@@ -29,24 +30,18 @@
 				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
 					<polyline points="20 6 9 17 4 12" />
 				</svg>
-			{:else if type === 'error'}
+			{:else}
 				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 					<circle cx="12" cy="12" r="10" />
 					<line x1="15" y1="9" x2="9" y2="15" />
 					<line x1="9" y1="9" x2="15" y2="15" />
 				</svg>
-			{:else}
-				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-					<circle cx="12" cy="12" r="10" />
-					<line x1="12" y1="16" x2="12" y2="12" />
-					<line x1="12" y1="8" x2="12.01" y2="8" />
-				</svg>
 			{/if}
 		</div>
 
-		<p class="toast-message">{message}</p>
+		<p class="toast-message">{$translate(message)}</p>
 
-		<button type="button" class="toast-close" onclick={() => onclose?.()} aria-label="Tutup notifikasi">
+		<button type="button" class="toast-close" onclick={() => onclose?.()} aria-label={$translate("Tutup notifikasi")}>
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 				<line x1="18" y1="6" x2="6" y2="18" />
 				<line x1="6" y1="6" x2="18" y2="18" />

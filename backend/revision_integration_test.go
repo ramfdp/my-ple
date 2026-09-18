@@ -313,6 +313,103 @@ func TestRevisionIntegration(t *testing.T) {
 		}
 	})
 
+	t.Run("workspace archive and restore", func(t *testing.T) {
+		prefix := "archive-" + db.NewID()
+		task := mustTask(member, "POST", fmt.Sprintf("/workspaces/%d/tasks", division), map[string]any{"title": prefix, "description": "Original description", "relatedUrl": "https://example.test", "assigneeIds": []string{pe.id}, "dueDate": "2026-09-20"})
+		path := "/work-items/" + task.ID
+		task = mustTask(member, "PATCH", path, map[string]any{"version": task.Version, "status": "DONE"})
+		if _, err := conn.Exec(`UPDATE work_items SET requires_qa=true,qa_stage='COMPLETE',qa_validated_at=NOW(),qa_validated_by=$2 WHERE id=$1`, task.ID, manager.id); err != nil {
+			t.Fatal(err)
+		}
+		task = mustTask(member, "GET", path, nil)
+		if code, _ := request(member, "POST", path+"/comments", map[string]any{"content": "Preserved comment"}); code != 204 {
+			t.Fatal("comment", code)
+		}
+		if code, _ := request(member, "DELETE", path, map[string]any{"version": task.Version}); code != 204 {
+			t.Fatal("archive", code)
+		}
+		archived := mustTask(member, "GET", path+"?archived=true", nil)
+		if archived.ArchivedAt == nil || !archived.CanRestore || archived.CanEdit || archived.CanDelete || archived.CanCheckQA {
+			t.Fatal("archive permissions", archived)
+		}
+		for _, suffix := range []string{"", "/comments", "/activity"} {
+			if code, _ := request(member, "GET", path+suffix+"?archived=true", nil); code != 200 {
+				t.Fatal("archive read", suffix, code)
+			}
+			if code, _ := request(outsider, "GET", path+suffix+"?archived=true", nil); code != 403 {
+				t.Fatal("archive leaked", suffix, code)
+			}
+		}
+		for _, mutation := range []struct {
+			method, suffix string
+			body           any
+		}{{"PATCH", "", map[string]any{"version": archived.Version, "title": "changed"}}, {"PATCH", "/priority", map[string]any{"version": archived.Version, "priority": "HIGH"}}, {"PATCH", "/qa", map[string]any{"version": archived.Version, "decision": "DONE"}}, {"POST", "/comments", map[string]any{"content": "new"}}, {"DELETE", "", map[string]any{"version": archived.Version}}} {
+			if code, _ := request(member, mutation.method, path+mutation.suffix+"?archived=true", mutation.body); code != 404 {
+				t.Fatal("archived mutation allowed", mutation, code)
+			}
+		}
+		if code, _ := request(pe, "POST", path+"/restore", map[string]any{"version": archived.Version}); code != 403 {
+			t.Fatal("assignee restore", code)
+		}
+		if code, _ := request(outsider, "POST", path+"/restore", map[string]any{"version": archived.Version}); code != 403 {
+			t.Fatal("outsider restore", code)
+		}
+		if code, _ := request(member, "POST", path+"/restore", map[string]any{"version": task.Version}); code != 409 {
+			t.Fatal("stale restore", code)
+		}
+		for i := 0; i < 101; i++ {
+			if _, err := conn.Exec(`INSERT INTO work_items(id,division_id,title,archived_at,created_by) VALUES($1,$2,$3,NOW(),$4)`, db.NewID(), division, prefix+fmt.Sprint(i), member.id); err != nil {
+				t.Fatal(err)
+			}
+		}
+		defer conn.Exec(`DELETE FROM work_items WHERE title LIKE $1`, prefix+"%")
+		list := fmt.Sprintf("/workspaces/%d/tasks?search=%s", division, prefix)
+		for _, tc := range []struct {
+			suffix      string
+			want, total int
+		}{{"", 0, 0}, {"&archived=true&limit=100&sort=archived", 100, 102}, {"&archived=true&limit=100&offset=100", 2, 102}, {"&archived=true&status=DONE", 1, 1}} {
+			code, body := request(member, "GET", list+tc.suffix, nil)
+			var items []model.WorkItem
+			var total int
+			json.Unmarshal(body["tasks"], &items)
+			json.Unmarshal(body["total"], &total)
+			if code != 200 || len(items) != tc.want || total != tc.total {
+				t.Fatalf("archive list %s: %d/%d code %d", tc.suffix, len(items), total, code)
+			}
+		}
+		restored := mustTask(member, "POST", path+"/restore", map[string]any{"version": archived.Version})
+		if restored.ArchivedAt != nil || restored.RequiresQA != task.RequiresQA || restored.QAStage != task.QAStage || restored.QAValidatedAt == nil || !restored.QAValidatedAt.Equal(*task.QAValidatedAt) || restored.QAValidatedBy == nil || *restored.QAValidatedBy != *task.QAValidatedBy || restored.Status != task.Status || restored.Description != task.Description || restored.RelatedURL != task.RelatedURL || restored.DueDate != task.DueDate || len(restored.Assignees) != 1 || restored.Assignees[0].ID != pe.id || restored.CommentCount != 1 || restored.Version != archived.Version+1 {
+			t.Fatal("restore lost data", restored)
+		}
+		if code, _ := request(member, "DELETE", path, map[string]any{"version": restored.Version}); code != 204 {
+			t.Fatal(code)
+		}
+		archived = mustTask(manager, "GET", path+"?archived=true", nil)
+		var wg sync.WaitGroup
+		results := make(chan int, 2)
+		for i := 0; i < 2; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				code, _ := request(manager, "POST", path+"/restore", map[string]any{"version": archived.Version})
+				results <- code
+			}()
+		}
+		wg.Wait()
+		close(results)
+		winners := 0
+		for code := range results {
+			if code == 200 {
+				winners++
+			} else if code != 409 && code != 404 {
+				t.Fatal("concurrent restore", code)
+			}
+		}
+		if winners != 1 || count(`SELECT count(*) FROM work_item_activity WHERE work_item_id=$1 AND action='RESTORE'`, task.ID) != 2 {
+			t.Fatal("restore not atomic", winners)
+		}
+	})
+
 	t.Run("assignment outbox priority and QA", func(t *testing.T) {
 		input := map[string]any{"title": "Revision test task", "requiresQa": true, "assigneeIds": []string{pe.id}, "requestId": db.NewID(), "dueDate": "2026-09-20"}
 		task := mustTask(manager, "POST", fmt.Sprintf("/workspaces/%d/tasks", division), input)
@@ -331,7 +428,15 @@ func TestRevisionIntegration(t *testing.T) {
 		if status != 204 || count(`SELECT count(*) FROM notifications n JOIN notification_recipients r ON r.notification_id=n.id WHERE n.entity_id=$1 AND n.type='workspace_task' AND r.user_id=$2`, task.ID, qa.id) != 1 || count(`SELECT count(*) FROM zoom_booking_email_deliveries WHERE work_item_id=$1 AND recipient_user_id=$2 AND notification_type='workspace_task'`, task.ID, qa.id) != 1 {
 			t.Fatal("mention notification/email missing", status)
 		}
-		// A non-editor division member can assign, without gaining other edit rights.
+		for _, actor := range []actor{member} {
+			for _, suffix := range []string{"", "/assignees"} {
+				s, _ := request(actor, "PATCH", path+suffix, map[string]any{"version": task.Version, "assigneeIds": []string{qa.id}})
+				if s != 403 {
+					t.Fatal("non-creator assignment accepted", s)
+				}
+			}
+		}
+		// Unassigned colleagues cannot change assignments, even through the dedicated endpoint.
 		for _, body := range []map[string]any{
 			{"version": task.Version, "assigneeIds": []string{outsider.id}},
 			{"version": task.Version, "assigneeIds": []string{qa.id}, "title": "smuggled"},
@@ -341,11 +446,12 @@ func TestRevisionIntegration(t *testing.T) {
 				t.Fatal("invalid assignment accepted", s)
 			}
 		}
-		task = mustTask(member, "PATCH", path+"/assignees", map[string]any{"version": task.Version, "assigneeIds": []string{pe.id, qa.id, invalid.id}})
+		task = mustTask(pe, "PATCH", path+"/assignees", map[string]any{"version": task.Version, "assigneeIds": []string{pe.id, qa.id, invalid.id}})
 		if assignmentCount() != 3 {
 			t.Fatal("multiple new recipients")
 		}
-		task = mustTask(member, "PATCH", path+"/assignees", map[string]any{"version": task.Version, "assigneeIds": []string{pe.id, qa.id, invalid.id}})
+		// A newly assigned person can also save assignments through the main edit form.
+		task = mustTask(qa, "PATCH", path, map[string]any{"version": task.Version, "assigneeIds": []string{pe.id, qa.id, invalid.id}})
 		if assignmentCount() != 3 {
 			t.Fatal("unchanged assignees duplicated assignment")
 		}
@@ -374,8 +480,8 @@ func TestRevisionIntegration(t *testing.T) {
 		if s != 403 {
 			t.Fatal("priority granted deletion", s)
 		}
-		task = mustTask(member, "PATCH", path+"/assignees", map[string]any{"version": task.Version, "assigneeIds": []string{pe.id, invalid.id}})
-		task = mustTask(member, "PATCH", path+"/assignees", map[string]any{"version": task.Version, "assigneeIds": []string{pe.id, qa.id, invalid.id}})
+		task = mustTask(manager, "PATCH", path+"/assignees", map[string]any{"version": task.Version, "assigneeIds": []string{pe.id, invalid.id}})
+		task = mustTask(manager, "PATCH", path+"/assignees", map[string]any{"version": task.Version, "assigneeIds": []string{pe.id, qa.id, invalid.id}})
 		if assignmentCount() != 4 {
 			t.Fatal("reassignment missing")
 		}
@@ -444,8 +550,22 @@ func TestRevisionIntegration(t *testing.T) {
 	t.Run("QA validation is optional per task", func(t *testing.T) {
 		task := mustTask(member, "POST", fmt.Sprintf("/workspaces/%d/tasks", division), map[string]any{"title": "No QA required", "assigneeIds": []string{pe.id}, "requiresQa": false})
 		path := "/work-items/" + task.ID
-		task = mustTask(member, "PATCH", path, map[string]any{"version": task.Version, "status": "IN_PROGRESS"})
-		task = mustTask(member, "PATCH", path, map[string]any{"version": task.Version, "status": "DONE"})
+		if !task.CanEdit {
+			t.Fatal("creator cannot edit")
+		}
+		s, _ := request(manager, "PATCH", path+"/assignees", map[string]any{"version": task.Version, "assigneeIds": []string{qa.id}})
+		if s != 403 {
+			t.Fatal("non-creator manager can assign", s)
+		}
+		task = mustTask(pe, "PATCH", path, map[string]any{"version": task.Version, "status": "IN_PROGRESS", "description": "Assignee edit", "requiresQa": true})
+		if !task.CanEdit || !task.RequiresQA || task.Description != "Assignee edit" {
+			t.Fatal("assignee edit failed")
+		}
+		s, _ = request(pe, "PATCH", path, map[string]any{"version": task.Version, "status": "DONE"})
+		if s != 400 {
+			t.Fatal("QA bypass after enabling", s)
+		}
+		task = mustTask(pe, "PATCH", path, map[string]any{"version": task.Version, "requiresQa": false, "status": "DONE"})
 		if task.Status != "DONE" {
 			t.Fatal("optional QA task cannot finish")
 		}
@@ -569,6 +689,103 @@ func TestRevisionIntegration(t *testing.T) {
 			t.Fatal("new template cache not reused", e)
 		}
 	})
+	t.Run("missing realtime mutations and recipient scopes", func(t *testing.T) {
+		employee := createUser("IT", "")
+		hr := createUser("HR", "")
+		finance := createUser("Finance", "")
+		dial := func(base string, a actor) *websocket.Conn {
+			t.Helper()
+			h := http.Header{"Origin": {"http://test.local"}, "Cookie": {middleware.SessionCookie + "=" + a.token}}
+			ws, _, e := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(base, "http")+"/ws/notifications", h)
+			if e != nil {
+				t.Fatal(e)
+			}
+			t.Cleanup(func() { ws.Close() })
+			return ws
+		}
+		own, admin := dial(server.URL, employee), dial(server.URL, manager)
+		await := func(ws *websocket.Conn, event, id string) {
+			t.Helper()
+			ws.SetReadDeadline(time.Now().Add(3 * time.Second))
+			var c notification.Change
+			if e := ws.ReadJSON(&c); e != nil || c.Event != event || c.EntityID != id {
+				t.Fatalf("want %s %s got %+v: %v", event, id, c, e)
+			}
+		}
+		for _, mutation := range []struct {
+			method, path, event string
+			body                any
+		}{
+			{"POST", "/attendance/clock-in", "attendance.changed", map[string]any{"mode": "WFA", "latitude": 0, "longitude": 0, "accuracy": 5}},
+			{"PATCH", "/profile", "users.changed", map[string]any{"phoneNumber": "+628123456789", "residence": "Socket test"}},
+			{"POST", "/leave-requests", "leave.changed", map[string]any{"requestId": db.NewID(), "requestType": "CUTI", "startDate": "2026-09-21", "endDate": "2026-09-21", "reason": "Test"}},
+		} {
+			status, body := request(employee, mutation.method, mutation.path, mutation.body)
+			if status != 200 {
+				t.Fatalf("%s: %d %s", mutation.path, status, body["error"])
+			}
+			await(own, mutation.event, employee.id)
+			await(admin, mutation.event, employee.id)
+		}
+		status, _ := request(employee, "PATCH", "/notifications/read-all", nil)
+		if status != 200 && status != 204 {
+			t.Fatal(status)
+		}
+		await(own, "notifications.changed", employee.id)
+		checklistPath := fmt.Sprintf("/document-checklists/%d", job)
+		status, checklistBody := request(manager, "POST", checklistPath, model.ChecklistConfigInput{Title: "Live checklist", RequireDigitalSignature: true})
+		if status != 200 {
+			t.Fatal("checklist create", status)
+		}
+		await(admin, "document-checklists.changed", fmt.Sprint(job))
+		var checklist model.DocumentChecklist
+		if err := json.Unmarshal(checklistBody["checklist"], &checklist); err != nil {
+			t.Fatal(err)
+		}
+		status, _ = request(manager, "POST", fmt.Sprintf("%s/tables/%d/items", checklistPath, checklist.ID), model.ChecklistItemPatch{Field: "documentName", Value: "Live document"})
+		if status != 200 {
+			t.Fatal("checklist item", status)
+		}
+		await(admin, "document-checklists.changed", fmt.Sprint(job))
+		// Read timeouts terminate these sockets; create a fresh connection for each scope check.
+		hub := realtime.NewHub("http://test.local")
+		service := notification.Service{DB: database, Hub: hub}
+		remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { hub.ServeHTTP(database, w, r) }))
+		defer remote.Close()
+		for _, test := range []struct {
+			event   string
+			allowed map[string]bool
+		}{
+			{"attendance.changed", map[string]bool{employee.id: true, manager.id: true, hr.id: true}},
+			{"leave.changed", map[string]bool{employee.id: true, manager.id: true, hr.id: true}},
+			{"users.changed", map[string]bool{employee.id: true, manager.id: true, hr.id: true}},
+			{"notifications.changed", map[string]bool{employee.id: true}},
+			{"document-checklists.changed", map[string]bool{manager.id: true, finance.id: true}},
+		} {
+			for _, a := range []actor{employee, manager, hr, finance, outsider} {
+				ws := dial(remote.URL, a)
+				service.Changed(ctx, test.event, 0, employee.id, 0)
+				if test.allowed[a.id] {
+					await(ws, test.event, employee.id)
+				} else {
+					ws.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+					if _, payload, e := ws.ReadMessage(); e == nil {
+						t.Fatalf("private %s delivered to %s: %s", test.event, a.id, payload)
+					}
+				}
+				ws.Close()
+			}
+		}
+		// A rejected mutation must not notify the employee.
+		status, _ = request(employee, "POST", "/attendance/clock-in", map[string]any{"mode": "INVALID"})
+		if status != 400 {
+			t.Fatal(status)
+		}
+		own.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+		if _, _, e := own.ReadMessage(); e == nil {
+			t.Fatal("failed mutation published an event")
+		}
+	})
 	t.Run("websocket recipient isolation", func(t *testing.T) {
 		dial := func(a actor) *websocket.Conn {
 			t.Helper()
@@ -581,7 +798,7 @@ func TestRevisionIntegration(t *testing.T) {
 			return c
 		}
 		inside, second, outside := dial(pe), dial(qa), dial(outsider)
-		task := mustTask(manager, "POST", fmt.Sprintf("/workspaces/%d/tasks", division), map[string]any{"title": "socket task", "assigneeIds": []string{}})
+		task := mustTask(manager, "POST", fmt.Sprintf("/workspaces/%d/tasks", division), map[string]any{"title": "socket task", "requiresQa": true, "assigneeIds": []string{}})
 		inside.SetReadDeadline(time.Now().Add(3 * time.Second))
 		_, data, e := inside.ReadMessage()
 		if e != nil {
@@ -613,19 +830,19 @@ func TestRevisionIntegration(t *testing.T) {
 			}
 		}
 		path := "/work-items/" + task.ID
-		task = mustTask(member, "PATCH", path+"/assignees", map[string]any{"version": task.Version, "assigneeIds": []string{pe.id}})
+		task = mustTask(manager, "PATCH", path+"/assignees", map[string]any{"version": task.Version, "assigneeIds": []string{pe.id}})
 		awaitChange(inside, task)
 		awaitChange(second, task)
 		task = mustTask(pe, "PATCH", path, map[string]any{"version": task.Version, "status": "IN_PROGRESS"})
 		awaitChange(inside, task)
 		awaitChange(second, task)
-		task = mustTask(pe, "PATCH", path+"/qa", map[string]any{"version": task.Version, "decision": "DONE"})
+		task = mustTask(qa, "PATCH", path+"/qa", map[string]any{"version": task.Version, "decision": "DONE"})
 		awaitChange(inside, task)
 		awaitChange(second, task)
 		status, response := request(pe, "GET", path, nil)
 		var fresh map[string]json.RawMessage
 		_ = json.Unmarshal(response["task"], &fresh)
-		if status != 200 || string(fresh["qaValidatedBy"]) != fmt.Sprintf("%q", pe.id) {
+		if status != 200 || string(fresh["qaValidatedBy"]) != fmt.Sprintf("%q", qa.id) {
 			t.Fatal("peer cannot read committed validation")
 		}
 		s, _ := request(pe, "POST", "/auth/logout", nil)
@@ -671,6 +888,19 @@ func TestRevisionIntegration(t *testing.T) {
 		}
 		if !bytes.Contains(payload, []byte("relay-test")) {
 			t.Fatal("wrong relay payload")
+		}
+		for _, event := range []string{"attendance.changed", "leave.changed", "users.changed", "notifications.changed", "document-checklists.changed", "reports.changed"} {
+			(&notification.Service{DB: database}).Changed(ctx, event, 0, qa.id, 0)
+			ws.SetReadDeadline(time.Now().Add(3 * time.Second))
+			for {
+				var change notification.Change
+				if err := ws.ReadJSON(&change); err != nil {
+					t.Fatalf("relay missed %s: %v", event, err)
+				}
+				if change.Event == event && change.EntityID == qa.id {
+					break
+				}
+			}
 		}
 	})
 }

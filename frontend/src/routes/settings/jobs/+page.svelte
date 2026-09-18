@@ -1,4 +1,5 @@
 <script lang="ts">
+ import { t as translate } from '$lib/i18n';
  import JobPICEditor from '$lib/components/JobPICEditor.svelte';
  import { onMount } from 'svelte';
  import {subscribeChanges} from '$lib/realtime';
@@ -35,7 +36,7 @@
  }
  async function toggle(job:Job){
   busy=true;error='';success='';
-  try{const response=await api<{job:Job}>(`/jobs/${job.id}/status`,{method:'PATCH',body:JSON.stringify({isActive:!job.isActive})});jobs=jobs.map(j=>j.id===job.id?response.job:j);success=`${job.name}: ${response.job.isActive?'Aktif':'Nonaktif'}.`;}
+  try{const response=await api<{job:Job}>(`/jobs/${job.id}/status`,{method:'PATCH',body:JSON.stringify({isActive:!job.isActive})});jobs=jobs.map(j=>j.id===job.id?response.job:j);success='Perubahan tersimpan.';}
   catch(e){error=e instanceof Error?e.message:'Status tidak dapat diubah.';}finally{busy=false;}
  }
  async function remove(){
@@ -47,40 +48,38 @@
  $effect(()=>{if(deleting)dialog?.showModal();else dialog?.close();});
 </script>
 
-<svelte:head><title>Pengaturan Pekerjaan | MyHIS</title></svelte:head>
+<svelte:head><title>{$translate("Pengaturan Pekerjaan | MyHIS")}</title></svelte:head>
 <main class="weekly-progress-page"><div class="weekly-progress-shell">
- <header class="weekly-header"><p class="weekly-kicker">SETTINGS</p><h1>Pengaturan Pekerjaan</h1><p>Kelola pekerjaan per divisi, role, dan kategori.</p></header>
- {#if !allowed}<p role="alert">Silakan masuk untuk mengelola pekerjaan.</p>{:else}
+ <header class="weekly-header"><p class="weekly-kicker">{$translate("SETTINGS")}</p><h1>{$translate("Pengaturan Pekerjaan")}</h1><p>{$translate("Kelola pekerjaan per divisi, role, dan kategori.")}</p></header>
+ {#if !allowed}<p role="alert">{$translate("Silakan masuk untuk mengelola pekerjaan.")}</p>{:else}
  <section class="task-list">
  <div class="report-form filters">
- <label>Divisi<select bind:value={divisionId} disabled={contextLocked} onchange={resetRole}>{#each masters.divisions as d}<option value={d.id}>{d.name}</option>{/each}</select></label>
- {#if roles.length}<label>Role<select bind:value={roleId} disabled={contextLocked} onchange={resetCategory}><option value={null}>Tanpa role</option>{#each roles as r}<option value={r.id}>{r.name}</option>{/each}</select></label>{/if}
- {#if categories.length}<label>Kategori<select bind:value={categoryId} disabled={contextLocked}><option value={null}>Tanpa kategori</option>{#each categories as c}<option value={c.id}>{c.name}</option>{/each}</select></label>{/if}
- <label>Cari pekerjaan<input type="search" bind:value={search} placeholder="Nama pekerjaan" /></label>
+ <label>{$translate("Divisi")}<select bind:value={divisionId} disabled={contextLocked} onchange={resetRole}>{#each masters.divisions as d}<option value={d.id}>{d.name}</option>{/each}</select></label>
+ {#if roles.length}<label>{$translate("Role")}<select bind:value={roleId} disabled={contextLocked} onchange={resetCategory}><option value={null}>{$translate("Tanpa role")}</option>{#each roles as r}<option value={r.id}>{$translate(r.name)}</option>{/each}</select></label>{/if}
+ {#if categories.length}<label>{$translate("Kategori")}<select bind:value={categoryId} disabled={contextLocked}><option value={null}>{$translate("Tanpa kategori")}</option>{#each categories as c}<option value={c.id}>{c.name}</option>{/each}</select></label>{/if}
+ <label>{$translate("Cari pekerjaan")}<input type="search" bind:value={search} placeholder={$translate("Nama pekerjaan")} /></label>
  </div>
- {#if error}<p role="alert">{error} {#if !showForm && !deleting}<button type="button" onclick={()=>void (divisionId?load():initialize())}>Coba lagi</button>{/if}</p>{/if}
- {#if success}<p role="status">{success}</p>{/if}
- {#if allowed}
+ {#if error}<p role="alert">{$translate(error)} {#if !showForm && !deleting}<button type="button" onclick={()=>void (divisionId?load():initialize())}>{$translate("Coba lagi")}</button>{/if}</p>{/if}
+ {#if success}<p role="status">{$translate(success)}</p>{/if}
  {#if showForm}
  <form class="report-form job-form" onsubmit={save}>
-  <h2>{editing?'Edit pekerjaan':'Tambah pekerjaan'}</h2><p>Divisi, role, dan kategori mengikuti pilihan di atas.{editing?.referenced?' Konteks pekerjaan terkunci karena sudah digunakan.':''}</p>
-  <label>Nama pekerjaan<input bind:value={name} required maxlength="255" disabled={busy} /></label>
-  <label>Deskripsi<textarea bind:value={description} maxlength="2000" disabled={busy}></textarea></label>
-  <label>Urutan<input type="number" bind:value={sortOrder} min="0" step="1" required disabled={busy} /></label>
-  <label>Status<select bind:value={active} disabled={busy}><option value={true}>Aktif</option><option value={false}>Nonaktif</option></select></label>
-  <div class="actions"><button class="report-submit" disabled={busy || !divisionId}>{busy?'Menyimpan…':'Simpan pekerjaan'}</button><button class="drawer-cancel" type="button" disabled={busy} onclick={()=>{showForm=false;editing=null;}}>Batal</button></div>
+  <h2>{editing?$translate('Edit pekerjaan'):$translate('Tambah pekerjaan')}</h2><p>{$translate("Divisi, role, dan kategori mengikuti pilihan di atas.")}{editing?.referenced?$translate(' Konteks pekerjaan terkunci karena sudah digunakan.'):''}</p>
+  <label>{$translate("Nama pekerjaan")}<input bind:value={name} required maxlength="255" disabled={busy} /></label>
+  <label>{$translate("Deskripsi")}<textarea bind:value={description} maxlength="2000" disabled={busy}></textarea></label>
+  <label>{$translate("Urutan")}<input type="number" bind:value={sortOrder} min="0" step="1" required disabled={busy} /></label>
+  <label>{$translate("Status")}<select bind:value={active} disabled={busy}><option value={true}>{$translate("Aktif")}</option><option value={false}>{$translate("Nonaktif")}</option></select></label>
+  <div class="actions"><button class="report-submit" disabled={busy || !divisionId}>{busy?$translate('Menyimpan…'):$translate('Simpan pekerjaan')}</button><button class="drawer-cancel" type="button" disabled={busy} onclick={()=>{showForm=false;editing=null;}}>{$translate("Batal")}</button></div>
  </form>
- {:else}<button class="report-button" type="button" disabled={busy || loading || !divisionId} onclick={()=>openForm(null)}>+ Tambah Pekerjaan</button>{/if}
- {/if}
- {#if loading}<p role="status">Memuat pekerjaan…</p>{:else if !visible.length}<p role="status">{search?'Tidak ada pekerjaan yang cocok.':'Belum ada pekerjaan pada kategori ini.'}</p>{:else}
- <div class="work-table-wrap"><table class="work-table"><thead><tr><th>Pekerjaan</th><th>Divisi</th><th>Role</th><th>Kategori</th><th>Status</th>{#if allowed}<th>Aksi</th>{/if}</tr></thead><tbody>
- {#each visible as job (job.id)}<tr><td>{job.name}<JobPICEditor jobId={job.id} pics={job.pics ?? []} onchange={(pics)=>job.pics=pics} /></td><td>{job.division}</td><td>{job.role || '—'}</td><td>{job.category || '—'}</td><td>{#if allowed}<button type="button" role="switch" aria-checked={job.isActive} aria-label={`Status ${job.name}`} disabled={busy} onclick={()=>void toggle(job)}>{job.isActive?'Aktif':'Nonaktif'}</button>{:else}{job.isActive?'Aktif':'Nonaktif'}{/if}</td>{#if allowed}<td><div class="actions"><button class="edit-report" type="button" disabled={busy} onclick={()=>openForm(job)}>Edit</button><button class="delete-report" type="button" disabled={busy} onclick={()=>{error='';deleting=job;}}>Hapus</button></div></td>{/if}</tr>{/each}
+ {:else}<button class="report-button" type="button" disabled={busy || loading || !divisionId} onclick={()=>openForm(null)}>{$translate("+ Tambah Pekerjaan")}</button>{/if}
+ {#if loading}<p role="status">{$translate("Memuat pekerjaan…")}</p>{:else if !visible.length}<p role="status">{search?$translate('Tidak ada pekerjaan yang cocok.'):$translate('Belum ada pekerjaan pada kategori ini.')}</p>{:else}
+ <div class="work-table-wrap"><table class="work-table"><thead><tr><th>{$translate("Pekerjaan")}</th><th>{$translate("Divisi")}</th><th>{$translate("Role")}</th><th>{$translate("Kategori")}</th><th>{$translate("Status")}</th><th>{$translate("Aksi")}</th></tr></thead><tbody>
+ {#each visible as job (job.id)}<tr><td>{job.name}<JobPICEditor jobId={job.id} pics={job.pics ?? []} onchange={(pics)=>job.pics=pics} /></td><td>{job.division}</td><td>{job.role || '—'}</td><td>{job.category || '—'}</td><td><button type="button" role="switch" aria-checked={job.isActive} aria-label={`Status ${job.name}`} disabled={busy} onclick={()=>void toggle(job)}>{job.isActive?$translate('Aktif'):$translate('Nonaktif')}</button></td><td><div class="actions"><button class="edit-report" type="button" disabled={busy} onclick={()=>openForm(job)}>{$translate("Edit")}</button><button class="delete-report" type="button" disabled={busy} onclick={()=>{error='';deleting=job;}}>{$translate("Hapus")}</button></div></td></tr>{/each}
  </tbody></table></div>{/if}
  </section>{/if}
 </div></main>
 <dialog bind:this={dialog} class="report-delete-modal" oncancel={(event)=>{if(busy)event.preventDefault();else deleting=null;}} aria-labelledby="delete-job-title">
- <h2 id="delete-job-title">Hapus “{deleting?.name}”?</h2><p>Pekerjaan yang sudah digunakan pada laporan tidak dapat dihapus. Nonaktifkan pekerjaan tersebut sebagai gantinya.</p>
- {#if error}<p role="alert">{error}</p>{/if}<div class="delete-modal-actions"><button class="delete-report-confirm" type="button" disabled={busy} onclick={()=>void remove()}>{busy?'Menghapus…':'Hapus pekerjaan'}</button><button class="drawer-cancel" type="button" disabled={busy} onclick={()=>deleting=null}>Batal</button></div>
+ <h2 id="delete-job-title">{$translate("Hapus “")}{deleting?.name}”?</h2><p>{$translate("Pekerjaan yang sudah digunakan pada laporan tidak dapat dihapus. Nonaktifkan pekerjaan tersebut sebagai gantinya.")}</p>
+ {#if error}<p role="alert">{$translate(error)}</p>{/if}<div class="delete-modal-actions"><button class="delete-report-confirm" type="button" disabled={busy} onclick={()=>void remove()}>{busy?$translate('Menghapus…'):$translate('Hapus pekerjaan')}</button><button class="drawer-cancel" type="button" disabled={busy} onclick={()=>deleting=null}>{$translate("Batal")}</button></div>
 </dialog>
 <style>
  .filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:16px;margin-bottom:24px}.actions{display:flex;gap:8px;flex-wrap:wrap}.job-form{margin:24px 0;padding:20px;background:var(--his-surface,#f6f8fa);border-radius:12px}.work-table-wrap{margin-top:20px}td{overflow-wrap:anywhere}dialog{position:fixed;inset:0;margin:auto;transform:none;border:0;max-width:min(480px,calc(100vw - 32px));max-height:90dvh;overflow:auto}dialog::backdrop{background:#0006}

@@ -51,11 +51,66 @@ button, input, select, textarea {
 
 button {
 	cursor: pointer;
+	max-width: 100%;
+	overflow-wrap: anywhere;
+	transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
 }
+
+:where(button, .ws-button) {
+	padding: .625rem .875rem;
+	border: 1px solid var(--his-border);
+	border-radius: 10px;
+	background: white;
+	color: var(--his-text);
+	font-weight: 600;
+}
+
+/* Calendar event heights encode duration; keep their timeline geometry. */
+body button:not(.calendar-booking):not(.ws-bar) { min-width: 44px; min-height: 44px; }
+button:disabled { opacity: .55; cursor: not-allowed; }
+button:enabled:active { filter: brightness(.94); }
+@media (hover: hover) {
+	button:enabled:hover { box-shadow: 0 2px 6px rgb(23 23 23 / .12); }
+}
+
+body :is(.back-link, .booking-back) {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: .5rem;
+	min-height: 44px;
+	max-width: 100%;
+	padding: .625rem 1rem;
+	border: 1px solid var(--his-border);
+	border-radius: 10px;
+	background: white;
+	color: var(--his-primary);
+	font-size: .875rem;
+	font-weight: 700;
+	line-height: 1.4;
+	text-decoration: none;
+	overflow-wrap: anywhere;
+	transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+body :is(.back-link, .booking-back):hover {
+	background: var(--his-primary-soft);
+	border-color: var(--his-primary);
+	box-shadow: 0 2px 6px rgb(0 122 65 / .1);
+}
+
+:where(main, header, section, form, dialog) { min-width: 0; }
+:where(main, dialog) :is(h1, h2, h3, p) { overflow-wrap: anywhere; }
+:where(.actions, .form-actions, .history-row-actions) { flex-wrap: wrap; }
+dialog { max-width: calc(100vw - 32px); max-height: calc(100dvh - 32px); overflow-y: auto; }
+@media print { .back-link, .booking-back { display: none !important; } }
 
 img, video { max-width: 100%; }
 fieldset { min-width: 0; }
 @media (pointer: coarse) {
 	button:not(.calendar-booking), input:not([type='checkbox']):not([type='radio']), select { min-height: 44px; }
 	body :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]) { font-size: max(1rem, 1em); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
 }

@@ -131,7 +131,7 @@ func (c *WorkspaceController) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 			if r.Method == "GET" {
 				q := r.URL.Query()
 				number := func(k string) int { v, _ := strconv.Atoi(q.Get(k)); return v }
-				items, total, e := c.DB.WorkItems(r.Context(), user.ID, id, db.WorkFilter{Search: q.Get("search"), Assignee: q.Get("assignee"), Status: q.Get("status"), Priority: q.Get("priority"), Start: q.Get("start"), End: q.Get("end"), Sort: q.Get("sort"), JobID: number("jobId"), Limit: number("limit"), Offset: number("offset")})
+				items, total, e := c.DB.WorkItems(r.Context(), user.ID, id, db.WorkFilter{Archived: q.Get("archived") == "true", Search: q.Get("search"), Assignee: q.Get("assignee"), Status: q.Get("status"), Priority: q.Get("priority"), Start: q.Get("start"), End: q.Get("end"), Sort: q.Get("sort"), JobID: number("jobId"), Limit: number("limit"), Offset: number("offset")})
 				if e != nil {
 					workspaceError(w, e)
 					return
@@ -283,7 +283,24 @@ func (c *WorkspaceController) changed(r *http.Request, actor string, division in
 	c.Notifications.Changed(r.Context(), "workspace.changed", division, id, version)
 }
 func (c *WorkspaceController) task(w http.ResponseWriter, r *http.Request, userID string, path []string) {
-	t, err := c.DB.WorkItem(r.Context(), userID, path[0])
+	if len(path) == 2 && path[1] == "restore" && r.Method == "POST" {
+		var in struct {
+			Version int `json:"version"`
+		}
+		if !DecodeStrictJSON(w, r, &in) {
+			return
+		}
+		task, err := c.DB.RestoreWorkItem(r.Context(), userID, path[0], in.Version)
+		if err != nil {
+			workspaceError(w, err)
+			return
+		}
+		c.changed(r, userID, task.WorkspaceID, task)
+		WriteJSON(w, 200, map[string]any{"task": task})
+		return
+	}
+	archived := r.Method == "GET" && r.URL.Query().Get("archived") == "true"
+	t, err := c.DB.WorkItem(r.Context(), userID, path[0], archived)
 	if err != nil {
 		workspaceError(w, err)
 		return
@@ -381,7 +398,7 @@ func (c *WorkspaceController) task(w http.ResponseWriter, r *http.Request, userI
 	}
 	if len(path) == 2 && path[1] == "comments" {
 		if r.Method == "GET" {
-			a, e := c.DB.WorkComments(r.Context(), userID, t.ID)
+			a, e := c.DB.WorkComments(r.Context(), userID, t.ID, archived)
 			if e != nil {
 				workspaceError(w, e)
 				return
@@ -407,7 +424,7 @@ func (c *WorkspaceController) task(w http.ResponseWriter, r *http.Request, userI
 		}
 	}
 	if len(path) == 2 && path[1] == "activity" && r.Method == "GET" {
-		a, e := c.DB.WorkActivity(r.Context(), userID, t.WorkspaceID, t.ID)
+		a, e := c.DB.WorkActivity(r.Context(), userID, t.WorkspaceID, t.ID, archived)
 		if e != nil {
 			workspaceError(w, e)
 			return

@@ -84,22 +84,33 @@ func newHandler(database *db.Database, corsOrigin string, contexts ...context.Co
 }
 
 // ponytail: unified protected routing for reports and employee profile
-func protectedHandler(database *db.Database, authCtrl *controller.AuthController, services ...*notification.Service) http.Handler {
+func protectedHandler(database *db.Database, authCtrl *controller.AuthController, notificationService *notification.Service) http.Handler {
 	weeklyCtrl := controller.NewWeeklyController(database)
 	jobCtrl := &controller.JobController{DB: database}
-	var notificationService *notification.Service
-	if len(services) > 0 {
-		notificationService = services[0]
-	}
-	zoomCtrl := controller.NewZoomBookingController(database, notificationService)
-	zoomResourceCtrl := controller.NewZoomResourceController(database)
+	checklistCtrl := &controller.DocumentChecklistController{DB: database}
+	billingCtrl := &controller.BillingDocumentsController{DB: database}
+	zoomCtrl := &controller.ZoomBookingController{DB: database, Notifications: notificationService}
+	zoomResourceCtrl := &controller.ZoomResourceController{DB: database}
 	notificationCtrl := &controller.NotificationController{DB: database}
 	leaveCtrl := &controller.LeaveController{DB: database, Notifications: notificationService}
+	attendanceCtrl := controller.NewAttendanceController(database)
 	workspaceCtrl := &controller.WorkspaceController{DB: database, Notifications: notificationService}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		current, ok := middleware.GetClaims(r.Context())
 		if !ok {
 			controller.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Autentikasi diperlukan."})
+			return
+		}
+		if r.URL.Path == "/attendance" || strings.HasPrefix(r.URL.Path, "/attendance/") {
+			attendanceCtrl.ServeHTTP(w, r)
+			return
+		}
+		if r.URL.Path == "/document-checklists" || strings.HasPrefix(r.URL.Path, "/document-checklists/") {
+			checklistCtrl.ServeHTTP(w, r)
+			return
+		}
+		if r.URL.Path == "/billing-documents" || strings.HasPrefix(r.URL.Path, "/billing-documents/") {
+			billingCtrl.ServeHTTP(w, r)
 			return
 		}
 		if r.URL.Path == "/leave-requests" || strings.HasPrefix(r.URL.Path, "/leave-requests/") {
@@ -120,6 +131,10 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 		}
 		if r.Method == http.MethodPost && (r.URL.Path == "/auth/logout" || r.URL.Path == "/api/auth/logout") {
 			authCtrl.Logout(w, r)
+			return
+		}
+		if r.Method == http.MethodPatch && r.URL.Path == "/profile/language" {
+			authCtrl.UpdateLanguage(w, r, current.ID)
 			return
 		}
 		if (r.Method == http.MethodGet) && r.URL.Path == "/profile" {
@@ -187,7 +202,6 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 				"menus": []map[string]string{
 					{"id": "attendance", "name": "Absensi"},
 					{"id": "weekly-progress", "name": "Weekly Progress"},
-					{"id": "overtime", "name": "List Lembur"},
 					{"id": "zoom-booking", "name": "Booking Zoom"},
 					{"id": "workspace", "name": "Team Workspace"},
 				},

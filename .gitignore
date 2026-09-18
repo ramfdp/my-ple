@@ -6,4 +6,5 @@
 /tasks
 /.env
 /.env.production
+/.env.testing
 /.dump

@@ -199,3 +199,5 @@ CREATE TABLE IF NOT EXISTS zoom_booking_email_deliveries (
     last_error TEXT NOT NULL DEFAULT '',
     UNIQUE (booking_id, recipient_email)
 );
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS language TEXT NOT NULL DEFAULT 'id' CHECK (language IN ('id','en'));

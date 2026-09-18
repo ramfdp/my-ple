@@ -47,6 +47,15 @@ var collaborationSQL string
 //go:embed qa_validation.sql
 var qaValidationSQL string
 
+//go:embed document_checklists.sql
+var documentChecklistsSQL string
+
+//go:embed attendance.sql
+var attendanceSQL string
+
+//go:embed billing_documents.sql
+var billingDocumentsSQL string
+
 type Database struct {
 	Conn *sql.DB
 	Now  func() time.Time
@@ -74,7 +83,7 @@ func (db *Database) Migrate(ctx context.Context) error {
 	if _, err = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(71260402)`); err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, schemaSQL+weeklyArchiveSQL+jobsSQL+reportNumberingSQL+jobPICsSQL+workspaceSQL+leaveSQL+emailDeliverySQL+collaborationSQL+qaValidationSQL); err != nil {
+	if _, err = tx.ExecContext(ctx, schemaSQL+weeklyArchiveSQL+jobsSQL+reportNumberingSQL+jobPICsSQL+workspaceSQL+leaveSQL+emailDeliverySQL+collaborationSQL+qaValidationSQL+documentChecklistsSQL+attendanceSQL+billingDocumentsSQL); err != nil {
 		return err
 	}
 	var unmatched int
@@ -90,41 +99,30 @@ func (db *Database) Migrate(ctx context.Context) error {
 	return nil
 }
 
-// ponytail: single SELECT query covering all core user and profile fields
-func (db *Database) FindUser(ctx context.Context, identifier string) (model.User, error) {
-	var u model.User
-	err := db.Conn.QueryRowContext(ctx, `
+const userSelect = `
 		SELECT u.id, u.name, u.email, u.role_id, r.name, u.username, u.password_hash,
 		       COALESCE(u.job_title, ''), COALESCE(u.salary, 0), COALESCE(u.residence, ''),
 		       COALESCE(u.phone_number, ''), COALESCE(u.employment_status, 'Permanent Employee'),
-		       COALESCE(u.avatar_url, ''), COALESCE(u.is_active, true), u.created_at, u.updated_at
+		       COALESCE(u.avatar_url, ''), COALESCE(u.is_active, true), u.created_at, u.updated_at, u.language
 		FROM users u
-		JOIN roles r ON u.role_id = r.id
-		WHERE u.username = $1 OR LOWER(u.email) = LOWER($1)`, identifier,
-	).Scan(
+		JOIN roles r ON u.role_id = r.id `
+
+func scanUser(row interface{ Scan(...any) error }) (model.User, error) {
+	var u model.User
+	err := row.Scan(
 		&u.ID, &u.Name, &u.Email, &u.RoleID, &u.RoleName, &u.Username, &u.PasswordHash,
 		&u.JobTitle, &u.Salary, &u.Residence, &u.PhoneNumber, &u.EmploymentStatus,
-		&u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt,
+		&u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt, &u.Language,
 	)
 	return u, err
 }
 
+func (db *Database) FindUser(ctx context.Context, identifier string) (model.User, error) {
+	return scanUser(db.Conn.QueryRowContext(ctx, userSelect+`WHERE u.username = $1 OR LOWER(u.email) = LOWER($1)`, identifier))
+}
+
 func (db *Database) FindUserByID(ctx context.Context, id string) (model.User, error) {
-	var u model.User
-	err := db.Conn.QueryRowContext(ctx, `
-		SELECT u.id, u.name, u.email, u.role_id, r.name, u.username, u.password_hash,
-		       COALESCE(u.job_title, ''), COALESCE(u.salary, 0), COALESCE(u.residence, ''),
-		       COALESCE(u.phone_number, ''), COALESCE(u.employment_status, 'Permanent Employee'),
-		       COALESCE(u.avatar_url, ''), COALESCE(u.is_active, true), u.created_at, u.updated_at
-		FROM users u
-		JOIN roles r ON u.role_id = r.id
-		WHERE u.id = $1`, id,
-	).Scan(
-		&u.ID, &u.Name, &u.Email, &u.RoleID, &u.RoleName, &u.Username, &u.PasswordHash,
-		&u.JobTitle, &u.Salary, &u.Residence, &u.PhoneNumber, &u.EmploymentStatus,
-		&u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt,
-	)
-	return u, err
+	return scanUser(db.Conn.QueryRowContext(ctx, userSelect+`WHERE u.id = $1`, id))
 }
 
 func (db *Database) CreateSession(ctx context.Context, userID, tokenHash string, expiresAt time.Time) error {
@@ -135,7 +133,7 @@ func (db *Database) CreateSession(ctx context.Context, userID, tokenHash string,
 func (db *Database) FindSessionUser(ctx context.Context, tokenHash string) (model.User, time.Time, error) {
 	var u model.User
 	var expires time.Time
-	err := db.Conn.QueryRowContext(ctx, `UPDATE sessions s SET last_activity_at=NOW() FROM users u JOIN roles r ON u.role_id=r.id WHERE s.token_hash=$1 AND s.user_id=u.id AND s.revoked_at IS NULL AND s.expires_at>NOW() AND u.is_active RETURNING u.id,u.name,u.email,u.role_id,r.name,u.username,u.password_hash,u.job_title,u.salary,u.residence,u.phone_number,u.employment_status,u.avatar_url,u.is_active,u.created_at,u.updated_at,s.expires_at`, tokenHash).Scan(&u.ID, &u.Name, &u.Email, &u.RoleID, &u.RoleName, &u.Username, &u.PasswordHash, &u.JobTitle, &u.Salary, &u.Residence, &u.PhoneNumber, &u.EmploymentStatus, &u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt, &expires)
+	err := db.Conn.QueryRowContext(ctx, `UPDATE sessions s SET last_activity_at=NOW() FROM users u JOIN roles r ON u.role_id=r.id WHERE s.token_hash=$1 AND s.user_id=u.id AND s.revoked_at IS NULL AND s.expires_at>NOW() AND u.is_active RETURNING u.id,u.name,u.email,u.role_id,r.name,u.username,u.password_hash,u.job_title,u.salary,u.residence,u.phone_number,u.employment_status,u.avatar_url,u.is_active,u.created_at,u.updated_at,u.language,s.expires_at`, tokenHash).Scan(&u.ID, &u.Name, &u.Email, &u.RoleID, &u.RoleName, &u.Username, &u.PasswordHash, &u.JobTitle, &u.Salary, &u.Residence, &u.PhoneNumber, &u.EmploymentStatus, &u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt, &u.Language, &expires)
 	return u, expires, err
 }
 
@@ -156,7 +154,7 @@ func (db *Database) ListUsers(ctx context.Context) ([]model.User, error) {
 	rows, err := db.Conn.QueryContext(ctx, `
 		SELECT u.id, u.name, u.email, u.role_id, r.name, u.username, u.password_hash,
 		       u.job_title, u.salary, u.residence, u.phone_number, u.employment_status,
-		       u.avatar_url, u.is_active, u.created_at, u.updated_at
+		       u.avatar_url, u.is_active, u.created_at, u.updated_at, u.language
 		FROM users u JOIN roles r ON u.role_id = r.id ORDER BY u.name`)
 	if err != nil {
 		return nil, err
@@ -165,7 +163,7 @@ func (db *Database) ListUsers(ctx context.Context) ([]model.User, error) {
 	var users []model.User
 	for rows.Next() {
 		var u model.User
-		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.RoleID, &u.RoleName, &u.Username, &u.PasswordHash, &u.JobTitle, &u.Salary, &u.Residence, &u.PhoneNumber, &u.EmploymentStatus, &u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.RoleID, &u.RoleName, &u.Username, &u.PasswordHash, &u.JobTitle, &u.Salary, &u.Residence, &u.PhoneNumber, &u.EmploymentStatus, &u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt, &u.Language); err != nil {
 			return nil, err
 		}
 		users = append(users, u)
@@ -180,13 +178,13 @@ func (db *Database) CreateUser(ctx context.Context, u model.User) (model.User, e
 	err := db.Conn.QueryRowContext(ctx, `
 		INSERT INTO users (id, name, email, role_id, username, password_hash, job_title, salary, residence, phone_number, employment_status, avatar_url, is_active, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
-		RETURNING id, name, email, role_id, username, job_title, salary, residence, phone_number, employment_status, avatar_url, is_active, created_at, updated_at`,
+		RETURNING id, name, email, role_id, username, job_title, salary, residence, phone_number, employment_status, avatar_url, is_active, created_at, updated_at, language`,
 		u.ID, u.Name, u.Email, u.RoleID, u.Username, u.PasswordHash,
 		u.JobTitle, u.Salary, u.Residence, u.PhoneNumber, u.EmploymentStatus, u.AvatarURL, u.IsActive,
 	).Scan(
 		&u.ID, &u.Name, &u.Email, &u.RoleID, &u.Username,
 		&u.JobTitle, &u.Salary, &u.Residence, &u.PhoneNumber, &u.EmploymentStatus,
-		&u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt,
+		&u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt, &u.Language,
 	)
 	return u, err
 }
@@ -197,12 +195,12 @@ func (db *Database) UpdateUserProfile(ctx context.Context, id string, input mode
 		UPDATE users
 		SET residence = $2, phone_number = $3, updated_at = NOW()
 		WHERE id = $1
-		RETURNING id, name, email, role_id, username, password_hash, job_title, salary, residence, phone_number, employment_status, avatar_url, is_active, created_at, updated_at`,
+		RETURNING id, name, email, role_id, username, password_hash, job_title, salary, residence, phone_number, employment_status, avatar_url, is_active, created_at, updated_at, language`,
 		id, input.Residence, input.PhoneNumber,
 	).Scan(
 		&u.ID, &u.Name, &u.Email, &u.RoleID, &u.Username, &u.PasswordHash,
 		&u.JobTitle, &u.Salary, &u.Residence, &u.PhoneNumber, &u.EmploymentStatus,
-		&u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt,
+		&u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt, &u.Language,
 	)
 	if err == nil {
 		role, rErr := db.FindRoleByID(ctx, u.RoleID)
@@ -219,9 +217,9 @@ func (db *Database) UpdateUser(ctx context.Context, id string, input model.Updat
 		UPDATE users SET name=$2, email=$3, username=$4, password_hash=COALESCE(NULLIF($5, ''), password_hash),
 		role_id=$6, job_title=$7, salary=$8, residence=$9, phone_number=$10, employment_status=$11,
 		avatar_url=$12, is_active=$13, updated_at=NOW() WHERE id=$1
-		RETURNING id, name, email, role_id, username, password_hash, job_title, salary, residence, phone_number, employment_status, avatar_url, is_active, created_at, updated_at`,
+		RETURNING id, name, email, role_id, username, password_hash, job_title, salary, residence, phone_number, employment_status, avatar_url, is_active, created_at, updated_at, language`,
 		id, input.Name, input.Email, input.Username, passwordHash, input.RoleID, input.JobTitle, input.Salary, input.Residence, input.PhoneNumber, input.EmploymentStatus, input.AvatarURL, input.IsActive,
-	).Scan(&u.ID, &u.Name, &u.Email, &u.RoleID, &u.Username, &u.PasswordHash, &u.JobTitle, &u.Salary, &u.Residence, &u.PhoneNumber, &u.EmploymentStatus, &u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt)
+	).Scan(&u.ID, &u.Name, &u.Email, &u.RoleID, &u.Username, &u.PasswordHash, &u.JobTitle, &u.Salary, &u.Residence, &u.PhoneNumber, &u.EmploymentStatus, &u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt, &u.Language)
 	if err != nil {
 		return u, err
 	}
@@ -236,8 +234,8 @@ func (db *Database) UpdateAvatar(ctx context.Context, id, avatarURL string) (mod
 	var u model.User
 	err := db.Conn.QueryRowContext(ctx, `
 		UPDATE users SET avatar_url=$2, updated_at=NOW() WHERE id=$1
-		RETURNING id, name, email, role_id, username, password_hash, job_title, salary, residence, phone_number, employment_status, avatar_url, is_active, created_at, updated_at`, id, avatarURL,
-	).Scan(&u.ID, &u.Name, &u.Email, &u.RoleID, &u.Username, &u.PasswordHash, &u.JobTitle, &u.Salary, &u.Residence, &u.PhoneNumber, &u.EmploymentStatus, &u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt)
+		RETURNING id, name, email, role_id, username, password_hash, job_title, salary, residence, phone_number, employment_status, avatar_url, is_active, created_at, updated_at, language`, id, avatarURL,
+	).Scan(&u.ID, &u.Name, &u.Email, &u.RoleID, &u.Username, &u.PasswordHash, &u.JobTitle, &u.Salary, &u.Residence, &u.PhoneNumber, &u.EmploymentStatus, &u.AvatarURL, &u.IsActive, &u.CreatedAt, &u.UpdatedAt, &u.Language)
 	if err != nil {
 		return u, err
 	}
@@ -591,4 +589,12 @@ func NewID() string {
 	bytes := make([]byte, 16)
 	_, _ = rand.Read(bytes)
 	return fmt.Sprintf("%x-%x-%x-%x-%x", bytes[0:4], bytes[4:6], bytes[6:8], bytes[8:10], bytes[10:16])
+}
+
+func (db *Database) UpdateUserLanguage(ctx context.Context, id, language string) (model.User, error) {
+	_, err := db.Conn.ExecContext(ctx, `UPDATE users SET language=$2,updated_at=NOW() WHERE id=$1`, id, language)
+	if err != nil {
+		return model.User{}, err
+	}
+	return db.FindUserByID(ctx, id)
 }

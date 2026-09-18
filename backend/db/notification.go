@@ -28,7 +28,7 @@ func scanNotification(row interface{ Scan(...any) error }) (model.Notification, 
 	return n, err
 }
 
-func (db *Database) CreateZoomBookingWithNotification(ctx context.Context, userID string, input model.ZoomBookingInput, queueEmail ...bool) (model.ZoomBooking, model.Notification, error) {
+func (db *Database) CreateZoomBookingWithNotification(ctx context.Context, userID string, input model.ZoomBookingInput, queueEmail bool) (model.ZoomBooking, model.Notification, error) {
 	tx, err := db.Conn.BeginTx(ctx, nil)
 	if err != nil {
 		return model.ZoomBooking{}, model.Notification{}, err
@@ -58,7 +58,7 @@ func (db *Database) CreateZoomBookingWithNotification(ctx context.Context, userI
 	if err != nil {
 		return model.ZoomBooking{}, model.Notification{}, err
 	}
-	if len(queueEmail) > 0 && queueEmail[0] {
+	if queueEmail {
 		if _, err = tx.ExecContext(ctx, "SAVEPOINT zoom_email"); err != nil {
 			return model.ZoomBooking{}, model.Notification{}, err
 		}

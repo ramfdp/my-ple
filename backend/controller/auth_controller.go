@@ -358,3 +358,22 @@ func (c *AuthController) DeleteUser(w http.ResponseWriter, r *http.Request, id s
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (c *AuthController) UpdateLanguage(w http.ResponseWriter, r *http.Request, userID string) {
+	var input struct {
+		Language string `json:"language"`
+	}
+	if !DecodeStrictJSON(w, r, &input) {
+		return
+	}
+	if input.Language != "id" && input.Language != "en" {
+		WriteJSON(w, 400, map[string]string{"error": "Bahasa tidak valid.", "code": "invalid_language"})
+		return
+	}
+	user, err := c.DB.UpdateUserLanguage(r.Context(), userID, input.Language)
+	if err != nil {
+		WriteJSON(w, 500, map[string]string{"error": "Gagal menyimpan bahasa.", "code": "language_save_failed"})
+		return
+	}
+	WriteJSON(w, 200, map[string]any{"user": model.PublicUser(user)})
+}

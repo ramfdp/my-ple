@@ -19,11 +19,11 @@ type Change struct {
 // Call only after the mutation commits. The existing PostgreSQL connection carries
 // invalidations between backend replicas; HTTP remains the source of truth.
 func (s *Service) Changed(ctx context.Context, event string, workspace int, id string, revision int64) {
-	if s == nil || s.DB == nil || s.Hub == nil {
+	if s == nil || s.DB == nil {
 		return
 	}
 	if revision == 0 {
-		revision = time.Now().UnixMilli()
+		revision = time.Now().UnixMicro()
 	}
 	change := Change{event, workspace, id, revision}
 	payload, _ := json.Marshal(change)
@@ -36,6 +36,9 @@ func (s *Service) Changed(ctx context.Context, event string, workspace int, id s
 }
 
 func (s *Service) deliverChange(ctx context.Context, c Change) {
+	if s.Hub == nil {
+		return
+	}
 	query := `SELECT u.id FROM users u JOIN roles r ON r.id=u.role_id WHERE u.is_active`
 	args := []any{}
 	switch c.Event {
@@ -43,7 +46,16 @@ func (s *Service) deliverChange(ctx context.Context, c Change) {
 		query += ` AND EXISTS(SELECT 1 FROM workspace_access a WHERE a.user_id=u.id AND a.division_id=$1)`
 		args = append(args, c.WorkspaceID)
 	case "users.changed":
-		query += ` AND r.name IN ('Admin','Management','HR')`
+		query += ` AND (r.name IN ('Admin','Management','HR') OR u.id=NULLIF($1,'')::uuid)`
+		args = append(args, c.EntityID)
+	case "attendance.changed", "leave.changed":
+		query += ` AND (r.name IN ('Admin','Management','HR') OR u.id=$1)`
+		args = append(args, c.EntityID)
+	case "notifications.changed":
+		query += ` AND u.id=$1`
+		args = append(args, c.EntityID)
+	case "document-checklists.changed", "billing-documents.changed":
+		query += ` AND lower(r.name) IN ('project engineer','finance','admin','management')`
 	case "reports.changed", "zoom.changed", "jobs.changed": // Same authenticated scope as the existing read endpoints.
 	default:
 		return
@@ -64,7 +76,7 @@ func (s *Service) deliverChange(ctx context.Context, c Change) {
 	err = rows.Err()
 	rows.Close()
 	if err == nil {
-		s.Hub.SendEvent(ids, c, "")
+		s.Hub.SendEvent(ids, c)
 	}
 }
 

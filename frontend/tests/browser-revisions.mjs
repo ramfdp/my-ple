@@ -6,6 +6,7 @@
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE??'../../graphify-out/responsive-tools/node_modules/playwright/index.mjs');
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import {checkNavigationUI} from './navigation-ui.mjs';
 
 
 const origin=process.env.RESPONSIVE_ORIGIN??'http://127.0.0.1:5188';
@@ -45,7 +46,7 @@ await context.route('**/*',async route=>{
   const format=u.pathname.split('.').at(-1);
   return route.fulfill({body:await readFile(new URL('../../graphify-out/long-report.'+format,import.meta.url)),headers:{'Content-Type':format==='pdf'?'application/pdf':'application/vnd.openxmlformats-officedocument.wordprocessingml.document','Access-Control-Expose-Headers':'Content-Disposition','Content-Disposition':'attachment; filename="report.'+format+'"','Access-Control-Allow-Origin':origin,'Access-Control-Allow-Credentials':'true'}});
  }
- if(route.request().method()==='PATCH'&&['/work-items/t1/assignees','/work-items/t1/qa'].includes(u.pathname)){
+ if(route.request().method()==='PATCH'&&['/work-items/t1','/work-items/t1/assignees','/work-items/t1/qa'].includes(u.pathname)){
   const body=route.request().postDataJSON();mutations.push({path:u.pathname,body});
   task.version++;
   if(body.assigneeIds)task.assignees=[member,colleague].filter(m=>body.assigneeIds.includes(m.id));
@@ -79,7 +80,7 @@ try {
  await page.goto(origin+'/workspace/1');
  const done={...task,id:'done',title:'Selesai Tersimpan',status:'DONE',qaStage:'COMPLETE'};
  fixtures['/workspaces/1/tasks']={tasks:[task,...Array.from({length:100},(_,i)=>({...done,id:'done-'+i,title:'Arsip '+i})),done],total:102};
- await page.getByRole('button',{name:'Calendar',exact:true}).click();
+ await page.getByRole('button',{name:'Kalender',exact:true}).click();
  await page.locator('.ws-calendar').waitFor();
  assert.equal(await page.getByRole('button',{name:'Selesai Tersimpan',exact:true}).count(),0);
  await page.locator('.ws-calendar-day[aria-label="'+day+'"]').getByRole('button').first().click();
@@ -105,29 +106,33 @@ try {
  const peer=await context.newPage();peer.on('pageerror',e=>errors.push(e.message));
  await peer.goto(origin+'/workspace/1?task=t1');
  await peer.getByRole('dialog',{name:'Detail Pekerjaan',exact:true}).waitFor();
+ assert.equal(await page.getByLabel('Rekan Divisi',{exact:true}).isDisabled(),true);
+ task.canEdit=true;
+ await page.goto(origin+'/workspace/1?task=t1');
  await page.getByLabel('Rekan Divisi',{exact:true}).check();
- await page.getByRole('button',{name:'Simpan Assignees',exact:true}).click();
- await page.waitForFunction(()=>document.querySelector('dialog[open] button')&&!document.querySelector('dialog[open] fieldset.ws-assignees')?.disabled);
+ await page.getByRole('button',{name:'Simpan Pekerjaan',exact:true}).click();
+ await page.getByRole('dialog',{name:'Detail Pekerjaan',exact:true}).waitFor({state:'hidden'});
  assert.deepEqual(mutations.at(-1).body.assigneeIds,['u1','u2']);
  assert.deepEqual(Object.keys(mutations.at(-1).body).sort(),['assigneeIds','version']);
  for(const ws of sockets)try{ws.send(JSON.stringify({event:'workspace.changed',workspaceId:1,entityId:'t1',revision:task.version}))}catch{}
  await peer.waitForFunction(()=>Array.from(document.querySelectorAll('dialog[open] input[type=checkbox]')).some(el=>el.value==='u2'&&el.checked));
+ await page.goto(origin+'/workspace/1?task=t1');
  await page.getByRole('button',{name:'Validasi QA',exact:true}).click();
  const validation=page.getByRole('dialog',{name:'Validasi QA',exact:true});
  await validation.getByRole('combobox').selectOption('DONE');
  await validation.getByRole('button',{name:'Simpan Validasi',exact:true}).click();
- await page.getByText('QA Validated',{exact:true}).waitFor();
+ await page.getByText('Divalidasi QA',{exact:true}).waitFor();
  assert.equal(task.status,'DONE');
  assert.ok(task.qaValidatedAt);
  for(const ws of sockets)try{ws.send(JSON.stringify({event:'workspace.changed',workspaceId:1,entityId:'t1',revision:task.version}))}catch{}
- await peer.getByText('QA Validated',{exact:true}).waitFor();
+ await peer.getByText('Divalidasi QA',{exact:true}).waitFor();
  await peer.close();
  await page.getByLabel('Tutup detail').click();
  task.canEdit=true;
- for(const view of ['Table','Board','Timeline','Workload']){
+ for(const view of ['Tabel','Papan','Linimasa','Beban Kerja']){
   await page.getByRole('button',{name:view,exact:true}).click();
   await page.getByRole('button',{name:long,exact:true}).first().click();
-  await page.getByRole('dialog',{name:'Detail Pekerjaan',exact:true}).getByText('QA Validated',{exact:true}).waitFor();
+  await page.getByRole('dialog',{name:'Detail Pekerjaan',exact:true}).getByText('Divalidasi QA',{exact:true}).waitFor();
  await page.getByLabel('Tutup detail').click();
  }
  Object.assign(task,{status:'IN_PROGRESS',qaStage:'',qaValidatedAt:null,qaValidatedBy:null,qaValidatedByName:''});
@@ -141,7 +146,7 @@ try {
  for(const width of [1280,390]){
   await page.setViewportSize({width,height:740});
   await page.goto(origin+'/workspace/1');
-  await page.getByRole('button',{name:'Calendar',exact:true}).click();
+  await page.getByRole('button',{name:'Kalender',exact:true}).click();
   await page.locator('.ws-calendar-task').first().click();
   const detail=page.getByRole('dialog',{name:'Detail Pekerjaan',exact:true});
   await detail.waitFor();
@@ -170,24 +175,24 @@ try {
  await page.getByRole('button',{name:'Gunakan data server',exact:true}).click();
  assert.equal(await page.getByLabel('Uraian pekerjaan yang dilakukan').inputValue(),'Pembaruan lintas sesi');
  await page.getByRole('button',{name:'Batal',exact:true}).click();
- await page.getByRole('button',{name:'Export',exact:true}).click();
- await page.getByRole('dialog',{name:'Export Weekly Report',exact:true}).waitFor();
+ await page.getByRole('button',{name:'Ekspor',exact:true}).click();
+ await page.getByRole('dialog',{name:'Ekspor Laporan Mingguan',exact:true}).waitFor();
  assert.equal(exports.length,0,'opening format modal must not download');
- await page.getByRole('dialog',{name:'Export Weekly Report',exact:true}).getByRole('button',{name:'Batal',exact:true}).click();
+ await page.getByRole('dialog',{name:'Ekspor Laporan Mingguan',exact:true}).getByRole('button',{name:'Batal',exact:true}).click();
  assert.equal(exports.length,0);
  for(const format of ['PDF','Word']){
-  await page.getByRole('button',{name:'Export',exact:true}).click();
+  await page.getByRole('button',{name:'Ekspor',exact:true}).click();
   const download=page.waitForEvent('download');
-  await page.getByRole('button',{name:'Export '+format,exact:true}).click();
-  assert.equal(await page.getByRole('button',{name:'Export '+format,exact:true}).isDisabled(),true);
+  await page.getByRole('button',{name:'Ekspor '+format,exact:true}).click();
+  assert.equal(await page.getByRole('button',{name:'Ekspor '+format,exact:true}).isDisabled(),true);
   assert.equal((await download).suggestedFilename(),format==='PDF'?'report.pdf':'report.docx');
-  await page.getByRole('dialog',{name:'Export Weekly Report',exact:true}).waitFor({state:'hidden'});
+  await page.getByRole('dialog',{name:'Ekspor Laporan Mingguan',exact:true}).waitFor({state:'hidden'});
  }
  assert.deepEqual(exports,['/reports.pdf','/reports.docx']);
  exportFailure=true;
- await page.getByRole('button',{name:'Export',exact:true}).click();
- await page.getByRole('button',{name:'Export Word',exact:true}).click();
- await page.getByRole('alert').getByText('Export test failure',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'Ekspor',exact:true}).click();
+ await page.getByRole('button',{name:'Ekspor Word',exact:true}).click();
+ await page.getByRole('alert').getByText('Unduh gagal.',{exact:true}).waitFor();
  await page.getByRole('button',{name:'Batal',exact:true}).click();
  await page.goto(origin+'/weekly-progress/new?division=Project%20Engineer');
  const progress=page.getByLabel('Uraian pekerjaan yang dilakukan');
@@ -199,20 +204,30 @@ try {
  await page.goto(origin+'/booking-zoom');
  const calendar=page.locator('.calendar-scroll');
  await calendar.waitFor();
- for(const width of [1440,1280,800,390]){
-  await page.setViewportSize({width,height:740});
-  const dimensions=await calendar.evaluate(el=>{el.scrollTop=200;return {height:el.clientHeight,full:el.scrollHeight,top:el.scrollTop,overflow:getComputedStyle(el).overflowY,lane:el.querySelector('.calendar-lane')?.getBoundingClientRect().height,grid:el.querySelector('.zoom-calendar')?.getBoundingClientRect().height}});
-  assert.ok(dimensions.full>dimensions.height&&dimensions.top>0,JSON.stringify(dimensions));
-  assert.ok(['auto','scroll'].includes(dimensions.overflow));
-  const layout=await calendar.evaluate(el=>{
-   el.scrollTop=el.scrollHeight;el.scrollLeft=el.scrollWidth;
-   const card=el.closest('.schedule-card').getBoundingClientRect(),body=el.getBoundingClientRect();
-   return {gap:card.bottom-body.bottom,bottom:el.scrollHeight-el.clientHeight-el.scrollTop,horizontal:el.scrollLeft,extraWidth:el.scrollWidth-el.clientWidth};
-  });
-  assert.ok(Math.abs(layout.gap)<3,JSON.stringify(layout));
-  assert.ok(Math.abs(layout.bottom)<2,JSON.stringify(layout));
-  assert.equal(layout.horizontal,layout.extraWidth,'horizontal scrolling reaches the final column when needed');
+ for(const width of [1440,1024,768,320]){
+  await page.setViewportSize({width,height:740});await page.waitForTimeout(100);
+  const dimensions=await calendar.evaluate(el=>{el.scrollTop=200;return {height:el.clientHeight,full:el.scrollHeight,top:el.scrollTop}});
+  assert.ok(dimensions.full<=dimensions.height+1&&dimensions.top===0,JSON.stringify(dimensions));
+  const info=page.locator('#zoom-info-content');
+  if(width<=1050){
+   const toggle=page.locator('.info-toggle');
+   assert.equal(await toggle.getAttribute('aria-expanded'),'false');assert.equal(await info.isVisible(),false);
+   await toggle.focus();await page.keyboard.press('Enter');assert.equal(await info.isVisible(),true);
+   await page.keyboard.press('Enter');assert.equal(await info.isVisible(),false);
+  }else assert.equal(await info.isVisible(),true);
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+  await calendar.evaluate(el=>{el.scrollLeft=el.scrollWidth});
+  const horizontal=await calendar.evaluate(el=>({left:el.scrollLeft,extra:el.scrollWidth-el.clientWidth}));
+  assert.equal(horizontal.left,horizontal.extra);
+  await calendar.evaluate(el=>el.scrollLeft=0);
+  await calendar.scrollIntoViewIfNeeded();
+  const box=await calendar.boundingBox();await page.mouse.move(box.x+Math.min(100,box.width/2),Math.max(100,Math.min(500,box.y+100)));
+  const before=await page.evaluate(()=>scrollY);await page.mouse.wheel(0,250);await page.waitForTimeout(200);
+  assert.ok(await page.evaluate(previous=>scrollY>previous,before),'wheel over calendar scrolls the page');
+  assert.equal(await calendar.evaluate(el=>el.scrollTop),0);
+  await page.screenshot({path:'../graphify-out/zoom-page-scroll-'+width+'.png',fullPage:true});
  }
+ await checkNavigationUI({page,context,origin,fixtures,user});
  assert.deepEqual(errors,[]);
  assert.deepEqual([...missing],[]);
  console.log('PASS browser: comments, dashboard, assignment, audited QA, calendar overlay, report conflict/draft/reconnect, PDF/Word modal/download/error, long progress toast, Zoom fill/scroll at four widths');

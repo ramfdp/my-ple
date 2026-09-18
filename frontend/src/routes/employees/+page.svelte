@@ -1,4 +1,5 @@
 <script lang="ts">
+ import { locale, t as translate } from '$lib/i18n';
 	import { onMount } from 'svelte';
 	import {subscribeChanges} from '$lib/realtime';
 	import { api, session, upload, type Role, type User } from '$lib/api';
@@ -35,26 +36,26 @@
 		} catch (e) { error = e instanceof Error ? e.message : 'Gagal menyimpan pengguna.'; }
 	}
 	async function remove(user: User) {
-		if (!confirm(`Hapus ${user.name}?`)) return;
+		if (!confirm($translate('Hapus {name}?',{name:user.name}))) return;
 		try { await api(`/users/${user.id}`, { method: 'DELETE' }); users = users.filter((item) => item.id !== user.id); } catch (e) { error = e instanceof Error ? e.message : 'Gagal menghapus pengguna.'; }
 	}
 </script>
 
-<svelte:head><title>Manage Employees | MyHIS</title></svelte:head>
+<svelte:head><title>{$translate("Manage Employees | MyHIS")}</title></svelte:head>
 <main class="page">
 	{#if !loading && !allowed}
-		<h1>Access denied</h1><p>Manage Employees is only available to Admin, Management, and HR.</p>
+		<h1>{$translate("Access denied")}</h1><p>{$translate("Manage Employees is only available to Admin, Management, and HR.")}</p>
 	{:else}
-		<header><div><h1>Manage Employees</h1><p>All employee records from the users table.</p></div><button onclick={() => { editing = false; form = blank(); showForm = true; }}>Add employee</button></header>
-		{#if error}<p class="error">{error}</p>{/if}
-		{#if loading}<p>Loading employees…</p>{:else}
+		<header><div><h1>{$translate("Manage Employees")}</h1><p>{$translate("All employee records from the users table.")}</p></div><button onclick={() => { editing = false; form = blank(); showForm = true; }}>{$translate("Add employee")}</button></header>
+		{#if error}<p class="error">{$translate(error)}</p>{/if}
+		{#if loading}<p>{$translate("Loading employees…")}</p>{:else}
 			{#if !showForm}
-				<div class="table-wrap"><table><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Role ID</th><th>Username</th><th>Job title</th><th>Salary</th><th>Residence</th><th>Phone</th><th>Status</th><th>Photo</th><th>Active</th><th>Created</th><th>Updated</th><th>Actions</th></tr></thead><tbody>{#each users as user}<tr><td>{user.id}</td><td>{user.name}</td><td>{user.email}</td><td>{user.role}</td><td>{user.roleId}</td><td>{user.username}</td><td>{user.jobTitle}</td><td>{formatRupiah(user.salary)}</td><td>{user.residence}</td><td>{user.phoneNumber}</td><td>{user.employmentStatus}</td><td>{user.avatarUrl ? 'Uploaded' : '—'}</td><td>{user.isActive ? 'Yes' : 'No'}</td><td>{new Date(user.createdAt).toLocaleString()}</td><td>{new Date(user.updatedAt).toLocaleString()}</td><td class="actions"><button onclick={() => edit(user)}>Edit</button><button class="danger" onclick={() => remove(user)}>Delete</button></td></tr>{/each}</tbody></table></div>
+				<div class="table-wrap"><table><thead><tr><th>{$translate("No.")}</th><th>{$translate("Name")}</th><th>{$translate("Email")}</th><th>{$translate("Role")}</th><th>{$translate("Username")}</th><th>{$translate("Job title")}</th><th>{$translate("Salary")}</th><th>{$translate("Residence")}</th><th>{$translate("Phone")}</th><th>{$translate("Status")}</th><th>{$translate("Photo")}</th><th>{$translate("Active")}</th><th>{$translate("Created")}</th><th>{$translate("Updated")}</th><th>{$translate("Actions")}</th></tr></thead><tbody>{#each users as user, index (user.id)}<tr><td>{index + 1}</td><td>{user.name}</td><td>{user.email}</td><td>{$translate(user.role)}</td><td>{user.username}</td><td>{user.jobTitle}</td><td>{formatRupiah(user.salary, $locale)}</td><td>{user.residence}</td><td>{user.phoneNumber}</td><td>{$translate(user.employmentStatus)}</td><td>{user.avatarUrl ? $translate('Uploaded') : '—'}</td><td>{user.isActive ? $translate('Yes') : $translate('No')}</td><td>{new Date(user.createdAt).toLocaleString($locale)}</td><td>{new Date(user.updatedAt).toLocaleString($locale)}</td><td class="actions"><button onclick={() => edit(user)}>{$translate("Edit")}</button><button class="danger" onclick={() => remove(user)}>{$translate("Delete")}</button></td></tr>{/each}</tbody></table></div>
 			{:else}
-				<form onsubmit={(event) => { event.preventDefault(); save(); }}><h2>{editing ? 'Edit employee' : 'Add employee'}</h2><div class="grid">
-					<label>Name<input bind:value={form.name} required /></label><label>Email<input type="email" bind:value={form.email} required /></label><label>Username<input bind:value={form.username} required /></label><label>Password<input type="password" bind:value={form.password} required={!editing} minlength="8" placeholder={editing ? 'Leave blank to keep' : ''} /></label>
-					<label>Role<select bind:value={form.roleId} required><option value={0}>Select role</option>{#each roles as role}<option value={role.id}>{role.name}</option>{/each}</select></label><label>Job title<input bind:value={form.jobTitle} /></label><label>Salary<input type="number" min="0" bind:value={form.salary} /><small>{formatRupiah(Number(form.salary) || 0)}</small></label><label>Residence<input bind:value={form.residence} /></label><label>Phone<input bind:value={form.phoneNumber} /></label><label>Employment status<select bind:value={form.employmentStatus}>{#each employmentStatuses as status}<option value={status}>{status}</option>{/each}</select></label>{#if editing}<label>Profile photo<input type="file" accept="image/jpeg,image/png,image/gif" onchange={uploadAvatar} /><small>JPEG, PNG, or GIF; max. 1 MB.</small></label>{/if}<label class="check"><input type="checkbox" bind:checked={form.isActive} /> Active</label>
-				</div><div class="form-actions"><button type="button" class="secondary" onclick={cancel}>Cancel</button><button type="submit">Save</button></div></form>
+				<form onsubmit={(event) => { event.preventDefault(); save(); }}><h2>{editing ? $translate('Edit employee') : $translate('Add employee')}</h2><div class="grid">
+					<label>{$translate("Name")}<input bind:value={form.name} required /></label><label>{$translate("Email")}<input type="email" bind:value={form.email} required /></label><label>{$translate("Username")}<input bind:value={form.username} required /></label><label>{$translate("Password")}<input type="password" bind:value={form.password} required={!editing} minlength="8" placeholder={editing ? $translate('Leave blank to keep') : ''} /></label>
+					<label>{$translate("Role")}<select bind:value={form.roleId} required><option value={0}>{$translate("Select role")}</option>{#each roles as role}<option value={role.id}>{$translate(role.name)}</option>{/each}</select></label><label>{$translate("Job title")}<input bind:value={form.jobTitle} /></label><label>{$translate("Salary")}<input type="number" min="0" bind:value={form.salary} /><small>{formatRupiah(Number(form.salary) || 0, $locale)}</small></label><label>{$translate("Residence")}<input bind:value={form.residence} /></label><label>{$translate("Phone")}<input bind:value={form.phoneNumber} /></label><label>{$translate("Employment status")}<select bind:value={form.employmentStatus}>{#each employmentStatuses as status}<option value={status}>{$translate(status)}</option>{/each}</select></label>{#if editing}<label>{$translate("Profile photo")}<input type="file" accept="image/jpeg,image/png,image/gif" onchange={uploadAvatar} /><small>{$translate("JPEG, PNG, or GIF; max. 1 MB.")}</small></label>{/if}<label class="check"><input type="checkbox" bind:checked={form.isActive} /> {$translate("Active")}</label>
+				</div><div class="form-actions"><button type="button" class="secondary" onclick={cancel}>{$translate("Cancel")}</button><button type="submit">{$translate("Save")}</button></div></form>
 			{/if}
 		{/if}
 	{/if}
