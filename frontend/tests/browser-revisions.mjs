@@ -6,6 +6,7 @@
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE??'../../graphify-out/responsive-tools/node_modules/playwright/index.mjs');
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import {checkNavigationUI} from './navigation-ui.mjs';
 
 
 const origin=process.env.RESPONSIVE_ORIGIN??'http://127.0.0.1:5188';
@@ -79,7 +80,7 @@ try {
  await page.goto(origin+'/workspace/1');
  const done={...task,id:'done',title:'Selesai Tersimpan',status:'DONE',qaStage:'COMPLETE'};
  fixtures['/workspaces/1/tasks']={tasks:[task,...Array.from({length:100},(_,i)=>({...done,id:'done-'+i,title:'Arsip '+i})),done],total:102};
- await page.getByRole('button',{name:'Calendar',exact:true}).click();
+ await page.getByRole('button',{name:'Kalender',exact:true}).click();
  await page.locator('.ws-calendar').waitFor();
  assert.equal(await page.getByRole('button',{name:'Selesai Tersimpan',exact:true}).count(),0);
  await page.locator('.ws-calendar-day[aria-label="'+day+'"]').getByRole('button').first().click();
@@ -120,18 +121,18 @@ try {
  const validation=page.getByRole('dialog',{name:'Validasi QA',exact:true});
  await validation.getByRole('combobox').selectOption('DONE');
  await validation.getByRole('button',{name:'Simpan Validasi',exact:true}).click();
- await page.getByText('QA Validated',{exact:true}).waitFor();
+ await page.getByText('Divalidasi QA',{exact:true}).waitFor();
  assert.equal(task.status,'DONE');
  assert.ok(task.qaValidatedAt);
  for(const ws of sockets)try{ws.send(JSON.stringify({event:'workspace.changed',workspaceId:1,entityId:'t1',revision:task.version}))}catch{}
- await peer.getByText('QA Validated',{exact:true}).waitFor();
+ await peer.getByText('Divalidasi QA',{exact:true}).waitFor();
  await peer.close();
  await page.getByLabel('Tutup detail').click();
  task.canEdit=true;
- for(const view of ['Table','Board','Timeline','Workload']){
+ for(const view of ['Tabel','Papan','Linimasa','Beban Kerja']){
   await page.getByRole('button',{name:view,exact:true}).click();
   await page.getByRole('button',{name:long,exact:true}).first().click();
-  await page.getByRole('dialog',{name:'Detail Pekerjaan',exact:true}).getByText('QA Validated',{exact:true}).waitFor();
+  await page.getByRole('dialog',{name:'Detail Pekerjaan',exact:true}).getByText('Divalidasi QA',{exact:true}).waitFor();
  await page.getByLabel('Tutup detail').click();
  }
  Object.assign(task,{status:'IN_PROGRESS',qaStage:'',qaValidatedAt:null,qaValidatedBy:null,qaValidatedByName:''});
@@ -145,7 +146,7 @@ try {
  for(const width of [1280,390]){
   await page.setViewportSize({width,height:740});
   await page.goto(origin+'/workspace/1');
-  await page.getByRole('button',{name:'Calendar',exact:true}).click();
+  await page.getByRole('button',{name:'Kalender',exact:true}).click();
   await page.locator('.ws-calendar-task').first().click();
   const detail=page.getByRole('dialog',{name:'Detail Pekerjaan',exact:true});
   await detail.waitFor();
@@ -174,24 +175,24 @@ try {
  await page.getByRole('button',{name:'Gunakan data server',exact:true}).click();
  assert.equal(await page.getByLabel('Uraian pekerjaan yang dilakukan').inputValue(),'Pembaruan lintas sesi');
  await page.getByRole('button',{name:'Batal',exact:true}).click();
- await page.getByRole('button',{name:'Export',exact:true}).click();
- await page.getByRole('dialog',{name:'Export Weekly Report',exact:true}).waitFor();
+ await page.getByRole('button',{name:'Ekspor',exact:true}).click();
+ await page.getByRole('dialog',{name:'Ekspor Laporan Mingguan',exact:true}).waitFor();
  assert.equal(exports.length,0,'opening format modal must not download');
- await page.getByRole('dialog',{name:'Export Weekly Report',exact:true}).getByRole('button',{name:'Batal',exact:true}).click();
+ await page.getByRole('dialog',{name:'Ekspor Laporan Mingguan',exact:true}).getByRole('button',{name:'Batal',exact:true}).click();
  assert.equal(exports.length,0);
  for(const format of ['PDF','Word']){
-  await page.getByRole('button',{name:'Export',exact:true}).click();
+  await page.getByRole('button',{name:'Ekspor',exact:true}).click();
   const download=page.waitForEvent('download');
-  await page.getByRole('button',{name:'Export '+format,exact:true}).click();
-  assert.equal(await page.getByRole('button',{name:'Export '+format,exact:true}).isDisabled(),true);
+  await page.getByRole('button',{name:'Ekspor '+format,exact:true}).click();
+  assert.equal(await page.getByRole('button',{name:'Ekspor '+format,exact:true}).isDisabled(),true);
   assert.equal((await download).suggestedFilename(),format==='PDF'?'report.pdf':'report.docx');
-  await page.getByRole('dialog',{name:'Export Weekly Report',exact:true}).waitFor({state:'hidden'});
+  await page.getByRole('dialog',{name:'Ekspor Laporan Mingguan',exact:true}).waitFor({state:'hidden'});
  }
  assert.deepEqual(exports,['/reports.pdf','/reports.docx']);
  exportFailure=true;
- await page.getByRole('button',{name:'Export',exact:true}).click();
- await page.getByRole('button',{name:'Export Word',exact:true}).click();
- await page.getByRole('alert').getByText('Export test failure',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'Ekspor',exact:true}).click();
+ await page.getByRole('button',{name:'Ekspor Word',exact:true}).click();
+ await page.getByRole('alert').getByText('Unduh gagal.',{exact:true}).waitFor();
  await page.getByRole('button',{name:'Batal',exact:true}).click();
  await page.goto(origin+'/weekly-progress/new?division=Project%20Engineer');
  const progress=page.getByLabel('Uraian pekerjaan yang dilakukan');
@@ -217,6 +218,7 @@ try {
   assert.ok(Math.abs(layout.bottom)<2,JSON.stringify(layout));
   assert.equal(layout.horizontal,layout.extraWidth,'horizontal scrolling reaches the final column when needed');
  }
+ await checkNavigationUI({page,context,origin,fixtures,user});
  assert.deepEqual(errors,[]);
  assert.deepEqual([...missing],[]);
  console.log('PASS browser: comments, dashboard, assignment, audited QA, calendar overlay, report conflict/draft/reconnect, PDF/Word modal/download/error, long progress toast, Zoom fill/scroll at four widths');

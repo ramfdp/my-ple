@@ -38,7 +38,7 @@
 <svelte:head><title>{$translate("Input Laporan | MyHIS")}</title><meta name="description" content={$translate("Input laporan pekerjaan mingguan.")} /></svelte:head>
 <svelte:window onfocus={() => { if (mounted) void checkPeriod(division); }} />
 <main class="weekly-progress-page"><div class="weekly-progress-shell report-shell">
-	<a class="back-link" href="/weekly-progress">{$translate("← Kembali ke weekly progress")}</a>
+	<a class="back-link" href="/dashboard">{$translate("← Kembali ke dashboard")}</a>
 	<header class="weekly-header"><p class="weekly-kicker">{$translate("WEEKLY PROGRESS")}</p><h1>{$translate("Input laporan pekerjaan.")}</h1><p>{$translate("Isi pekerjaan yang sudah dilakukan agar tampil pada daftar progres.")}</p></header>
 	<form class="report-form" onsubmit={saveReport}>
 		{#if checking}<p role="status">{$translate("Memeriksa periode laporan…")}</p>{:else if readOnly}<p role="status">{$translate("Periode ditutup. Input baru dibuka Selasa 00:00 WIB setelah arsip periode sebelumnya aman.")} <a href="/weekly-progress/history">{$translate("Lihat riwayat")}</a></p>{/if}

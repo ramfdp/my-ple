@@ -41,7 +41,7 @@
 
 <svelte:head><title>{$translate("Weekly Report History | MyHIS")}</title></svelte:head>
 <main class="weekly-progress-page"><div class="weekly-progress-shell">
-	<a class="back-link" href="/weekly-progress">{$translate("← Weekly Progress")}</a>
+	<a class="back-link" href="/dashboard">{$translate("← Kembali ke dashboard")}</a>
 	<header class="weekly-header"><p class="weekly-kicker">{$translate("WEEKLY REPORT")}</p><h1>{$translate("Weekly Report History")}</h1><p>{$translate("Arsip permanen laporan mingguan. Semua tanggal menggunakan WIB.")}</p></header>
  <p>{$translate("Laporan diarsipkan otomatis setiap Selasa mulai 00:00 WIB. Ekspor manual tidak diperlukan. PDF dapat diunduh dari Riwayat Laporan Mingguan.")}</p>
 	<form class="report-form" onsubmit={(event) => { event.preventDefault(); void load(); }}>

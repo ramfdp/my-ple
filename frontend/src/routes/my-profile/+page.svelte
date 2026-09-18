@@ -147,12 +147,12 @@
 
 <style>
 	.profile-page { width: min(100%, 1120px); margin: 0 auto; padding: var(--his-page-padding); color: var(--his-text); }
-	.page-intro { margin-bottom: 24px; animation: profile-reveal 420ms cubic-bezier(.22, 1, .36, 1) both; }
+	.page-intro { margin-bottom: 24px; }
 	.page-intro h1, .page-intro p, h2 { margin: 0; }
 	.page-intro h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: clamp(1.8rem, 4vw, 2.5rem); letter-spacing: -0.04em; }
 	.page-intro > p:last-child { margin-top: 6px; color: var(--his-muted); }
 	.eyebrow { margin-bottom: 8px !important; color: var(--his-primary); font-size: .7rem; font-weight: 700; letter-spacing: .14em; }
-	.profile-card, .details-card, .state-card { overflow: hidden; border: 1px solid var(--his-border); border-radius: 20px; background: #fff; box-shadow: 0 10px 28px rgb(23 23 23 / 0.08); animation: profile-reveal 480ms 80ms cubic-bezier(.22, 1, .36, 1) both; }
+	.profile-card, .details-card, .state-card { overflow: hidden; border: 1px solid var(--his-border); border-radius: 20px; background: #fff; box-shadow: 0 10px 28px rgb(23 23 23 / 0.08); }
 	.cover { height: clamp(132px, 18vw, 184px); background: linear-gradient(105deg, var(--his-primary-soft), var(--his-primary-soft) 48%, var(--his-primary-soft)); }
 	.identity { display: flex; align-items: flex-end; gap: 22px; min-width: 0; padding: 0 28px 26px; }
 	.avatar-wrap { z-index: 1; flex: 0 0 auto; margin-top: -54px; }
@@ -198,7 +198,6 @@
 	.loading-details > i { width: 20%; height: 20px; margin-bottom: 24px; }
 	.loading-details div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 	.loading-details span { height: 76px; }
-	@keyframes profile-reveal { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
 	@keyframes pulse { 50% { opacity: .6; } }
 	@media (max-width: 900px) { .loading-details div { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 	@media (max-width: 640px) {
@@ -213,5 +212,5 @@
 		.state-card button { width: 100%; }
 	}
 	@media (max-width: 480px) { .profile-page { padding: 20px 14px; } .page-intro { margin-bottom: 18px; } .page-intro h1 { font-size: 1.75rem; } .identity { padding-inline: 14px; } .details-card { padding: 14px; } .details-card > header { gap: 10px; } }
-	@media (prefers-reduced-motion: reduce) { .page-intro, .profile-card, .details-card, .state-card, .loading-card, .loading-details { animation: none; } }
+	@media (prefers-reduced-motion: reduce) { .loading-card, .loading-details { animation: none; } }
 </style>

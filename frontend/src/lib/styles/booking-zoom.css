@@ -1,6 +1,5 @@
 .booking-page { padding: var(--his-page-padding); color: var(--his-text); }
 .booking-shell { min-width: 0; overflow-wrap: anywhere; width: min(100%, 1180px); margin: auto; }
-.booking-back { color: var(--his-primary); font-size: .86rem; font-weight: 700; text-decoration: none; }
 .booking-header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 24px; margin: 28px 0 34px; }
 .booking-header h1 { margin: 5px 0 8px; font: 800 clamp(2rem, 4vw, 3.4rem)/1.05 'Plus Jakarta Sans', sans-serif; letter-spacing: -.05em; }
 .booking-header > div > p:last-child { margin: 0; color: var(--his-muted); }
