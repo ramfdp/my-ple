@@ -6,10 +6,12 @@ import (
 	"errors"
 	"math"
 	"my-ple-backend/model"
+	"strings"
 	"time"
 )
 
 var (
+	ErrAttendanceNotes    = errors.New("Catatan maksimal 4.000 karakter.")
 	ErrAttendanceInvalid  = errors.New("Data absensi tidak valid. Periksa mode dan lokasi perangkat.")
 	ErrAttendanceOffice   = errors.New("Lokasi kantor belum dikonfigurasi. Hubungi administrator untuk absensi WFO.")
 	ErrAttendanceOutside  = errors.New("Anda berada di luar radius 100 meter dari kantor.")
@@ -66,11 +68,11 @@ func (db *Database) attendanceNow() time.Time {
 	return now.In(location)
 }
 
-const attendanceColumns = `id,attendance_date::text,mode,clock_in,clock_out,latitude,longitude`
+const attendanceColumns = `id,attendance_date::text,mode,clock_in,clock_out,latitude,longitude,notes`
 
 func scanAttendance(row interface{ Scan(...any) error }) (model.Attendance, error) {
 	var item model.Attendance
-	err := row.Scan(&item.ID, &item.Date, &item.Mode, &item.ClockIn, &item.ClockOut, &item.Latitude, &item.Longitude)
+	err := row.Scan(&item.ID, &item.Date, &item.Mode, &item.ClockIn, &item.ClockOut, &item.Latitude, &item.Longitude, &item.Notes)
 	return item, err
 }
 
@@ -87,7 +89,7 @@ func (db *Database) AttendanceOverview(ctx context.Context, date string) (model.
 	rows, err := db.Conn.QueryContext(ctx, `SELECT u.id,u.name,r.name,
  CASE WHEN a.id IS NOT NULL THEN 'PRESENT' WHEN l.types IS NOT NULL THEN 'LEAVE' ELSE 'MISSING' END,
  CASE WHEN a.id IS NULL THEN COALESCE(l.types,'') ELSE '' END,
- COALESCE(a.mode,''),a.clock_in,a.clock_out,a.latitude,a.longitude
+ COALESCE(a.mode,''),a.clock_in,a.clock_out,a.latitude,a.longitude,COALESCE(a.notes,'')
  FROM users u JOIN roles r ON r.id=u.role_id
  LEFT JOIN attendance a ON a.user_id=u.id AND a.attendance_date=$1::date
  LEFT JOIN LATERAL (
@@ -102,7 +104,7 @@ func (db *Database) AttendanceOverview(ctx context.Context, date string) (model.
 	defer rows.Close()
 	for rows.Next() {
 		var employee model.AttendanceEmployee
-		if err := rows.Scan(&employee.UserID, &employee.Name, &employee.Role, &employee.Status, &employee.LeaveTypes, &employee.Mode, &employee.ClockIn, &employee.ClockOut, &employee.Latitude, &employee.Longitude); err != nil {
+		if err := rows.Scan(&employee.UserID, &employee.Name, &employee.Role, &employee.Status, &employee.LeaveTypes, &employee.Mode, &employee.ClockIn, &employee.ClockOut, &employee.Latitude, &employee.Longitude, &employee.Notes); err != nil {
 			return result, err
 		}
 		result.Employees = append(result.Employees, employee)
@@ -145,6 +147,10 @@ func (db *Database) AttendanceHistory(ctx context.Context, userID, month string)
 
 func (db *Database) ClockIn(ctx context.Context, userID string, in model.AttendanceInput, office AttendanceOffice) (model.Attendance, error) {
 	var item model.Attendance
+	in.Notes = strings.TrimSpace(in.Notes)
+	if len([]rune(in.Notes)) > 4000 {
+		return item, ErrAttendanceNotes
+	}
 	if err := office.Validate(in); err != nil {
 		return item, err
 	}
@@ -173,7 +179,7 @@ func (db *Database) ClockIn(ctx context.Context, userID string, in model.Attenda
 	if in.Mode == "WFA" {
 		lat, lng = in.Latitude, in.Longitude
 	}
-	item, err = scanAttendance(tx.QueryRowContext(ctx, `INSERT INTO attendance(id,user_id,attendance_date,mode,clock_in,latitude,longitude) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING `+attendanceColumns, NewID(), userID, today, in.Mode, now, lat, lng))
+	item, err = scanAttendance(tx.QueryRowContext(ctx, `INSERT INTO attendance(id,user_id,attendance_date,mode,clock_in,latitude,longitude,notes) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING `+attendanceColumns, NewID(), userID, today, in.Mode, now, lat, lng, in.Notes))
 	if err != nil {
 		return item, err
 	}

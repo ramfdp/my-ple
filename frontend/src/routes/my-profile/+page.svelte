@@ -6,7 +6,7 @@
 	import EmployeeStatusBadge from '$lib/components/EmployeeStatusBadge.svelte';
 	import ProfileAvatar from '$lib/components/ProfileAvatar.svelte';
 	import ProfileInformationItem from '$lib/components/ProfileInformationItem.svelte';
-	import { formatRupiah, validateIndonesianPhone } from '$lib/utils/formatters';
+	import { validateIndonesianPhone } from '$lib/utils/formatters';
 
 	let user = $state<User | null>(null);
 	let error = $state('');
@@ -23,7 +23,6 @@
 	}
 
 	const display = (value?: string) => value?.trim() || '-';
-	const salary = (value: number) => value > 0 ? formatRupiah(value, $locale) : '-';
 	const joinedOn = (value: string) => {
 		const date = new Date(value);
 		return Number.isNaN(date.getTime()) ? '-' : new Intl.DateTimeFormat($locale, { dateStyle: 'long' }).format(date);
@@ -124,7 +123,6 @@
 				<ProfileInformationItem icon="map-pin" label={$translate("Address / Residence")} value={display(user.residence)} />
 				<ProfileInformationItem icon="shield" label={$translate("Account Created")} value={joinedOn(user.createdAt)} />
 				<ProfileInformationItem icon="briefcase" label={$translate("Employment Status")}><EmployeeStatusBadge status={display(user.employmentStatus)} /></ProfileInformationItem>
-				<ProfileInformationItem icon="wallet" label={$translate("Salary")} value={salary(user.salary)} />
 			</div>
 		</section>
 	{/if}

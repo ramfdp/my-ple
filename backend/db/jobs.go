@@ -159,3 +159,24 @@ func resolveReportJob(ctx context.Context, tx *sql.Tx, input *model.WeeklyReport
 	_, err = tx.ExecContext(ctx, `UPDATE jobs SET used_at=COALESCE(used_at,NOW()) WHERE id=$1`, id)
 	return err
 }
+
+func (db *Database) CreateJobCategory(ctx context.Context, input model.JobMaster) (model.JobMaster, error) {
+	input.Name = strings.TrimSpace(input.Name)
+	if input.Name == "" || len([]rune(input.Name)) > 100 || input.DivisionID == nil || *input.DivisionID <= 0 || (input.RoleID != nil && *input.RoleID <= 0) {
+		return input, ErrInvalidReport
+	}
+	if input.RoleID != nil {
+		var role string
+		if err := db.Conn.QueryRowContext(ctx, `SELECT name FROM report_roles WHERE id=$1 AND division_id=$2`, input.RoleID, input.DivisionID).Scan(&role); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return input, ErrInvalidReport
+			}
+			return input, err
+		}
+		if role == "CIHPK" {
+			return input, ErrInvalidReport
+		}
+	}
+	err := db.Conn.QueryRowContext(ctx, `INSERT INTO job_categories(division_id,role_id,name) VALUES($1,$2,$3) RETURNING id`, input.DivisionID, input.RoleID, input.Name).Scan(&input.ID)
+	return input, err
+}

@@ -405,3 +405,16 @@ expression, not the added interval. Regression coverage is
 The test creates and removes a disposable database and disables email delivery.
 After rollout, check `weekly reset completed` logs and the recovered History
 periods; retained overdue reports are processed automatically without a migration.
+
+## Catatan absensi dan kategori pekerjaan
+
+Clock In WFO/WFA menerima `notes` opsional (teks biasa, maksimal 4.000 karakter).
+Catatan tampil pada absensi hari ini, riwayat, dan rekap; Clock Out atau retry
+Clock In tidak mengubah catatan tersimpan. Migrasi backend menambahkan kolom
+catatan dengan nilai kosong untuk absensi lama; jalankan backend sebelum frontend baru.
+
+Pengaturan Pekerjaan menyediakan Tambah Kategori untuk pengguna yang sudah login.
+`POST /jobs/categories` menerima `{divisionId, roleId, name}` (`roleId` boleh null),
+dan mengembalikan `{category}`. Nama wajib, maksimal 100 karakter, dan unik dalam
+konteks divisi/role. CIHPK tetap khusus MK/Supervisi. Salary disembunyikan dari
+profil dan manajemen pengguna; field API dan data salary lama tetap dipertahankan.

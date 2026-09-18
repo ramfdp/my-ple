@@ -8,11 +8,13 @@
  let masters=$state<JobMasters>({divisions:[],roles:[],categories:[]});
  let divisionId=$state(0),roleId=$state<number|null>(null),categoryId=$state<number|null>(null);
  let jobs=$state<Job[]>([]),loading=$state(true),busy=$state(false),error=$state(''),success=$state(''),search=$state('');
+ let showCategoryForm=$state(false),categoryName=$state('');
+ let isCIHPK=$derived(masters.roles.find(r=>r.id===roleId)?.name==='CIHPK');
  let editing=$state<Job|null>(null),showForm=$state(false),name=$state(''),description=$state(''),active=$state(true),sortOrder=$state(0),deleting=$state<Job|null>(null);
  let roles=$derived(masters.roles.filter(r=>r.divisionId===divisionId));
  let categories=$derived(masters.categories.filter(c=>c.divisionId===divisionId && c.roleId===roleId));
  let visible=$derived(jobs.filter(j=>j.name.toLocaleLowerCase().includes(search.toLocaleLowerCase())));
- let contextLocked=$derived(busy || (showForm && !!editing?.referenced));
+ let contextLocked=$derived(busy || showCategoryForm || (showForm && !!editing?.referenced));
  function resetCategory(){categoryId=masters.categories.find(c=>c.divisionId===divisionId && c.roleId===roleId)?.id ?? null;}
  function resetRole(){roleId=masters.roles.find(r=>r.divisionId===divisionId)?.id ?? null;resetCategory();}
  let request=0;
@@ -26,8 +28,16 @@
   try{masters=await api<JobMasters>('/jobs/masters');divisionId=masters.divisions[0]?.id ?? 0;resetRole();}
   catch(e){error=e instanceof Error?e.message:'Pilihan tidak dapat dimuat.';loading=false;}
  }
- onMount(()=>{if(allowed)void initialize();const stop=subscribeChanges(['jobs.changed'],()=>{if(allowed&&divisionId)return load(true)});return()=>{request++;stop()}});
+ onMount(()=>{if(allowed)void initialize();const stop=subscribeChanges(['jobs.changed'],async()=>{if(allowed&&divisionId){masters=await api<JobMasters>('/jobs/masters');await load(true)}});return()=>{request++;stop()}});
  $effect(()=>{divisionId;roleId;categoryId;if(divisionId && allowed)void load();});
+ async function saveCategory(event:SubmitEvent){
+  event.preventDefault();if(busy || isCIHPK)return;busy=true;error='';success='';
+  try{
+   const result=await api<{category:JobMasters['categories'][number]}>('/jobs/categories',{method:'POST',body:JSON.stringify({divisionId,roleId,name:categoryName.trim()})});
+   masters={...masters,categories:[...masters.categories.filter(c=>c.id!==result.category.id),result.category]};
+   categoryId=result.category.id;showCategoryForm=false;categoryName='';success='Kategori berhasil ditambahkan.';
+  }catch(e){error=e instanceof Error?e.message:'Kategori tidak dapat disimpan.';}finally{busy=false;}
+ }
  function openForm(job:Job|null){editing=job;name=job?.name ?? '';description=job?.description ?? '';active=job?.isActive ?? true;sortOrder=job?.sortOrder ?? jobs.length;showForm=true;error='';success='';}
  async function save(event:SubmitEvent){
   event.preventDefault();if(busy)return;busy=true;error='';success='';
@@ -61,6 +71,16 @@
  </div>
  {#if error}<p role="alert">{$translate(error)} {#if !showForm && !deleting}<button type="button" onclick={()=>void (divisionId?load():initialize())}>{$translate("Coba lagi")}</button>{/if}</p>{/if}
  {#if success}<p role="status">{$translate(success)}</p>{/if}
+ {#if showCategoryForm}
+ <form class="report-form job-form" onsubmit={saveCategory}>
+  <h2>{$translate("Tambah Kategori")}</h2>
+  <label>{$translate("Nama kategori")}<input bind:value={categoryName} required maxlength="100" disabled={busy} /></label>
+  <div class="actions"><button class="report-submit" disabled={busy}>{$translate("Simpan kategori")}</button><button class="drawer-cancel" type="button" disabled={busy} onclick={()=>showCategoryForm=false}>{$translate("Batal")}</button></div>
+ </form>
+ {:else if !showForm}
+ <button class="report-button" type="button" disabled={busy || loading || !divisionId || isCIHPK} onclick={()=>{showCategoryForm=true;categoryName='';error='';success='';}}>{$translate("Tambah Kategori")}</button>
+ {#if isCIHPK}<p>{$translate("CIHPK tetap memakai kategori MK/Supervisi.")}</p>{/if}
+ {/if}
  {#if showForm}
  <form class="report-form job-form" onsubmit={save}>
   <h2>{editing?$translate('Edit pekerjaan'):$translate('Tambah pekerjaan')}</h2><p>{$translate("Divisi, role, dan kategori mengikuti pilihan di atas.")}{editing?.referenced?$translate(' Konteks pekerjaan terkunci karena sudah digunakan.'):''}</p>
@@ -70,10 +90,10 @@
   <label>{$translate("Status")}<select bind:value={active} disabled={busy}><option value={true}>{$translate("Aktif")}</option><option value={false}>{$translate("Nonaktif")}</option></select></label>
   <div class="actions"><button class="report-submit" disabled={busy || !divisionId}>{busy?$translate('Menyimpan…'):$translate('Simpan pekerjaan')}</button><button class="drawer-cancel" type="button" disabled={busy} onclick={()=>{showForm=false;editing=null;}}>{$translate("Batal")}</button></div>
  </form>
- {:else}<button class="report-button" type="button" disabled={busy || loading || !divisionId} onclick={()=>openForm(null)}>{$translate("+ Tambah Pekerjaan")}</button>{/if}
+ {:else}<button class="report-button" type="button" disabled={busy || loading || !divisionId || showCategoryForm} onclick={()=>openForm(null)}>{$translate("+ Tambah Pekerjaan")}</button>{/if}
  {#if loading}<p role="status">{$translate("Memuat pekerjaan…")}</p>{:else if !visible.length}<p role="status">{search?$translate('Tidak ada pekerjaan yang cocok.'):$translate('Belum ada pekerjaan pada kategori ini.')}</p>{:else}
  <div class="work-table-wrap"><table class="work-table"><thead><tr><th>{$translate("Pekerjaan")}</th><th>{$translate("Divisi")}</th><th>{$translate("Role")}</th><th>{$translate("Kategori")}</th><th>{$translate("Status")}</th><th>{$translate("Aksi")}</th></tr></thead><tbody>
- {#each visible as job (job.id)}<tr><td>{job.name}<JobPICEditor jobId={job.id} pics={job.pics ?? []} onchange={(pics)=>job.pics=pics} /></td><td>{job.division}</td><td>{job.role || '—'}</td><td>{job.category || '—'}</td><td><button type="button" role="switch" aria-checked={job.isActive} aria-label={`Status ${job.name}`} disabled={busy} onclick={()=>void toggle(job)}>{job.isActive?$translate('Aktif'):$translate('Nonaktif')}</button></td><td><div class="actions"><button class="edit-report" type="button" disabled={busy} onclick={()=>openForm(job)}>{$translate("Edit")}</button><button class="delete-report" type="button" disabled={busy} onclick={()=>{error='';deleting=job;}}>{$translate("Hapus")}</button></div></td></tr>{/each}
+ {#each visible as job (job.id)}<tr><td>{job.name}<JobPICEditor jobId={job.id} pics={job.pics ?? []} onchange={(pics)=>job.pics=pics} /></td><td>{job.division}</td><td>{job.role || '—'}</td><td>{job.category || '—'}</td><td><button type="button" role="switch" aria-checked={job.isActive} aria-label={`Status ${job.name}`} disabled={busy} onclick={()=>void toggle(job)}>{job.isActive?$translate('Aktif'):$translate('Nonaktif')}</button></td><td><div class="actions"><button class="edit-report" type="button" disabled={busy || showCategoryForm} onclick={()=>openForm(job)}>{$translate("Edit")}</button><button class="delete-report" type="button" disabled={busy} onclick={()=>{error='';deleting=job;}}>{$translate("Hapus")}</button></div></td></tr>{/each}
  </tbody></table></div>{/if}
  </section>{/if}
 </div></main>

@@ -26,7 +26,7 @@ func NewAttendanceController(database *db.Database) *AttendanceController {
 func attendanceError(w http.ResponseWriter, err error) {
 	status, message := http.StatusInternalServerError, "Gagal memproses absensi. Coba muat ulang."
 	switch {
-	case errors.Is(err, db.ErrAttendanceInvalid), errors.Is(err, db.ErrAttendanceAccuracy), errors.Is(err, db.ErrAttendanceDate):
+	case errors.Is(err, db.ErrAttendanceNotes), errors.Is(err, db.ErrAttendanceInvalid), errors.Is(err, db.ErrAttendanceAccuracy), errors.Is(err, db.ErrAttendanceDate):
 		status, message = 400, err.Error()
 	case errors.Is(err, db.ErrAttendanceOutside):
 		status, message = 403, err.Error()

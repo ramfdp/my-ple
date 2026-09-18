@@ -12,6 +12,7 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -88,11 +89,31 @@ func TestAttendanceIntegration(t *testing.T) {
 	request("POST", "/attendance/clock-in", map[string]any{"mode": "WFO", "latitude": 1, "longitude": 0, "accuracy": 5}, 403)
 	request("POST", "/attendance/clock-in", map[string]any{"mode": "WFO", "latitude": 0, "longitude": 0, "accuracy": 101}, 400)
 	zero, accuracy := 0.0, 5.0
-	input := model.AttendanceInput{Mode: "WFO", Latitude: &zero, Longitude: &zero, Accuracy: &accuracy}
+	input := model.AttendanceInput{Notes: "  Kunjungan lapangan\nTim A  ", Mode: "WFO", Latitude: &zero, Longitude: &zero, Accuracy: &accuracy}
+	oversized := input
+	oversized.Notes = strings.Repeat("a", 4001)
+	request("POST", "/attendance/clock-in", oversized, 400)
 	first := decode(request("POST", "/attendance/clock-in", input, 200))
 	if first.Date != "2026-09-30" || first.Latitude != nil || first.Longitude != nil || first.ClockOut != nil {
 		t.Fatalf("WFO privacy/state: %+v", first)
 	}
+	if first.Notes != "Kunjungan lapangan\nTim A" {
+		t.Fatalf("notes not trimmed: %q", first.Notes)
+	}
+	overview, err := database.AttendanceOverview(context.Background(), first.Date)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundNotes := false
+	for _, employee := range overview.Employees {
+		if employee.UserID == userID {
+			foundNotes = employee.Notes == first.Notes
+		}
+	}
+	if !foundNotes {
+		t.Fatal("notes missing from overview")
+	}
+	input.Notes = "replacement"
 	// Simultaneous retries must converge on the same row and timestamp.
 	results := make(chan model.Attendance, 8)
 	failures := make(chan error, 8)
@@ -105,7 +126,7 @@ func TestAttendanceIntegration(t *testing.T) {
 	}
 	for i := 0; i < 8; i++ {
 		item, err := <-results, <-failures
-		if err != nil || item.ID != first.ID || !item.ClockIn.Equal(first.ClockIn) {
+		if err != nil || item.Notes != first.Notes || item.ID != first.ID || !item.ClockIn.Equal(first.ClockIn) {
 			t.Fatalf("duplicate: %+v %v", item, err)
 		}
 	}
@@ -127,15 +148,16 @@ func TestAttendanceIntegration(t *testing.T) {
 		t.Fatal("overnight state")
 	}
 	closed := decode(request("POST", "/attendance/"+first.ID+"/clock-out", nil, 200))
-	if closed.ClockOut == nil || closed.Date != first.Date {
+	if closed.Notes != first.Notes || closed.ClockOut == nil || closed.Date != first.Date {
 		t.Fatal("overnight close changed date")
 	}
 	now.Store(time.Date(2026, 10, 1, 1, 0, 0, 0, time.UTC).Unix())
+	input.Notes = ""
 	input.Mode = "WFA"
 	remote := 10.0
 	input.Latitude = &remote
 	second := decode(request("POST", "/attendance/clock-in", input, 200))
-	if second.Date != "2026-10-01" || second.Latitude == nil || *second.Latitude != 10 || second.Longitude == nil {
+	if second.Notes != "" || second.Date != "2026-10-01" || second.Latitude == nil || *second.Latitude != 10 || second.Longitude == nil {
 		t.Fatal("WFA location missing")
 	}
 	now.Store(time.Date(2026, 10, 1, 14, 0, 0, 0, time.UTC).Unix()) // 21:00 WIB, ordinary clock-out.
@@ -154,7 +176,7 @@ func TestAttendanceIntegration(t *testing.T) {
 	history = request("GET", "/attendance?month=2026-09", nil, 200)
 	var records []model.Attendance
 	_ = json.Unmarshal(history["records"], &records)
-	if len(records) != 1 || records[0].ID != first.ID {
+	if len(records) != 1 || records[0].Notes != first.Notes || records[0].ID != first.ID {
 		t.Fatal("monthly history")
 	}
 	var today model.Attendance

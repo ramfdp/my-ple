@@ -5,7 +5,7 @@
  import { subscribeChanges } from '$lib/realtime';
 
  type Status = 'PRESENT' | 'LEAVE' | 'MISSING';
- interface Employee { userId: string; name: string; role: string; status: Status; leaveTypes: string; mode: string; clockIn: string | null; clockOut: string | null; latitude: number | null; longitude: number | null }
+ interface Employee { userId: string; name: string; role: string; status: Status; leaveTypes: string; mode: string; clockIn: string | null; clockOut: string | null; latitude: number | null; longitude: number | null; notes: string }
  interface Overview { date: string; todayDate: string; employees: Employee[] }
  const jakartaDate = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
  const formatTime = (value: string) => new Intl.DateTimeFormat($locale, { timeZone: 'Asia/Jakarta', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
@@ -83,7 +83,7 @@
     {:else if !rows.length}<p>{$translate("Tidak ada karyawan yang sesuai dengan pencarian atau filter.")}</p>
     {:else}
      <div class="table-scroll"><table>
-      <thead><tr><th scope="col">{$translate("Karyawan")}</th><th scope="col">{$translate("Role")}</th><th scope="col">{$translate("Status")}</th><th scope="col">{$translate("Mode")}</th><th scope="col">{$translate("Clock In (WIB)")}</th><th scope="col">{$translate("Clock Out (WIB)")}</th><th scope="col">{$translate("Lokasi Clock In")}</th></tr></thead>
+      <thead><tr><th scope="col">{$translate("Karyawan")}</th><th scope="col">{$translate("Role")}</th><th scope="col">{$translate("Status")}</th><th scope="col">{$translate("Mode")}</th><th scope="col">{$translate("Clock In (WIB)")}</th><th scope="col">{$translate("Clock Out (WIB)")}</th><th scope="col">{$translate("Lokasi Clock In")}</th><th scope="col">{$translate("Catatan")}</th></tr></thead>
       <tbody>{#each rows as employee (employee.userId)}<tr>
        <td data-label={$translate("Karyawan")}>{employee.name}</td><td data-label={$translate("Role")}>{$translate(employee.role)}</td>
        <td data-label={$translate("Status")}><span class:present={employee.status === 'PRESENT'} class="badge">{employee.status === 'PRESENT' ? $translate('Hadir') : employee.status === 'LEAVE' ? employee.leaveTypes.replace('CUTI', $translate('Cuti')).replace('IZIN', $translate('Izin')) : $translate(missingLabel)}</span></td>
@@ -91,7 +91,7 @@
        <td data-label={$translate("Clock In (WIB)")}>{employee.clockIn ? formatTime(employee.clockIn) : '—'}</td>
        <td data-label={$translate("Clock Out (WIB)")}>{employee.clockOut ? formatTime(employee.clockOut) : employee.clockIn ? $translate('Belum Clock Out') : '—'}</td>
        <td data-label={$translate("Lokasi Clock In")}>{#if employee.mode === 'WFA' && employee.latitude !== null && employee.longitude !== null}<span>{employee.latitude}, {employee.longitude}</span><br/><a href={`https://www.google.com/maps?q=${employee.latitude},${employee.longitude}`} target="_blank" rel="noopener noreferrer" aria-label={`Lihat lokasi ${employee.name} di Google Maps (tab baru)`}>{$translate("Lihat di Google Maps")}</a>{:else if employee.mode === 'WFO'}{$translate("Dalam radius kantor (100 m)")}{:else}—{/if}</td>
-      </tr>{/each}</tbody>
+      <td class="attendance-notes" data-label={$translate("Catatan")}>{employee.notes || "—"}</td></tr>{/each}</tbody>
      </table></div>
     {/if}
    {/if}
@@ -100,6 +100,7 @@
 </main>
 
 <style>
+ .attendance-notes { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 400px; }
  .overview-page { padding: var(--his-page-padding); max-width: 1400px; margin: auto; }
  header { margin-bottom: 2rem; }
  h1, h2, p { margin-top: 0; }

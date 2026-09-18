@@ -5,13 +5,14 @@
  import { subscribeChanges } from '$lib/realtime';
 
  type Mode = 'WFO' | 'WFA';
- interface Attendance { id: string; date: string; mode: Mode; clockIn: string; clockOut: string | null; latitude: number | null; longitude: number | null }
+ interface Attendance { id: string; date: string; mode: Mode; clockIn: string; clockOut: string | null; latitude: number | null; longitude: number | null; notes: string }
  interface History { records: Attendance[]; today: Attendance | null; open: Attendance | null; todayDate: string; officeConfigured: boolean }
  const jakartaDate = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
  const formatTime = (value: string) => new Intl.DateTimeFormat($locale, { timeZone: 'Asia/Jakarta', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
  let month = $state(jakartaDate().slice(0, 7));
  let data = $state<History | null>(null), mode = $state<Mode | null>(null);
  let busy = $state(false), loading = $state(true), ready = $state(false);
+ let notes = $state('');
  let error = $state(''), status = $state('');
  let active = $derived(data?.open ?? data?.today);
 
@@ -53,6 +54,7 @@
  }
  async function clock() {
   if (busy || !ready || loading) return;
+  if (!data?.open && [...notes.trim()].length > 4000) { error = "Catatan maksimal 4.000 karakter."; return; }
   const open = data?.open;
   if (!open && (!mode || data?.today)) return;
   busy = true; error = ''; status = '';
@@ -65,8 +67,9 @@
     status = 'Mencari lokasi perangkat…';
     const { coords } = await locate();
     status = 'Menyimpan Clock In…'; submitted = true;
-    await api('/attendance/clock-in', { method: 'POST', body: JSON.stringify({ mode, latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy }) });
+    await api('/attendance/clock-in', { method: 'POST', body: JSON.stringify({ mode, notes, latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy }) });
    }
+   notes = '';
    status = open ? 'Clock Out tersimpan.' : 'Clock In tersimpan.';
   } catch (failure) {
    status = '';
@@ -93,6 +96,7 @@
   {:else if active}
    {#if data?.open && data.open.date !== data.todayDate}<p class="notice">{$translate("Absensi tanggal")} {data.open.date} {$translate("masih terbuka. Selesaikan Clock Out sebelum memulai hari ini.")}</p>{/if}
    <dl><div><dt>{$translate("Clock In")}</dt><dd>{formatTime(active.clockIn)}</dd></div><div><dt>{$translate("Clock Out")}</dt><dd>{active.clockOut ? formatTime(active.clockOut) : $translate('Belum Clock Out')}</dd></div></dl>
+   <p class="attendance-notes"><strong>{$translate("Catatan")}:</strong> {active.notes || "—"}</p>
    {#if data?.open}<button class="primary" disabled={busy || loading || !ready} onclick={clock}>{$translate("Clock Out")}</button><p class="hint">{$translate("Clock Out mencatat waktu saja dan tidak memerlukan lokasi.")}</p>
    {:else}<p class="complete">{$translate("Absensi hari ini selesai.")}</p>{/if}
   {:else if data}
@@ -104,6 +108,7 @@
    {#if mode}
     <p class="hint">{mode === 'WFO' ? $translate('Aktifkan GPS/lokasi presisi. Clock In tersedia dalam radius 100 meter dari kantor. Lokasi hanya diperiksa, tidak disimpan.') : $translate('Aktifkan GPS/lokasi perangkat. Waktu dan lokasi Anda disimpan saat Clock In. Tidak ada pelacakan latar belakang.')}</p>
     {#if mode === 'WFO' && !data.officeConfigured}<p class="notice">{$translate("Lokasi kantor belum dikonfigurasi. Hubungi administrator untuk absensi WFO.")}</p>{/if}
+    <label class="notes-field">{$translate("Catatan (opsional)")}<textarea rows="3" maxlength="4000" bind:value={notes} disabled={busy || loading || !ready}></textarea></label>
     <button class="primary" disabled={busy || loading || !ready || (mode === 'WFO' && !data.officeConfigured)} onclick={clock}>{$translate("Clock In")}</button>
    {/if}
   {/if}
@@ -120,17 +125,20 @@
   {:else if !data?.records.length}<p>{$translate("Belum ada absensi pada bulan ini.")}</p>
   {:else}
    <div class="table-scroll" role="region" aria-label={$translate("Riwayat absensi bulanan")}><table>
-    <thead><tr><th scope="col">{$translate("Tanggal")}</th><th scope="col">{$translate("Mode")}</th><th scope="col">{$translate("Clock In (WIB)")}</th><th scope="col">{$translate("Clock Out (WIB)")}</th><th scope="col">{$translate("Lokasi Clock In")}</th></tr></thead>
+    <thead><tr><th scope="col">{$translate("Tanggal")}</th><th scope="col">{$translate("Mode")}</th><th scope="col">{$translate("Clock In (WIB)")}</th><th scope="col">{$translate("Clock Out (WIB)")}</th><th scope="col">{$translate("Lokasi Clock In")}</th><th scope="col">{$translate("Catatan")}</th></tr></thead>
     <tbody>{#each data.records as record (record.id)}<tr>
      <td data-label={$translate("Tanggal")}>{record.date}</td><td data-label={$translate("Mode")}><span class="badge">{record.mode}</span></td><td data-label={$translate("Clock In (WIB)")}>{formatTime(record.clockIn)}</td><td data-label={$translate("Clock Out (WIB)")}>{record.clockOut ? formatTime(record.clockOut) : $translate('Belum Clock Out')}</td>
      <td data-label={$translate("Lokasi Clock In")}>{#if record.mode === 'WFA' && record.latitude !== null && record.longitude !== null}<a href={`https://www.google.com/maps?q=${record.latitude},${record.longitude}`} target="_blank" rel="noopener noreferrer" aria-label={`Lihat lokasi Clock In ${record.date} di Google Maps (tab baru)`}>{$translate("Lihat lokasi ↗")}</a>{:else}{$translate("Tidak disimpan")}{/if}</td>
-    </tr>{/each}</tbody>
+    <td class="attendance-notes" data-label={$translate("Catatan")}>{record.notes || "—"}</td></tr>{/each}</tbody>
    </table></div>
   {/if}
  </section>
 </main>
 
 <style>
+ .attendance-notes { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 400px; }
+ .notes-field { display: grid; margin-bottom: 1rem; }
+ textarea { width: 100%; min-width: 0; box-sizing: border-box; padding: .75rem; border: 1px solid var(--his-border); border-radius: 8px; font: inherit; resize: vertical; }
  .attendance-page { padding: var(--his-page-padding); max-width: 1200px; margin: auto; }
  header { margin-bottom: 2rem; }
  h1, h2, p { margin-top: 0; }

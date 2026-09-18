@@ -3,6 +3,7 @@ package model
 import "time"
 
 type Attendance struct {
+	Notes     string     `json:"notes"`
 	ID        string     `json:"id"`
 	Date      string     `json:"date"`
 	Mode      string     `json:"mode"`
@@ -13,6 +14,7 @@ type Attendance struct {
 }
 
 type AttendanceInput struct {
+	Notes     string   `json:"notes"`
 	Mode      string   `json:"mode"`
 	Latitude  *float64 `json:"latitude"`
 	Longitude *float64 `json:"longitude"`
@@ -28,6 +30,7 @@ type AttendanceHistory struct {
 }
 
 type AttendanceEmployee struct {
+	Notes      string     `json:"notes"`
 	UserID     string     `json:"userId"`
 	Name       string     `json:"name"`
 	Role       string     `json:"role"`

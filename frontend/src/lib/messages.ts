@@ -1,4 +1,15 @@
 export const messages = {
+  "Catatan (opsional)": ["Catatan (opsional)", "Notes (optional)"],
+  "Catatan maksimal 4.000 karakter.": ["Catatan maksimal 4.000 karakter.", "Notes must not exceed 4,000 characters."],
+  "Tambah Kategori": ["Tambah Kategori", "Add Category"],
+  "Nama kategori": ["Nama kategori", "Category name"],
+  "Simpan kategori": ["Simpan kategori", "Save category"],
+  "Kategori berhasil ditambahkan.": ["Kategori berhasil ditambahkan.", "Category added successfully."],
+  "Kategori tidak dapat disimpan.": ["Kategori tidak dapat disimpan.", "Unable to save category."],
+  "CIHPK tetap memakai kategori MK/Supervisi.": ["CIHPK tetap memakai kategori MK/Supervisi.", "CIHPK continues to use the MK/Supervisi category."],
+  "Nama kategori sudah ada pada konteks ini.": ["Nama kategori sudah ada pada konteks ini.", "A category with this name already exists in this context."],
+  "Kategori tidak valid. Periksa nama, divisi, dan role; CIHPK tetap memakai MK/Supervisi.": ["Kategori tidak valid. Periksa nama, divisi, dan role; CIHPK tetap memakai MK/Supervisi.", "Invalid category. Check the name, division and role; CIHPK uses MK/Supervisi only."],
+
   "Cetak / Simpan PDF": ["Cetak / Simpan PDF", "Print / Save PDF"],
   "Isi pekerjaan, nama tahap, dan minimal satu sub-tahap. Setiap sub-tahap memerlukan dokumen sendiri atau dokumen per tahap. Nama dokumen harus unik dan tidak boleh digunakan pada kedua cakupan.": ["Isi pekerjaan, nama tahap, dan minimal satu sub-tahap. Setiap sub-tahap memerlukan dokumen sendiri atau dokumen per tahap. Nama dokumen harus unik dan tidak boleh digunakan pada kedua cakupan.", "Enter a job, stage name and at least one sub-stage. Each sub-stage needs its own documents or stage documents. Document names must be unique and cannot be used at both scopes."],
   "Bulan / sub-tahap": ["Bulan / sub-tahap", "Month / sub-stage"],

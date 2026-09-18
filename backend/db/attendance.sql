@@ -13,3 +13,5 @@ CREATE TABLE IF NOT EXISTS attendance (
          AND latitude BETWEEN -90 AND 90 AND longitude BETWEEN -180 AND 180))
 );
 CREATE UNIQUE INDEX IF NOT EXISTS attendance_one_open_per_user ON attendance(user_id) WHERE clock_out IS NULL;
+
+ALTER TABLE attendance ADD COLUMN IF NOT EXISTS notes TEXT NOT NULL DEFAULT '' CHECK (char_length(notes) <= 4000);

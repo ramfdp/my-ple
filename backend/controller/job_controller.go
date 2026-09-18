@@ -96,6 +96,32 @@ func (c *JobController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		WriteJSON(w, 200, map[string]any{"pics": job.PICs})
 		return
 	}
+	if r.URL.Path == "/jobs/categories" {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(405)
+			return
+		}
+		var input model.JobMaster
+		if !DecodeStrictJSON(w, r, &input) {
+			return
+		}
+		category, err := c.DB.CreateJobCategory(r.Context(), input)
+		if err != nil {
+			var pg *pgconn.PgError
+			if errors.As(err, &pg) && pg.Code == "23505" {
+				WriteJSON(w, 409, map[string]string{"error": "Nama kategori sudah ada pada konteks ini."})
+				return
+			}
+			if errors.Is(err, db.ErrInvalidReport) || (errors.As(err, &pg) && pg.Code == "23503") {
+				WriteJSON(w, 400, map[string]string{"error": "Kategori tidak valid. Periksa nama, divisi, dan role; CIHPK tetap memakai MK/Supervisi."})
+				return
+			}
+			fail(err)
+			return
+		}
+		WriteJSON(w, 201, map[string]any{"category": category})
+		return
+	}
 	if r.URL.Path == "/jobs/masters" && r.Method == http.MethodGet {
 		result, err := c.DB.JobMasters(r.Context())
 		if err != nil {
