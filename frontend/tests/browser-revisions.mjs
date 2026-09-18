@@ -204,19 +204,28 @@ try {
  await page.goto(origin+'/booking-zoom');
  const calendar=page.locator('.calendar-scroll');
  await calendar.waitFor();
- for(const width of [1440,1280,800,390]){
-  await page.setViewportSize({width,height:740});
-  const dimensions=await calendar.evaluate(el=>{el.scrollTop=200;return {height:el.clientHeight,full:el.scrollHeight,top:el.scrollTop,overflow:getComputedStyle(el).overflowY,lane:el.querySelector('.calendar-lane')?.getBoundingClientRect().height,grid:el.querySelector('.zoom-calendar')?.getBoundingClientRect().height}});
-  assert.ok(dimensions.full>dimensions.height&&dimensions.top>0,JSON.stringify(dimensions));
-  assert.ok(['auto','scroll'].includes(dimensions.overflow));
-  const layout=await calendar.evaluate(el=>{
-   el.scrollTop=el.scrollHeight;el.scrollLeft=el.scrollWidth;
-   const card=el.closest('.schedule-card').getBoundingClientRect(),body=el.getBoundingClientRect();
-   return {gap:card.bottom-body.bottom,bottom:el.scrollHeight-el.clientHeight-el.scrollTop,horizontal:el.scrollLeft,extraWidth:el.scrollWidth-el.clientWidth};
-  });
-  assert.ok(Math.abs(layout.gap)<3,JSON.stringify(layout));
-  assert.ok(Math.abs(layout.bottom)<2,JSON.stringify(layout));
-  assert.equal(layout.horizontal,layout.extraWidth,'horizontal scrolling reaches the final column when needed');
+ for(const width of [1440,1024,768,320]){
+  await page.setViewportSize({width,height:740});await page.waitForTimeout(100);
+  const dimensions=await calendar.evaluate(el=>{el.scrollTop=200;return {height:el.clientHeight,full:el.scrollHeight,top:el.scrollTop}});
+  assert.ok(dimensions.full<=dimensions.height+1&&dimensions.top===0,JSON.stringify(dimensions));
+  const info=page.locator('#zoom-info-content');
+  if(width<=1050){
+   const toggle=page.locator('.info-toggle');
+   assert.equal(await toggle.getAttribute('aria-expanded'),'false');assert.equal(await info.isVisible(),false);
+   await toggle.focus();await page.keyboard.press('Enter');assert.equal(await info.isVisible(),true);
+   await page.keyboard.press('Enter');assert.equal(await info.isVisible(),false);
+  }else assert.equal(await info.isVisible(),true);
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+  await calendar.evaluate(el=>{el.scrollLeft=el.scrollWidth});
+  const horizontal=await calendar.evaluate(el=>({left:el.scrollLeft,extra:el.scrollWidth-el.clientWidth}));
+  assert.equal(horizontal.left,horizontal.extra);
+  await calendar.evaluate(el=>el.scrollLeft=0);
+  await calendar.scrollIntoViewIfNeeded();
+  const box=await calendar.boundingBox();await page.mouse.move(box.x+Math.min(100,box.width/2),Math.max(100,Math.min(500,box.y+100)));
+  const before=await page.evaluate(()=>scrollY);await page.mouse.wheel(0,250);await page.waitForTimeout(200);
+  assert.ok(await page.evaluate(previous=>scrollY>previous,before),'wheel over calendar scrolls the page');
+  assert.equal(await calendar.evaluate(el=>el.scrollTop),0);
+  await page.screenshot({path:'../graphify-out/zoom-page-scroll-'+width+'.png',fullPage:true});
  }
  await checkNavigationUI({page,context,origin,fixtures,user});
  assert.deepEqual(errors,[]);

@@ -128,12 +128,14 @@
  {#if loading}<p role="status">{$translate("Memuat checklist...")}</p>
  {:else if !checklist && !error}<p>{$translate("Pekerjaan ini belum mempunyai checklist.")}</p><button class="ws-primary" onclick={() => configure(true)}>{$translate("+ Buat Tabel Checklist")}</button>
  {:else if checklist}
-  <div class="ws-row table-controls">
+  <div class="table-controls">
    <button class="ws-primary" disabled={busy} onclick={() => configure(true)}>{$translate("+ Buat Tabel Checklist")}</button>
+   <div class="table-navigation">
    <button disabled={busy || selectedIndex <= 0} aria-label={$translate("Tabel sebelumnya")} onpointerdown={e => e.preventDefault()} onclick={() => navigate(-1)}>&larr;</button>
    <button disabled={busy} onclick={() => configure()}>{$translate("Edit Tabel Checklist")}</button>
    <button disabled={busy || selectedIndex >= checklists.length - 1} aria-label={$translate("Tabel berikutnya")} onpointerdown={e => e.preventDefault()} onclick={() => navigate(1)}>&rarr;</button>
-   <span aria-live="polite">{checklist.title} ({selectedIndex + 1} / {checklists.length})</span>
+   </div>
+   <span class="table-counter" aria-live="polite">{checklist.title} ({selectedIndex + 1} / {checklists.length})</span>
   </div>
   <p>{$translate("Perubahan sel disimpan setelah selesai mengisi.")}</p>
   <button type="button" disabled={busy || exporting} onpointerdown={e => e.preventDefault()} onclick={exportPDF}>{$translate("Ekspor PDF pekerjaan")}</button>
@@ -180,5 +182,5 @@
  </form>
 </dialog>
 <style>
- .table-controls{flex-wrap:wrap}.table-title{text-align:center;font-size:1.1rem}.checklist{padding:1rem;min-width:0}.add-document{display:flex;align-items:end;gap:.75rem;margin:1rem 0;flex-wrap:wrap}label{display:grid;gap:.35rem}input,textarea{font:inherit;padding:.5rem;border:1px solid var(--his-border);border-radius:6px}input:not([type=checkbox]),textarea{min-width:160px;max-width:100%;box-sizing:border-box}textarea{min-height:42px;resize:vertical}.table-scroll{overflow-x:auto;max-width:100%;margin:1rem 0}table{border-collapse:collapse;width:100%}th,td{border:1px solid var(--his-border);padding:.55rem;vertical-align:middle}th{background:var(--his-surface);min-width:75px}th small{display:block;font-weight:400;margin-top:.3rem}.signature{text-align:center}input[type=checkbox]{width:20px;height:20px;accent-color:var(--his-primary)}dialog{width:min(620px,calc(100vw - 32px));max-height:85dvh;box-sizing:border-box;overflow:auto;border:1px solid var(--his-border);border-radius:12px;padding:1.5rem}dialog::backdrop{background:#0006}fieldset{border:0;padding:0;margin:1rem 0;display:grid;gap:1rem}fieldset fieldset{border:1px solid var(--his-border);border-radius:8px;padding:1rem}.digital{display:flex;align-items:center}details{margin-top:1rem}button{min-height:40px}button:disabled{opacity:.6}
+ .table-controls{display:grid;gap:.75rem;justify-items:center}.table-controls>.ws-primary{justify-self:start}.table-navigation{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:.5rem;width:min(100%,340px);align-items:stretch}.table-navigation button{min-width:0;min-height:44px;padding:.5rem;overflow-wrap:anywhere}.table-counter{text-align:center;overflow-wrap:anywhere;max-width:100%}.table-title{text-align:center;font-size:1.1rem}.checklist{padding:1rem;min-width:0}.add-document{display:flex;align-items:end;gap:.75rem;margin:1rem 0;flex-wrap:wrap}label{display:grid;gap:.35rem}input,textarea{font:inherit;padding:.5rem;border:1px solid var(--his-border);border-radius:6px}input:not([type=checkbox]),textarea{min-width:160px;max-width:100%;box-sizing:border-box}textarea{min-height:42px;resize:vertical}.table-scroll{overflow-x:auto;max-width:100%;margin:1rem 0}table{border-collapse:collapse;width:100%}th,td{border:1px solid var(--his-border);padding:.55rem;vertical-align:middle}th{background:var(--his-surface);min-width:75px}th small{display:block;font-weight:400;margin-top:.3rem}.signature{text-align:center}input[type=checkbox]{width:20px;height:20px;accent-color:var(--his-primary)}dialog{width:min(620px,calc(100vw - 32px));max-height:85dvh;box-sizing:border-box;overflow:auto;border:1px solid var(--his-border);border-radius:12px;padding:1.5rem}dialog::backdrop{background:#0006}fieldset{border:0;padding:0;margin:1rem 0;display:grid;gap:1rem}fieldset fieldset{border:1px solid var(--his-border);border-radius:8px;padding:1rem}.digital{display:flex;align-items:center}details{margin-top:1rem}button{min-height:40px}button:disabled{opacity:.6}
 </style>

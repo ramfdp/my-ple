@@ -133,12 +133,18 @@ try {
  assert.equal(await a.getByLabel('Budi Pengganti — Berita Acara',{exact:true}).isChecked(),false);
  await a.getByText('Riwayat penandatangan yang diarsipkan (1)',{exact:true}).click();
  assert.match(await a.locator('details').textContent(),/Berita Acara: Sudah ditandatangani/);
- await page.screenshot({path:'../graphify-out/checklist-desktop.png',fullPage:true});
- await page.setViewportSize({width:390,height:844});
- assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'page overflows mobile');
- assert.equal(await a.locator('.table-scroll').evaluate(el=>el.scrollWidth>el.clientWidth),true,'wide table must scroll');
- await page.screenshot({path:'../graphify-out/checklist-mobile.png',fullPage:true});
- await page.setViewportSize({width:1440,height:1000});
+ for(const width of [320,768,1024,1440]){
+  await page.setViewportSize({width,height:1000});
+  const positions=()=>a.locator('.table-navigation').evaluate(el=>{const r=el.getBoundingClientRect(),p=el.parentElement.getBoundingClientRect();return {center:r.x+r.width/2,parent:p.x+p.width/2,arrows:[...el.querySelectorAll('button')].map(b=>b.getBoundingClientRect().x)}});
+  const before=await positions();assert.ok(Math.abs(before.center-before.parent)<1);
+  await a.getByRole('button',{name:'Tabel berikutnya',exact:true}).click();
+  await a.locator('.table-title').filter({hasText:'Table Two'}).waitFor();
+  assert.deepEqual((await positions()).arrows,before.arrows);
+  await a.getByRole('button',{name:'Tabel sebelumnya',exact:true}).click();
+  await a.locator('.table-title').filter({hasText:'Renamed table'}).waitFor();
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+  await page.screenshot({path:'../graphify-out/checklist-centered-'+width+'.png',fullPage:true});
+ }
  for(const role of ['Project Engineer','Finance','Management']) {
   await login(role);await page.locator('.sidebar-nav').getByRole('link',{name:'Checklist Dokumen Pekerjaan',exact:true}).click();
   await a.getByRole('button',{name:new RegExp(names[0])}).waitFor();
@@ -152,11 +158,10 @@ try {
  await page.waitForFunction(previous=>document.querySelector('#week-title')?.textContent!==previous,firstPeriod);
  await page.getByRole('button',{name:'3 hari sebelumnya',exact:true}).click();
  await page.waitForFunction(previous=>document.querySelector('#week-title')?.textContent===previous,firstPeriod);
- await page.locator('.page-back button').click();
- await page.waitForURL('**/document-checklists');
- await page.reload();
- await page.locator('.page-back button').click();
+ await page.getByRole('link',{name:/Kembali ke dashboard/i}).click();
  await page.waitForURL('**/dashboard');
+ await page.reload();
+ assert.equal(await page.locator('.page-back').count(),0);
  await login('HR');assert.equal(await page.locator('.sidebar-nav').getByRole('link',{name:'Checklist Dokumen Pekerjaan',exact:true}).count(),0);
  await page.goto(origin+'/document-checklists');await page.getByRole('alert').filter({hasText:'Akses ditolak'}).waitFor();
  const denied=await context.request.get(backend+'/document-checklists');assert.equal(denied.status(),403);

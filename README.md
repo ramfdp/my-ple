@@ -311,8 +311,12 @@ otomatis. Kolom Aksi dan tombol hapus tidak ditampilkan.
 
 **Ekspor PDF pekerjaan** mengunduh semua tabel pekerjaan yang dipilih melalui
 `GET /document-checklists/{jobId}/pdf`, dengan izin akses checklist yang sama.
-PDF memuat status TTD digital/hardcopy dan memecah catatan panjang ke halaman berikutnya.
-Label TTD Basah kini **TTD Hardcopy**; posisi panah pemilih tabel tetap sama.
+PDF memakai struktur header website, termasuk kolom penandatangan Internal/External,
+header hijau muda, dan seluruh isi rata tengah. Tabel pendek berbagi halaman A4
+landscape; header diulang saat berlanjut, catatan panjang tetap lengkap, dan kolom
+penandatangan yang terlalu banyak dilanjutkan dalam bagian kolom tanpa mengecilkan font.
+Label TTD Basah kini **TTD Hardcopy**; grup panah dan tombol edit terkunci di tengah
+pada baris tersendiri, terpisah dari tombol tambah dan judul tabel.
 
 Kalender Zoom menampilkan tiga hari mulai hari ini (sembilan kolom untuk tiga resource),
 dengan navigasi maju/mundur tiga hari. Pembuat dan assignee aktif pekerjaan dapat
@@ -360,8 +364,10 @@ terjemahan di klien.
 
 Dashboard dan sidebar memakai `navigation.ts` dengan aturan akses yang sama.
 Dashboard dan Keluar tetap merupakan navigasi/aksi, bukan kartu layanan.
-Kalender Zoom desktop mengikuti tinggi panel informasi melalui CSS; tablet dan
-ponsel mempertahankan susunan bertumpuk dan area kalender yang dapat digulir.
+Kalender Zoom mengikuti tinggi seluruh isinya; scroll vertikal menggunakan halaman
+dan scroll horizontal tetap tersedia di kalender. Pada lebar hingga 1050 px,
+informasi Zoom berada di atas kalender, tertutup secara default, dan dapat dibuka
+dari tombol Informasi Zoom. Desktop tetap menampilkan informasi di samping kalender.
 
 Verifikasi: `npm test`, `npm run check`, `npm run build` dari `frontend`, serta
 `go test ./...` dari `backend`. `TestLanguagePreference` menggunakan database uji

@@ -1,10 +1,17 @@
 <script lang="ts">
  import { t as translate } from '$lib/i18n';
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import type { ZoomResource } from '$lib/api';
 	let { resources, canEdit = false, onedit }: { resources: ZoomResource[]; canEdit?: boolean; onedit: (resource: ZoomResource) => void } = $props();
 	let feedback = $state<Record<number, string>>({});
-	const timers = new Map<number, ReturnType<typeof setTimeout>>();
+	let compact = $state(true), expanded = $state(false);
+ onMount(() => {
+  const media = matchMedia('(max-width: 1050px)');
+  const update = () => { compact = media.matches; expanded = false; };
+  update(); media.addEventListener('change', update);
+  return () => media.removeEventListener('change', update);
+ });
+ const timers = new Map<number, ReturnType<typeof setTimeout>>();
 	onDestroy(() => timers.forEach(clearTimeout));
 	async function copy(resource: ZoomResource) {
 		clearTimeout(timers.get(resource.id));
@@ -26,7 +33,8 @@
 </script>
 
 <aside class="zoom-info-panel" aria-labelledby="zoom-info-title">
-	<header><p class="zoom-kicker">{$translate("RESOURCE")}</p><h2 id="zoom-info-title">{$translate("Zoom Information")}</h2></header>
+	<header><p class="zoom-kicker">{$translate("RESOURCE")}</p><h2 id="zoom-info-title">{#if compact}<button class="info-toggle" aria-expanded={expanded} aria-controls="zoom-info-content" onclick={() => expanded = !expanded}>{$translate("Zoom Information")}<span aria-hidden="true">{expanded ? '?' : '+'}</span></button>{:else}{$translate("Zoom Information")}{/if}</h2></header>
+ <div id="zoom-info-content" class="zoom-info-content" hidden={compact && !expanded}>
 	{#each resources as resource}
 		<section class="zoom-info-item">
 			<div class="zoom-info-heading"><div><h3>{resource.name}</h3><span>{resource.code}</span></div>{#if canEdit}<button type="button" onclick={() => onedit(resource)}>{$translate("Edit")}</button>{/if}</div>
@@ -39,9 +47,11 @@
 			</dl>
 		</section>
 	{/each}
+ </div>
 </aside>
 
 <style>
+ .info-toggle{display:flex;align-items:center;justify-content:space-between;gap:1rem;width:100%;min-height:44px;padding:0;border:0;background:transparent;color:inherit;font:inherit;cursor:pointer}.info-toggle:focus-visible{outline:3px solid var(--his-primary);outline-offset:3px}
 	dd { min-width: 0; overflow-wrap: anywhere; }
 	.copy-actions { display: flex !important; flex-wrap: wrap; align-items: center; gap: 8px !important; margin-top: 6px; }
 	.copy-actions button { min-height: 44px; padding: 6px 12px; border: 1px solid var(--his-border); border-radius: 6px; background: var(--his-primary-soft); color: var(--his-primary); font: inherit; }
