@@ -91,7 +91,7 @@ func (c *BillingConfiguration) Validate() error {
 	c.Name = strings.TrimSpace(c.Name)
 	c.PeriodLabel = strings.TrimSpace(c.PeriodLabel)
 	validName := func(s string) bool { return s != "" && len([]rune(s)) <= 255 }
-	if c.JobID <= 0 || c.Version < 0 || !validName(c.Name) || !validName(c.PeriodLabel) || len(c.Milestones) == 0 {
+	if c.JobID <= 0 || c.Version < 0 || !validName(c.Name) || len([]rune(c.PeriodLabel)) > 255 || len(c.Milestones) == 0 {
 		return ErrBillingInvalid
 	}
 	ids := map[int]bool{}

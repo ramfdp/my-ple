@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS billing_stages (
  id SERIAL PRIMARY KEY, job_id INTEGER NOT NULL REFERENCES jobs(id),
- name VARCHAR(255) NOT NULL CHECK(btrim(name)<>''), period_label VARCHAR(255) NOT NULL CHECK(btrim(period_label)<>''),
+ name VARCHAR(255) NOT NULL CHECK(btrim(name)<>''), period_label VARCHAR(255) NOT NULL DEFAULT '',
  sort_order INTEGER NOT NULL DEFAULT 0, notes TEXT NOT NULL DEFAULT '', version INTEGER NOT NULL DEFAULT 1,
  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -26,3 +26,7 @@ DO $$ BEGIN
  END IF;
 END $$;
 CREATE INDEX IF NOT EXISTS billing_documents_stage ON billing_documents(stage_id,sort_order,id);
+
+-- Billing periods are optional; retain existing values for older records/clients.
+ALTER TABLE billing_stages DROP CONSTRAINT IF EXISTS billing_stages_period_label_check;
+ALTER TABLE billing_stages ALTER COLUMN period_label SET DEFAULT '';

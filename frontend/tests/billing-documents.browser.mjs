@@ -13,7 +13,7 @@ try{
  const name='Billing browser '+Date.now();const {job}=await api('/jobs','POST',{divisionId:role.divisionId,roleId:role.id,name,isActive:true});
  await page.locator('.sidebar-nav').getByRole('link',{name:'Dokumen Penagihan',exact:true}).click();
  await page.getByRole('button',{name:'Tambah tahap penagihan',exact:true}).click();
- const dialog=page.getByRole('dialog');await dialog.getByRole('button',{name:'Tutup',exact:true}).click();await dialog.waitFor({state:'hidden'});await page.getByRole('button',{name:'Tambah tahap penagihan',exact:true}).click();await dialog.getByLabel('Pekerjaan',{exact:true}).selectOption(String(job.id));await dialog.getByLabel('Nama tahap',{exact:true}).fill('Tahap browser');await dialog.getByLabel('Periode penagihan').fill('TW-1');await dialog.getByLabel('Nama milestone',{exact:true}).fill('Milestone A');await dialog.getByLabel('Dokumen wajib 1',{exact:true}).fill('BAPP');await dialog.getByRole('button',{name:'Tambah milestone',exact:true}).click();await dialog.getByLabel('Nama milestone',{exact:true}).nth(1).fill('Milestone B');await dialog.getByLabel('Dokumen wajib 1',{exact:true}).nth(1).fill('Dokumen Khusus');await dialog.getByRole('button',{name:'Tambah dokumen tahap',exact:true}).click();await dialog.getByLabel('Dokumen tahap 1',{exact:true}).fill('BAST');await save();
+ const dialog=page.getByRole('dialog');await dialog.getByRole('button',{name:'Tutup',exact:true}).click();await dialog.waitFor({state:'hidden'});await page.getByRole('button',{name:'Tambah tahap penagihan',exact:true}).click();await dialog.getByLabel('Pekerjaan',{exact:true}).selectOption(String(job.id));await dialog.getByLabel('Nama tahap',{exact:true}).fill('Tahap browser');assert.equal(await dialog.getByLabel('Periode penagihan').count(),0);await dialog.getByLabel('Nama sub-tahap',{exact:true}).fill('Sub-Tahap A');await dialog.getByLabel('Dokumen wajib 1',{exact:true}).fill('BAPP');await dialog.getByRole('button',{name:'Tambah sub-tahap',exact:true}).click();await dialog.getByLabel('Nama sub-tahap',{exact:true}).nth(1).fill('Sub-Tahap B');await dialog.getByLabel('Dokumen wajib 1',{exact:true}).nth(1).fill('Dokumen Khusus');await dialog.getByRole('button',{name:'Tambah dokumen tahap',exact:true}).click();await dialog.getByLabel('Dokumen tahap 1',{exact:true}).fill('BAST');await save();
  await page.getByRole('main').getByLabel('Pekerjaan',{exact:true}).selectOption(String(job.id));
  const stage=page.locator('tbody').filter({hasText:name});
  const status=doc=>stage.getByRole('combobox',{name:new RegExp(' / '+doc+'$')});
@@ -38,9 +38,11 @@ try{
  await viewer.waitForFunction(()=>document.querySelector('tbody .readiness')?.textContent==='SIAP');
  assert.ok(await viewer.evaluate(()=>window.billingEvents>0),'real socket delivered billing event');
  // Edit a prefilled shared document using its full native dropdown, retaining ID/status.
- const originalShared=(await api('/billing-documents')).stages.find(s=>s.jobId===job.id).documents[0];
+ const savedStage=(await api('/billing-documents')).stages.find(s=>s.jobId===job.id);assert.equal(savedStage.periodLabel,'');const originalShared=savedStage.documents[0];
  await stage.getByRole('button',{name:'Edit requirement',exact:true}).click();
- assert.equal(await dialog.locator('fieldset.requirement > legend').last().textContent(),'Dokumen bersama seluruh tahap');
+ assert.equal(await dialog.locator('fieldset.requirement > legend').last().textContent(),'Status Dokumen per Tahap');
+ assert.match(await dialog.locator('fieldset.requirement > legend').first().textContent(),/^Status Dokumen per Sub-Tahap/);
+ assert.deepEqual(await dialog.locator('fieldset > label').evaluateAll(els=>els.slice(0,3).map(el=>el.firstChild.textContent)),['Pekerjaan','Nama tahap','Nama sub-tahap']);
  const choices=dialog.getByLabel('Pilihan dokumen Dokumen tahap 1',{exact:true});
  assert.equal(await choices.locator('option').count(),10);
  await choices.selectOption('RAB Tagihan');await save();
@@ -52,7 +54,7 @@ try{
  await viewer.close();
  await setStatus('BAPP','KURANG LENGKAP');
  assert.equal(await stage.locator('.readiness').textContent(),'BELUM SIAP');
- await stage.getByRole('button',{name:'Catatan milestone Milestone A',exact:true}).click();
+ await stage.getByRole('button',{name:'Catatan sub-tahap Sub-Tahap A',exact:true}).click();
  await dialog.getByLabel('Catatan',{exact:true}).fill('Month note');await save();
  await stage.getByRole('button',{name:'Catatan tahap',exact:true}).click();await dialog.getByLabel('Catatan',{exact:true}).fill('Persistent note');await save();
  await page.reload();await page.getByRole('main').getByLabel('Pekerjaan',{exact:true}).selectOption(String(job.id));await stage.getByText('Persistent note',{exact:true}).waitFor();
@@ -72,7 +74,7 @@ try{
  await dialog.getByRole('button',{name:'Simpan',exact:true}).click();await dialog.getByText('Remote note',{exact:true}).waitFor();assert.equal(await dialog.getByLabel('Catatan',{exact:true}).inputValue(),'Local draft');await dialog.getByRole('button',{name:'Gunakan versi terbaru untuk draf ini',exact:true}).click();await save();
  await page.locator('.billing-scroll').evaluate(el=>el.scrollLeft=0);await page.screenshot({path:'../graphify-out/billing-table-shared.png',fullPage:true});
  // Removing a non-OK document/milestone recalculates readiness after confirmation.
- await stage.getByRole('button',{name:'Edit requirement',exact:true}).click();await dialog.getByRole('button',{name:'Hapus milestone',exact:true}).first().click();await dialog.getByRole('button',{name:'Simpan',exact:true}).click();await dialog.getByRole('button',{name:'Konfirmasi dan simpan',exact:true}).click();await dialog.waitFor({state:'hidden'});assert.equal(await stage.locator('.readiness').textContent(),'SIAP');
+ await stage.getByRole('button',{name:'Edit requirement',exact:true}).click();await dialog.getByRole('button',{name:'Hapus sub-tahap',exact:true}).first().click();await dialog.getByRole('button',{name:'Simpan',exact:true}).click();await dialog.getByRole('button',{name:'Konfirmasi dan simpan',exact:true}).click();await dialog.waitFor({state:'hidden'});assert.equal(await stage.locator('.readiness').textContent(),'SIAP');
  await page.getByLabel('Cari penagihan').fill('BAST');assert.equal(await stage.count(),1);await page.getByLabel('Kesiapan tahap').selectOption('BELUM SIAP');assert.equal(await stage.count(),0);await page.getByLabel('Kesiapan tahap').selectOption('');
  // Responsive table scroll is contained; controls remain reachable by keyboard.
  await page.getByLabel('Cari penagihan').fill('');

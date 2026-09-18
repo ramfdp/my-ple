@@ -1,4 +1,12 @@
 export const messages = {
+  "Isi pekerjaan, nama tahap, dan minimal satu sub-tahap. Setiap sub-tahap memerlukan dokumen sendiri atau dokumen per tahap. Nama dokumen harus unik dan tidak boleh digunakan pada kedua cakupan.": ["Isi pekerjaan, nama tahap, dan minimal satu sub-tahap. Setiap sub-tahap memerlukan dokumen sendiri atau dokumen per tahap. Nama dokumen harus unik dan tidak boleh digunakan pada kedua cakupan.", "Enter a job, stage name and at least one sub-stage. Each sub-stage needs its own documents or stage documents. Document names must be unique and cannot be used at both scopes."],
+  "Bulan / sub-tahap": ["Bulan / sub-tahap", "Month / sub-stage"],
+  "Catatan sub-tahap": ["Catatan sub-tahap", "Sub-stage notes"],
+  "Hapus sub-tahap": ["Hapus sub-tahap", "Remove sub-stage"],
+  "Tambah sub-tahap": ["Tambah sub-tahap", "Add sub-stage"],
+  "Nama sub-tahap": ["Nama sub-tahap", "Sub-stage name"],
+  "Status Dokumen per Sub-Tahap": ["Status Dokumen per Sub-Tahap", "Document Status per Sub-Stage"],
+  "Status Dokumen per Tahap": ["Status Dokumen per Tahap", "Document Status per Stage"],
   "Pilih dokumen": ["Pilih dokumen", "Select a document"],
   "Pilihan dokumen": ["Pilihan dokumen", "Document choices"],
   "REKAP KESIAPAN DOKUMEN TAGIHAN": ["REKAP KESIAPAN DOKUMEN TAGIHAN", "BILLING DOCUMENT READINESS SUMMARY"],

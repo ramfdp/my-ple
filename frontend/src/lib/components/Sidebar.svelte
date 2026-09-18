@@ -81,7 +81,7 @@
 		{/if}
 	</button>
 	<div class="mobile-brand">
-		<img src="/harmoni%20insan%20phooto.webp" alt={$translate("MyHIS")} class="mobile-logo-img" />
+		<img src="/logo%20MyHIS%20terbaru.jpeg" alt={$translate("MyHIS")} class="mobile-logo-img" />
 		<span class="brand-text">{$translate("MyHIS")}</span>
 	</div>
 </div>
@@ -98,7 +98,7 @@
 		<button type="button" class="drawer-close-button" aria-label={$translate("Tutup navigasi")} onclick={() => mobileOpen = false}>×</button>
 		<a href="/dashboard" class="logo-link" onclick={() => (mobileOpen = false)}>
 			<div class="logo-circle">
-				<img src="/harmoni%20insan%20phooto.webp" alt={$translate("MyHIS")} class="sidebar-logo" />
+				<img src="/logo%20MyHIS%20terbaru.jpeg" alt={$translate("MyHIS")} class="sidebar-logo" />
 			</div>
 			<div class="brand-details">
 				<span class="brand-title">{$translate("MyHIS")}</span>

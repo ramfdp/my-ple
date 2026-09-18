@@ -40,7 +40,7 @@
  });
  const findDocument=(documents:BillingDocument[],name:string)=>documents.find(d=>key(d.name)===key(name));
  const validDocuments=(docs:{name:string}[])=>docs.every(d=>d.name.trim())&&new Set(docs.map(d=>key(d.name))).size===docs.length;
- const validConfig=$derived(config.jobId>0&&!!config.name.trim()&&!!config.periodLabel.trim()&&validDocuments(config.documents)&&config.milestones.length>0&&config.milestones.every(m=>m.name.trim()&&(m.documents.length>0||config.documents.length>0)&&validDocuments(m.documents)&&m.documents.every(d=>!config.documents.some(shared=>key(shared.name)===key(d.name)))));
+ const validConfig=$derived(config.jobId>0&&!!config.name.trim()&&validDocuments(config.documents)&&config.milestones.length>0&&config.milestones.every(m=>m.name.trim()&&(m.documents.length>0||config.documents.length>0)&&validDocuments(m.documents)&&m.documents.every(d=>!config.documents.some(shared=>key(shared.name)===key(d.name)))));
  const today=new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Jakarta',dateStyle:'long'}).format(new Date());
  function configuration(s:BillingStage):BillingConfiguration{return {jobId:s.jobId,name:s.name,periodLabel:s.periodLabel,version:s.version,documents:(s.documents??[]).map(d=>({id:d.id,name:d.name})),milestones:s.milestones.map(m=>({id:m.id,name:m.name,documents:m.documents.map(d=>({id:d.id,name:d.name}))}))}}
  async function changeStatus(s:BillingStage,d:BillingDocument,element:HTMLSelectElement){
@@ -128,7 +128,7 @@
  <table class="billing-table">
   <caption class="sr-only">{$translate('Rekap kesiapan dokumen tagihan')}</caption>
   <thead><tr><th colspan="3" scope="colgroup">{$translate('PEKERJAAN')}</th><th colspan={columns.length} scope="colgroup">{$translate('DOKUMEN')}</th><th rowspan="2" scope="col">{$translate('STATUS')}</th><th rowspan="2" scope="col">{$translate('CATATAN')}</th></tr>
-  <tr><th scope="col">{$translate('Pekerjaan')}</th><th scope="col">{$translate('Tahap')}</th><th scope="col">{$translate('Bulan / milestone')}</th>{#each columns as name}<th scope="col" class="document-heading">{name}</th>{/each}</tr></thead>
+  <tr><th scope="col">{$translate('Pekerjaan')}</th><th scope="col">{$translate('Tahap')}</th><th scope="col">{$translate('Bulan / sub-tahap')}</th>{#each columns as name}<th scope="col" class="document-heading">{name}</th>{/each}</tr></thead>
   {#each jobs.filter(j=>visible.some(s=>s.jobId===j.id)) as job (job.id)}
    {@const jobStages=visible.filter(s=>s.jobId===job.id)}
    <tbody>
@@ -136,8 +136,8 @@
     {#each stage.milestones.length?stage.milestones:[null] as milestone, mi (milestone?.id??0)}
      <tr data-stage-id={stage.id}>
       {#if si===0&&mi===0}<th class="job-cell" scope="rowgroup" rowspan={jobStages.reduce((n,s)=>n+Math.max(1,s.milestones.length),0)}>{job.name}</th>{/if}
-      {#if mi===0}<td rowspan={Math.max(1,stage.milestones.length)} class="stage-cell"><strong>{stage.name}</strong><small>{stage.periodLabel}</small><button disabled={busy} onclick={()=>configure(stage)}>{$translate('Edit requirement')}</button><small title={date(stage.updatedAt)}>{$translate('Diperbarui (WIB)')}: {date(stage.updatedAt)}</small></td>{/if}
-      <th scope="row" class="milestone-cell">{milestone?.name??$translate('Requirement belum dikonfigurasi.')}{#if milestone}<button class="note-button" disabled={busy} title={milestone.notes||$translate('Catatan milestone')} aria-label={$translate('Catatan milestone')+' '+milestone.name} onclick={()=>editNotes(stage,milestone)}>{$translate('Catatan milestone')}{milestone.notes?' *':''}</button>{/if}</th>
+      {#if mi===0}<td rowspan={Math.max(1,stage.milestones.length)} class="stage-cell"><strong>{stage.name}</strong>{#if stage.periodLabel}<small>{stage.periodLabel}</small>{/if}<button disabled={busy} onclick={()=>configure(stage)}>{$translate('Edit requirement')}</button><small title={date(stage.updatedAt)}>{$translate('Diperbarui (WIB)')}: {date(stage.updatedAt)}</small></td>{/if}
+      <th scope="row" class="milestone-cell">{milestone?.name??$translate('Requirement belum dikonfigurasi.')}{#if milestone}<button class="note-button" disabled={busy} title={milestone.notes||$translate('Catatan sub-tahap')} aria-label={$translate('Catatan sub-tahap')+' '+milestone.name} onclick={()=>editNotes(stage,milestone)}>{$translate('Catatan sub-tahap')}{milestone.notes?' *':''}</button>{/if}</th>
       {#each columns as name}
        {@const shared=findDocument(stage.documents??[],name)}
        {@const doc=shared??findDocument(milestone?.documents??[],name)}
@@ -169,23 +169,22 @@
   {#if mode==='configuration'}
    <label>{$translate('Pekerjaan')}<select aria-label={$translate('Pekerjaan')} required disabled={!!stageId} bind:value={config.jobId}><option value={0}>{$translate('Pilih pekerjaan')}</option>{#each jobs.filter(j=>j.isActive||j.id===config.jobId) as j}<option value={j.id}>{[j.name,j.division,j.role,j.category].filter(Boolean).join(' / ')}</option>{/each}</select></label>
    <label>{$translate('Nama tahap')}<input required maxlength="255" bind:value={config.name}/></label>
-   <label>{$translate('Periode penagihan')}<input required maxlength="255" bind:value={config.periodLabel}/></label>
    <p>{$translate('Pilih hanya dokumen wajib. Tanda / tidak dihitung sebagai alternatif otomatis.')}</p>
    {#each config.milestones as milestone, i}
    <fieldset class="requirement">
-    <legend>{$translate('Milestone')} {i+1}</legend>
-    <label>{$translate('Nama milestone')}<input required maxlength="255" bind:value={milestone.name}/></label>
+    <legend>{$translate('Status Dokumen per Sub-Tahap')} {i+1}</legend>
+    <label>{$translate('Nama sub-tahap')}<input required maxlength="255" bind:value={milestone.name}/></label>
     {#each milestone.documents as doc, j}<div class="requirement-row">{@render documentName(doc,$translate('Dokumen wajib')+' '+(j+1))}<button type="button" onclick={()=>{milestone.documents=milestone.documents.filter((_,n)=>n!==j);confirming=false}}>{$translate('Hapus dokumen')}</button></div>{/each}
-    <div class="ws-row"><button type="button" onclick={()=>{milestone.documents=[...milestone.documents,{id:0,name:''}];confirming=false}}>{$translate('Tambah dokumen wajib')}</button><button type="button" onclick={()=>{config.milestones=config.milestones.filter((_,n)=>n!==i);confirming=false}}>{$translate('Hapus milestone')}</button></div>
+    <div class="ws-row"><button type="button" onclick={()=>{milestone.documents=[...milestone.documents,{id:0,name:''}];confirming=false}}>{$translate('Tambah dokumen wajib')}</button><button type="button" onclick={()=>{config.milestones=config.milestones.filter((_,n)=>n!==i);confirming=false}}>{$translate('Hapus sub-tahap')}</button></div>
    </fieldset>{/each}
-   <button type="button" onclick={()=>{config.milestones=[...config.milestones,{id:0,name:'',documents:[{id:0,name:''}]}];confirming=false}}>{$translate('Tambah milestone')}</button>
-   <fieldset class="requirement"><legend>{$translate('Dokumen bersama seluruh tahap')}</legend>
+   <button type="button" onclick={()=>{config.milestones=[...config.milestones,{id:0,name:'',documents:[{id:0,name:''}]}];confirming=false}}>{$translate('Tambah sub-tahap')}</button>
+   <fieldset class="requirement"><legend>{$translate('Status Dokumen per Tahap')}</legend>
     <p>{$translate('Satu status berlaku untuk seluruh bulan dalam tahap ini. Jangan tambahkan dokumen yang sama pada setiap bulan.')}</p>
     {#each config.documents as doc, i}<div class="requirement-row">{@render documentName(doc,$translate('Dokumen tahap')+' '+(i+1))}<button type="button" onclick={()=>{config.documents=config.documents.filter((_,n)=>n!==i);confirming=false}}>{$translate('Hapus dokumen')}</button></div>{/each}
     <button type="button" onclick={()=>{config.documents=[...config.documents,{id:0,name:''}];confirming=false}}>{$translate('Tambah dokumen tahap')}</button>
    </fieldset>
 
-   {#if !validConfig}<p>{$translate('Isi pekerjaan, tahap, periode, dan minimal satu milestone. Setiap milestone memerlukan dokumen sendiri atau dokumen bersama. Nama dokumen harus unik dan tidak boleh digunakan pada kedua cakupan.')}</p>{/if}
+   {#if !validConfig}<p>{$translate('Isi pekerjaan, nama tahap, dan minimal satu sub-tahap. Setiap sub-tahap memerlukan dokumen sendiri atau dokumen per tahap. Nama dokumen harus unik dan tidak boleh digunakan pada kedua cakupan.')}</p>{/if}
    {#if confirming}<section role="status" class="conflict"><p>{$translate('Konfirmasi perubahan requirement. Penghapusan dapat membuat tahap menjadi SIAP. Dokumen baru dimulai BELUM ADA.')}</p><ul>{#each changes as change}<li>{change}</li>{/each}</ul></section>{/if}
   {:else}<p>{targetName}</p><label>{$translate('Catatan')}<textarea maxlength="4000" rows="5" bind:value={draftNotes}></textarea></label>{/if}
   </fieldset>

@@ -24,7 +24,7 @@ func TestBillingSharedIntegration(t *testing.T) {
 	if err := database.Conn.QueryRow(`INSERT INTO jobs(division_id,role_id,name) SELECT division_id,id,$1 FROM report_roles WHERE name='PE' ORDER BY id LIMIT 1 RETURNING id`, "Shared billing "+db.NewID()).Scan(&job); err != nil {
 		t.Fatal(err)
 	}
-	c := model.BillingConfiguration{JobID: job, Name: "Shared", PeriodLabel: "TW-1", Documents: []model.BillingRequirement{{Name: "BAST"}}, Milestones: []model.BillingRequirement{{Name: "Month 1"}, {Name: "Month 2"}}}
+	c := model.BillingConfiguration{JobID: job, Name: "Shared", Documents: []model.BillingRequirement{{Name: "BAST"}}, Milestones: []model.BillingRequirement{{Name: "Month 1"}, {Name: "Month 2"}}}
 	id, err := database.ConfigureBilling(ctx, 0, c)
 	if err != nil {
 		t.Fatal(err)
@@ -124,7 +124,7 @@ func TestBillingSharedMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 	legacy := strings.Split(string(migration), "ALTER TABLE billing_documents ADD COLUMN")[0]
-	if _, err = tx.Exec(legacy + `INSERT INTO billing_stages(id,job_id,name,period_label,notes,version) VALUES(10,1,'Legacy','TW-1','Keep',7); INSERT INTO billing_milestones(id,stage_id,name,sort_order) VALUES(20,10,'Month',0); INSERT INTO billing_documents(id,milestone_id,name,sort_order,status) VALUES(30,20,'BAST',0,'OK');`); err != nil {
+	if _, err = tx.Exec(legacy + `ALTER TABLE billing_stages ADD CONSTRAINT billing_stages_period_label_check CHECK(btrim(period_label)<>''); INSERT INTO billing_stages(id,job_id,name,period_label,notes,version) VALUES(10,1,'Legacy','TW-1','Keep',7); INSERT INTO billing_milestones(id,stage_id,name,sort_order) VALUES(20,10,'Month',0); INSERT INTO billing_documents(id,milestone_id,name,sort_order,status) VALUES(30,20,'BAST',0,'OK');`); err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < 2; i++ {
@@ -133,8 +133,11 @@ func TestBillingSharedMigration(t *testing.T) {
 		}
 	}
 	var preserved bool
-	if err = tx.QueryRow(`SELECT d.status='OK' AND d.milestone_id=20 AND d.stage_id IS NULL AND s.version=7 AND s.notes='Keep' FROM billing_documents d CROSS JOIN billing_stages s WHERE d.id=30 AND s.id=10`).Scan(&preserved); err != nil || !preserved {
+	if err = tx.QueryRow(`SELECT d.status='OK' AND d.milestone_id=20 AND d.stage_id IS NULL AND s.version=7 AND s.notes='Keep' AND s.period_label='TW-1' FROM billing_documents d CROSS JOIN billing_stages s WHERE d.id=30 AND s.id=10`).Scan(&preserved); err != nil || !preserved {
 		t.Fatal("migration changed legacy data", err)
+	}
+	if _, err = tx.Exec(`INSERT INTO billing_stages(job_id,name) VALUES(1,'No period')`); err != nil {
+		t.Fatal("period still required after migration", err)
 	}
 	if _, err = tx.Exec(`INSERT INTO billing_documents(stage_id,name,sort_order) VALUES(10,'RAB Tagihan',0)`); err != nil {
 		t.Fatal(err)

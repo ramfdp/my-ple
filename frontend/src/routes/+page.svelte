@@ -1,7 +1,17 @@
 <script lang="ts">
  import { t as translate } from '$lib/i18n';
 	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import { api, setAuthenticated, type User } from '$lib/api';
+	let introducing = $state(true);
+	onMount(() => {
+		if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+			introducing = false;
+			return;
+		}
+		const timer = setTimeout(() => introducing = false, 1000);
+		return () => clearTimeout(timer);
+	});
 	let error = $state('');
 	let submitting = $state(false);
 	async function login(event: SubmitEvent) {
@@ -30,10 +40,15 @@
 	/>
 </svelte:head>
 
+{#if introducing}
+	<div class="login-intro" role="status" aria-label="MyHIS">
+		<img src="/logo%20MyHIS%20terbaru.jpeg" alt="MyHIS" width="188" height="176" />
+	</div>
+{:else}
 <main class="login-page">
 	<section class="login-panel" aria-labelledby="login-title">
 		<div class="login-content">
-			<img class="brand-logo" src="/harmoni%20insan%20phooto.webp" alt={$translate("MyHIS")} />
+			<img class="brand-logo" src="/logo%20MyHIS%20terbaru.jpeg" alt={$translate("MyHIS")} />
 
 			<div class="login-heading">
 				<p class="eyebrow">{$translate("MyHIS WORKSPACE")}</p>
@@ -70,3 +85,4 @@
 		</div>
 	</aside>
 </main>
+{/if}

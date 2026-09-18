@@ -1,6 +1,9 @@
 package model
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestBillingSharedDocuments(t *testing.T) {
 	s := BillingStage{Documents: []BillingDocument{{Status: "SIRKULIR TTD"}}, Milestones: []BillingMilestone{{}, {Documents: []BillingDocument{{Status: "OK"}}}}}
@@ -17,6 +20,15 @@ func TestBillingSharedDocuments(t *testing.T) {
 	if err := c.Validate(); err != nil {
 		t.Fatal(err)
 	}
+	c.PeriodLabel = ""
+	if err := c.Validate(); err != nil {
+		t.Fatal("period should be optional", err)
+	}
+	c.PeriodLabel = strings.Repeat("x", 256)
+	if c.Validate() == nil {
+		t.Fatal("oversized period accepted")
+	}
+	c.PeriodLabel = ""
 	c.Milestones[0].Documents = []BillingRequirement{{Name: " bast "}}
 	if c.Validate() == nil {
 		t.Fatal("shared/local duplicate accepted")
