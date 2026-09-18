@@ -18,3 +18,11 @@ CREATE TABLE IF NOT EXISTS billing_documents (
  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(), archived_at TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS billing_documents_milestone ON billing_documents(milestone_id,sort_order,id);
+ALTER TABLE billing_documents ADD COLUMN IF NOT EXISTS stage_id INTEGER REFERENCES billing_stages(id);
+ALTER TABLE billing_documents ALTER COLUMN milestone_id DROP NOT NULL;
+DO $$ BEGIN
+ IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='billing_documents'::regclass AND conname='billing_document_owner') THEN
+  ALTER TABLE billing_documents ADD CONSTRAINT billing_document_owner CHECK ((milestone_id IS NOT NULL) <> (stage_id IS NOT NULL));
+ END IF;
+END $$;
+CREATE INDEX IF NOT EXISTS billing_documents_stage ON billing_documents(stage_id,sort_order,id);

@@ -24,6 +24,7 @@ func (db *Database) BillingStages(ctx context.Context) ([]model.BillingStage, er
 			return nil, err
 		}
 		s.Milestones = []model.BillingMilestone{}
+		s.Documents = []model.BillingDocument{}
 		stages = append(stages, s)
 	}
 	err = rows.Err()
@@ -33,6 +34,23 @@ func (db *Database) BillingStages(ctx context.Context) ([]model.BillingStage, er
 	}
 	for i := range stages {
 		s := &stages[i]
+		rows, err = tx.QueryContext(ctx, `SELECT id,name,status,updated_at FROM billing_documents WHERE stage_id=$1 AND archived_at IS NULL ORDER BY sort_order,id`, s.ID)
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			var d model.BillingDocument
+			if err = rows.Scan(&d.ID, &d.Name, &d.Status, &d.UpdatedAt); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			s.Documents = append(s.Documents, d)
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return nil, err
+		}
 		rows, err = tx.QueryContext(ctx, `SELECT id,name,notes,updated_at FROM billing_milestones WHERE stage_id=$1 AND archived_at IS NULL ORDER BY sort_order,id`, s.ID)
 		if err != nil {
 			return nil, err
@@ -86,14 +104,47 @@ func lockBilling(ctx context.Context, tx *sql.Tx, id, version int) error {
 	return nil
 }
 func (db *Database) ConfigureBilling(ctx context.Context, id int, c model.BillingConfiguration) (int, error) {
-	if err := c.Validate(); err != nil {
-		return 0, err
-	}
 	tx, err := db.Conn.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
 	}
 	defer tx.Rollback()
+	// Resolve omitted shared requirements before validation for older clients.
+	existingShared := map[int]bool{}
+	if id != 0 {
+		if err = lockBilling(ctx, tx, id, c.Version); err != nil {
+			return 0, err
+		}
+		rows, e := tx.QueryContext(ctx, `SELECT id,name FROM billing_documents WHERE stage_id=$1 AND archived_at IS NULL ORDER BY sort_order,id`, id)
+		if e != nil {
+			return 0, e
+		}
+		preserve := c.Documents == nil
+		for rows.Next() {
+			var d model.BillingRequirement
+			if e = rows.Scan(&d.ID, &d.Name); e != nil {
+				rows.Close()
+				return 0, e
+			}
+			existingShared[d.ID] = true
+			if preserve {
+				c.Documents = append(c.Documents, d)
+			}
+		}
+		e = rows.Err()
+		rows.Close()
+		if e != nil {
+			return 0, e
+		}
+	}
+	if err = c.Validate(); err != nil {
+		return 0, err
+	}
+	for _, d := range c.Documents {
+		if d.ID > 0 && !existingShared[d.ID] {
+			return 0, model.ErrBillingInvalid
+		}
+	}
 	if id == 0 {
 		if c.Version != 0 {
 			return 0, model.ErrBillingInvalid
@@ -104,9 +155,6 @@ func (db *Database) ConfigureBilling(ctx context.Context, id int, c model.Billin
 		}
 		err = tx.QueryRowContext(ctx, `INSERT INTO billing_stages(job_id,name,period_label) VALUES($1,$2,$3) RETURNING id`, c.JobID, c.Name, c.PeriodLabel).Scan(&id)
 	} else {
-		if err = lockBilling(ctx, tx, id, c.Version); err != nil {
-			return 0, err
-		}
 		var job int
 		if err = tx.QueryRowContext(ctx, `SELECT job_id FROM billing_stages WHERE id=$1`, id).Scan(&job); err != nil {
 			return 0, err
@@ -180,6 +228,19 @@ func (db *Database) ConfigureBilling(ctx context.Context, id int, c model.Billin
 			}
 		}
 	}
+	if _, err = tx.ExecContext(ctx, `UPDATE billing_documents SET archived_at=now(),updated_at=now() WHERE stage_id=$1 AND archived_at IS NULL`, id); err != nil {
+		return 0, err
+	}
+	for i, d := range c.Documents {
+		if d.ID == 0 {
+			_, err = tx.ExecContext(ctx, `INSERT INTO billing_documents(stage_id,name,sort_order) VALUES($1,$2,$3)`, id, d.Name, i)
+		} else {
+			_, err = tx.ExecContext(ctx, `UPDATE billing_documents SET name=$2,sort_order=$3,archived_at=NULL WHERE id=$1`, d.ID, d.Name, i)
+		}
+		if err != nil {
+			return 0, err
+		}
+	}
 	return id, tx.Commit()
 }
 func (db *Database) PatchBilling(ctx context.Context, id int, p model.BillingPatch) error {
@@ -196,12 +257,14 @@ func (db *Database) PatchBilling(ctx context.Context, id int, p model.BillingPat
 	}
 	var result sql.Result
 	if p.Status != nil {
-		var mid int
-		err = tx.QueryRowContext(ctx, `UPDATE billing_documents d SET status=$3,updated_at=now() FROM billing_milestones m WHERE d.id=$2 AND d.milestone_id=m.id AND m.stage_id=$1 AND m.archived_at IS NULL AND d.archived_at IS NULL RETURNING m.id`, id, p.DocumentID, *p.Status).Scan(&mid)
+		var mid sql.NullInt64
+		err = tx.QueryRowContext(ctx, `UPDATE billing_documents d SET status=$3,updated_at=now() WHERE d.id=$2 AND d.archived_at IS NULL AND (d.stage_id=$1 OR EXISTS(SELECT 1 FROM billing_milestones m WHERE m.id=d.milestone_id AND m.stage_id=$1 AND m.archived_at IS NULL)) RETURNING d.milestone_id`, id, p.DocumentID, *p.Status).Scan(&mid)
 		if err != nil {
 			return err
 		}
-		_, err = tx.ExecContext(ctx, `UPDATE billing_milestones SET updated_at=now() WHERE id=$1`, mid)
+		if mid.Valid {
+			_, err = tx.ExecContext(ctx, `UPDATE billing_milestones SET updated_at=now() WHERE id=$1`, mid.Int64)
+		}
 	} else if p.MilestoneID > 0 {
 		result, err = tx.ExecContext(ctx, `UPDATE billing_milestones SET notes=$3,updated_at=now() WHERE stage_id=$1 AND id=$2 AND archived_at IS NULL`, id, p.MilestoneID, *p.Notes)
 		if err == nil {

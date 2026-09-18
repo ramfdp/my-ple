@@ -38,18 +38,28 @@ type BillingStage struct {
 	UpdatedAt   time.Time          `json:"updatedAt"`
 	Version     int                `json:"version"`
 	Milestones  []BillingMilestone `json:"milestones"`
+	Documents   []BillingDocument  `json:"documents"`
 	Readiness   string             `json:"readiness"`
 }
 
 func (s *BillingStage) Calculate() {
 	s.Readiness = "SIAP"
+	sharedReady := true
+	for _, d := range s.Documents {
+		if d.Status != "OK" {
+			sharedReady = false
+		}
+	}
+	if !sharedReady {
+		s.Readiness = "BELUM SIAP"
+	}
 	if len(s.Milestones) == 0 {
 		s.Readiness = "BELUM SIAP"
 	}
 	for i := range s.Milestones {
 		m := &s.Milestones[i]
 		m.Readiness = "SIAP"
-		if len(m.Documents) == 0 {
+		if !sharedReady || len(m.Documents) == 0 && len(s.Documents) == 0 {
 			m.Readiness = "BELUM SIAP"
 		}
 		for _, d := range m.Documents {
@@ -74,6 +84,7 @@ type BillingConfiguration struct {
 	PeriodLabel string               `json:"periodLabel"`
 	Version     int                  `json:"version"`
 	Milestones  []BillingRequirement `json:"milestones"`
+	Documents   []BillingRequirement `json:"documents"`
 }
 
 func (c *BillingConfiguration) Validate() error {
@@ -85,10 +96,21 @@ func (c *BillingConfiguration) Validate() error {
 	}
 	ids := map[int]bool{}
 	docs := map[int]bool{}
+	sharedNames := map[string]bool{}
+	for i := range c.Documents {
+		d := &c.Documents[i]
+		d.Name = strings.TrimSpace(d.Name)
+		key := strings.ToLower(d.Name)
+		if d.ID < 0 || !validName(d.Name) || len(d.Documents) > 0 || sharedNames[key] || d.ID > 0 && docs[d.ID] {
+			return ErrBillingInvalid
+		}
+		sharedNames[key] = true
+		docs[d.ID] = true
+	}
 	for i := range c.Milestones {
 		m := &c.Milestones[i]
 		m.Name = strings.TrimSpace(m.Name)
-		if m.ID < 0 || !validName(m.Name) || len(m.Documents) == 0 || m.ID > 0 && ids[m.ID] {
+		if m.ID < 0 || !validName(m.Name) || len(m.Documents) == 0 && len(c.Documents) == 0 || m.ID > 0 && ids[m.ID] {
 			return ErrBillingInvalid
 		}
 		ids[m.ID] = true
@@ -97,7 +119,7 @@ func (c *BillingConfiguration) Validate() error {
 			d := &m.Documents[j]
 			d.Name = strings.TrimSpace(d.Name)
 			key := strings.ToLower(d.Name)
-			if d.ID < 0 || !validName(d.Name) || len(d.Documents) > 0 || names[key] || d.ID > 0 && docs[d.ID] {
+			if d.ID < 0 || !validName(d.Name) || len(d.Documents) > 0 || names[key] || sharedNames[key] || d.ID > 0 && docs[d.ID] {
 				return ErrBillingInvalid
 			}
 			docs[d.ID] = true

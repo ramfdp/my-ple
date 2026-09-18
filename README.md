@@ -271,8 +271,13 @@ dapat membuat dan mengedit tahap/periode, milestone, requirement, status, dan ca
 Tidak ada integrasi spreadsheet atau relasi dengan checklist dokumen.
 
 Setiap dokumen aktif merupakan requirement wajib; dokumen baru dimulai `BELUM ADA`.
-Milestone `SIAP` hanya jika mempunyai dokumen wajib dan semuanya `OK`; tahap `SIAP`
-hanya jika mempunyai milestone dan semuanya `SIAP`. Kesiapan dihitung backend, tidak
+Tabel rekap memakai sembilan kolom dokumen standar, ditambah kolom dokumen khusus.
+Dokumen bersama seluruh tahap memakai satu dropdown dalam sel gabungan; dokumen
+per bulan tetap disimpan terpisah. Sel abu-abu berarti tidak diwajibkan. Dropdown
+langsung menyimpan; kegagalan memulihkan status tersimpan dan konflik memuat ulang
+data terbaru agar pengguna memilih kembali. Tabel bergulir horizontal pada layar kecil.
+Milestone `SIAP` hanya jika mempunyai dokumen wajib sendiri atau bersama dan semuanya
+`OK`; tahap `SIAP` hanya jika mempunyai milestone dan semuanya `SIAP`. Kesiapan dihitung backend, tidak
 disimpan. Requirement yang dikeluarkan diarsipkan dan tidak dihitung. Tanda `/` pada
 nama dokumen tidak menandakan alternatif otomatis. Perubahan requirement dikonfirmasi
 sebelum disimpan; konflik versi mempertahankan draf untuk dibandingkan.
@@ -282,9 +287,14 @@ API: `GET /billing-documents`, `POST /billing-documents/stages`,
 `PATCH /billing-documents/stages/{id}`. Mutasi tahap existing menyertakan `version`.
 Respons mutasi berisi `stage` dan status hasil kalkulasi. Perubahan status/catatan
 memperbarui waktu server; tampilan waktu menggunakan WIB. Tidak ada ekspor/import.
+Respons tahap dan konfigurasi menerima `documents` untuk dokumen bersama, selain
+`milestones[].documents`. Pada konfigurasi existing, field `documents` yang tidak
+dikirim mempertahankan dokumen bersama; array kosong mengarsipkannya. Nama dokumen
+tidak boleh dipakai sekaligus pada kedua cakupan dalam satu tahap. Migrasi otomatis
+mempertahankan dokumen lama per milestone; tidak ada penggabungan data otomatis.
 
-Tes: `go test ./model -run TestBillingReadiness` dan
-`go test . -run TestBillingDocumentsIntegration` dengan database uji lokal
+Tes: `go test ./model -run TestBilling` dan
+`go test . -run TestBilling` dengan database uji lokal
 `CHECKLIST_TEST_DATABASE_URL` yang sama seperti tes checklist. Browser:
 `node tests/billing-documents.browser.mjs` dengan fixture 3001 dan Vite 5189.
 Rollback aplikasi dapat menghapus menu/routing; pertahankan tabel `billing_*`

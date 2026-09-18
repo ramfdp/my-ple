@@ -8,25 +8,51 @@
  let stages=$state<BillingStage[]>([]), jobs=$state<Job[]>([]), loading=$state(true), busy=$state(false), error=$state(''), notice=$state('');
  let jobFilter=$state(''), statusFilter=$state(''), search=$state('');
  let dialog:HTMLDialogElement;
- let mode=$state<'configuration'|'status'|'notes'>('configuration'), stageId=$state(0), version=$state(0), documentId=$state(0), milestoneId=$state(0);
- let draftStatus=$state<string>('BELUM ADA'), draftNotes=$state(''), targetName=$state(''), modalError=$state(''), conflict=$state(false), confirming=$state(false);
- let config=$state<BillingConfiguration>({jobId:0,name:'',periodLabel:'',version:0,milestones:[]});
+ let mode=$state<'configuration'|'notes'>('configuration'), stageId=$state(0), version=$state(0), milestoneId=$state(0);
+ let draftNotes=$state(''), targetName=$state(''), modalError=$state(''), conflict=$state(false), confirming=$state(false);
+ let config=$state<BillingConfiguration>({jobId:0,name:'',periodLabel:'',version:0,documents:[],milestones:[]});
  let original=$state<BillingConfiguration|null>(null);
  const jobName=(id:number)=>jobs.find(j=>j.id===id)?.name??'';
- const matched=$derived(stages.filter(s=>(!jobFilter||s.jobId===Number(jobFilter))&&[jobName(s.jobId),s.name,s.periodLabel,...s.milestones.flatMap(m=>[m.name,...m.documents.map(d=>d.name)])].join(' ').toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())));
+ const matched=$derived(stages.filter(s=>(!jobFilter||s.jobId===Number(jobFilter))&&[jobName(s.jobId),s.name,s.periodLabel,...(s.documents??[]).map(d=>d.name),...s.milestones.flatMap(m=>[m.name,...m.documents.map(d=>d.name)])].join(' ').toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())));
  const visible=$derived(matched.filter(s=>!statusFilter||s.readiness===statusFilter));
  const ready=$derived(matched.filter(s=>s.readiness==='SIAP').length);
  const latest=$derived(stages.find(s=>s.id===stageId));
  const changes=$derived.by(()=>{
   const old=original?.milestones??[];
   return [
+   ...(original?.documents??[]).filter(d=>!config.documents.some(n=>n.id===d.id)).map(d=>'- '+d.name),
+   ...config.documents.filter(d=>d.id===0).map(d=>'+ '+d.name),
    ...old.filter(m=>!config.milestones.some(n=>n.id===m.id)).map(m=>'- '+m.name),
    ...old.flatMap(m=>m.documents.filter(d=>!config.milestones.some(n=>n.id===m.id&&n.documents.some(x=>x.id===d.id))).map(d=>'- '+m.name+' / '+d.name)),
    ...config.milestones.filter(m=>m.id===0).map(m=>'+ '+m.name),
    ...config.milestones.flatMap(m=>m.documents.filter(d=>d.id===0).map(d=>'+ '+m.name+' / '+d.name))
   ];
  });
- const validConfig=$derived(config.jobId>0&&!!config.name.trim()&&!!config.periodLabel.trim()&&config.milestones.length>0&&config.milestones.every(m=>m.name.trim()&&m.documents.length>0&&m.documents.every(d=>d.name.trim())&&new Set(m.documents.map(d=>d.name.trim().toLocaleLowerCase())).size===m.documents.length));
+ const key=(name:string)=>name.trim().toLowerCase();
+ const columns=$derived.by(()=>{
+  const names=new Map(documentSuggestions.map(name=>[key(name),name]));
+  for(const stage of visible)for(const doc of [...(stage.documents??[]),...stage.milestones.flatMap(m=>m.documents)])if(!names.has(key(doc.name)))names.set(key(doc.name),doc.name);
+  return [...names.values()];
+ });
+ const findDocument=(documents:BillingDocument[],name:string)=>documents.find(d=>key(d.name)===key(name));
+ const validDocuments=(docs:{name:string}[])=>docs.every(d=>d.name.trim())&&new Set(docs.map(d=>key(d.name))).size===docs.length;
+ const validConfig=$derived(config.jobId>0&&!!config.name.trim()&&!!config.periodLabel.trim()&&validDocuments(config.documents)&&config.milestones.length>0&&config.milestones.every(m=>m.name.trim()&&(m.documents.length>0||config.documents.length>0)&&validDocuments(m.documents)&&m.documents.every(d=>!config.documents.some(shared=>key(shared.name)===key(d.name)))));
+ const today=new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Jakarta',dateStyle:'long'}).format(new Date());
+ function configuration(s:BillingStage):BillingConfiguration{return {jobId:s.jobId,name:s.name,periodLabel:s.periodLabel,version:s.version,documents:(s.documents??[]).map(d=>({id:d.id,name:d.name})),milestones:s.milestones.map(m=>({id:m.id,name:m.name,documents:m.documents.map(d=>({id:d.id,name:d.name}))}))}}
+ async function changeStatus(s:BillingStage,d:BillingDocument,element:HTMLSelectElement){
+  const status=element.value;
+  element.value=d.status;
+  if(busy||status===d.status)return;
+  busy=true;error='';notice='Menyimpan...';
+  try{
+   const {stage}=await api<{stage:BillingStage}>('/billing-documents/stages/'+s.id,{method:'PATCH',body:JSON.stringify({version:s.version,documentId:d.id,status})});
+   stages=stages.map(item=>item.id===stage.id?stage:item);notice='Perubahan tersimpan.';
+  }catch(e){
+   notice='';
+   if(e instanceof APIError&&e.status===409){await load();error='Data penagihan sudah berubah. Periksa status terbaru, lalu pilih kembali perubahan Anda.'}
+   else error=(e as Error).message;
+  }finally{busy=false}
+ }
  const date=(value:string)=>new Intl.DateTimeFormat($locale,{timeZone:'Asia/Jakarta',dateStyle:'medium',timeStyle:'short'}).format(new Date(value));
  async function load(){
   loading=true;error='';
@@ -36,18 +62,17 @@
  onMount(()=>{if(authorized)void load();else loading=false});
  function open(s:BillingStage|null,next:typeof mode){stageId=s?.id??0;version=s?.version??0;mode=next;modalError='';conflict=false;confirming=false;notice='';dialog.showModal()}
  function configure(s:BillingStage|null){
-  config=s?{jobId:s.jobId,name:s.name,periodLabel:s.periodLabel,version:s.version,milestones:s.milestones.map(m=>({id:m.id,name:m.name,documents:m.documents.map(d=>({id:d.id,name:d.name}))}))}:{jobId:Number(jobFilter)||0,name:'',periodLabel:'',version:0,milestones:[{id:0,name:'',documents:[{id:0,name:''}]}]};
+  config=s?configuration(s):{jobId:Number(jobFilter)||0,name:'',periodLabel:'',version:0,documents:[],milestones:[{id:0,name:'',documents:[{id:0,name:''}]}]};
   original=s?structuredClone($state.snapshot(config)):null;open(s,'configuration');
  }
- function editStatus(s:BillingStage,d:BillingDocument){documentId=d.id;milestoneId=0;targetName=d.name;draftStatus=d.status;open(s,'status')}
- function editNotes(s:BillingStage,m?:BillingMilestone){documentId=0;milestoneId=m?.id??0;targetName=m?.name??s.name;draftNotes=m?.notes??s.notes;open(s,'notes')}
+ function editNotes(s:BillingStage,m?:BillingMilestone){milestoneId=m?.id??0;targetName=m?.name??s.name;draftNotes=m?.notes??s.notes;open(s,'notes')}
  async function save(e:SubmitEvent){
   e.preventDefault();if(busy||conflict)return;
   if(mode==='configuration'&&!validConfig)return;
   if(mode==='configuration'&&stageId&&changes.length&&!confirming){confirming=true;return}
   busy=true;modalError='';
   const path='/billing-documents/stages'+(stageId?'/'+stageId:'')+(mode==='configuration'&&stageId?'/configuration':'');
-  const body=mode==='configuration'?{...config,version}:mode==='status'?{version,documentId,status:draftStatus}:{version,milestoneId,notes:draftNotes};
+  const body=mode==='configuration'?{...config,version}:{version,milestoneId,notes:draftNotes};
   try{
    const {stage}=await api<{stage:BillingStage}>(path,{method:mode==='configuration'?(stageId?'PUT':'POST'):'PATCH',body:JSON.stringify(body)});
    stages=[...stages.filter(s=>s.id!==stage.id),stage].sort((a,b)=>a.id-b.id);dialog.close();notice='Perubahan tersimpan.';
@@ -58,7 +83,7 @@
 
 <svelte:head><title>{$translate('Dokumen Penagihan')}</title></svelte:head>
 <main class="workspace-page billing-page">
- <header class="ws-row"><div><h1>{$translate('Dokumen Penagihan')}</h1><p>{$translate('Rekap kesiapan dokumen penagihan per pekerjaan.')}</p></div>{#if authorized}<button class="ws-primary" disabled={loading||busy||!jobs.some(j=>j.isActive)} onclick={()=>configure(null)}>{$translate('Tambah tahap penagihan')}</button>{/if}</header>
+ <header class="ws-row"><div><h1>{$translate('REKAP KESIAPAN DOKUMEN TAGIHAN')}</h1><p>{$translate('Rekap kesiapan dokumen penagihan per pekerjaan.')}</p></div>{#if authorized}<button class="ws-primary" disabled={loading||busy||!jobs.some(j=>j.isActive)} onclick={()=>configure(null)}>{$translate('Tambah tahap penagihan')}</button>{/if}</header>
  {#if !authorized}<p role="alert">{$translate('Akses penagihan ditolak.')}</p>{:else}
  {#if error}<p role="alert">{$translate(error)}</p><button onclick={load}>{$translate('Muat ulang')}</button>{/if}
  {#if notice}<p role="status">{$translate(notice)}</p>{/if}
@@ -69,35 +94,48 @@
  </div>
  <div class="ws-metrics"><section class="ws-panel"><span>{$translate('Tahap SIAP')}</span><strong>{ready}</strong></section><section class="ws-panel"><span>{$translate('Tahap BELUM SIAP')}</span><strong>{matched.length-ready}</strong></section></div>
  {#if loading}<p role="status">{$translate('Memuat penagihan...')}</p>{:else}
- {#each jobs.filter(j=>visible.some(s=>s.jobId===j.id)) as job (job.id)}
- <section class="billing-job"><h2>{job.name}</h2><p>{[job.division,job.role,job.category].filter(Boolean).join(' / ')}</p>
- {#each visible.filter(s=>s.jobId===job.id) as stage (stage.id)}
- <article class="ws-panel stage">
-  <div class="ws-row"><h3>{stage.name} <small>{stage.periodLabel}</small></h3><span class:ready={stage.readiness==='SIAP'} class="readiness">{$translate(stage.readiness)}</span><button onclick={()=>configure(stage)}>{$translate('Edit requirement')}</button></div>
-  <p class="timestamp">{$translate('Diperbarui (WIB)')}: {date(stage.updatedAt)}</p>
-  <p class="notes">{stage.notes||$translate('Belum ada catatan.')}</p><button onclick={()=>editNotes(stage)}>{$translate('Catatan tahap')}</button>
-  {#each stage.milestones as milestone (milestone.id)}
-  <section class="milestone">
-   <div class="ws-row"><h4>{milestone.name}</h4><span class:ready={milestone.readiness==='SIAP'} class="readiness">{$translate(milestone.readiness)}</span></div>
-   <p class="timestamp">{$translate('Diperbarui (WIB)')}: {date(milestone.updatedAt)}</p>
-   {#if !milestone.documents.length}<p>{$translate('Requirement belum dikonfigurasi.')}</p>{/if}
-   <ul class="documents">{#each milestone.documents as doc (doc.id)}<li><div><strong>{doc.name}</strong><small>{date(doc.updatedAt)} {$translate('WIB')}</small></div><span class="document-status">{$translate(doc.status)}</span><button aria-label={$translate('Ubah status')+' '+doc.name} onclick={()=>editStatus(stage,doc)}>{$translate('Ubah status')}</button></li>{/each}</ul>
-   <p class="notes">{milestone.notes||$translate('Belum ada catatan.')}</p><button onclick={()=>editNotes(stage,milestone)}>{$translate('Catatan milestone')}</button>
-  </section>
+ <p class="data-date">{$translate('Data per')}: {today}</p>
+ {#if visible.length}
+ <div class="billing-scroll" role="region" aria-label={$translate('Rekap kesiapan dokumen tagihan')} aria-busy={busy}>
+ <table class="billing-table">
+  <caption class="sr-only">{$translate('Rekap kesiapan dokumen tagihan')}</caption>
+  <thead><tr><th colspan="3" scope="colgroup">{$translate('PEKERJAAN')}</th><th colspan={columns.length} scope="colgroup">{$translate('DOKUMEN')}</th><th rowspan="2" scope="col">{$translate('STATUS')}</th><th rowspan="2" scope="col">{$translate('CATATAN')}</th></tr>
+  <tr><th scope="col">{$translate('Pekerjaan')}</th><th scope="col">{$translate('Tahap')}</th><th scope="col">{$translate('Bulan / milestone')}</th>{#each columns as name}<th scope="col" class="document-heading">{name}</th>{/each}</tr></thead>
+  {#each jobs.filter(j=>visible.some(s=>s.jobId===j.id)) as job (job.id)}
+   {@const jobStages=visible.filter(s=>s.jobId===job.id)}
+   <tbody>
+   {#each jobStages as stage, si (stage.id)}
+    {#each stage.milestones.length?stage.milestones:[null] as milestone, mi (milestone?.id??0)}
+     <tr data-stage-id={stage.id}>
+      {#if si===0&&mi===0}<th class="job-cell" scope="rowgroup" rowspan={jobStages.reduce((n,s)=>n+Math.max(1,s.milestones.length),0)}>{job.name}</th>{/if}
+      {#if mi===0}<td rowspan={Math.max(1,stage.milestones.length)} class="stage-cell"><strong>{stage.name}</strong><small>{stage.periodLabel}</small><button disabled={busy} onclick={()=>configure(stage)}>{$translate('Edit requirement')}</button><small title={date(stage.updatedAt)}>{$translate('Diperbarui (WIB)')}: {date(stage.updatedAt)}</small></td>{/if}
+      <th scope="row" class="milestone-cell">{milestone?.name??$translate('Requirement belum dikonfigurasi.')}{#if milestone}<button class="note-button" disabled={busy} title={milestone.notes||$translate('Catatan milestone')} aria-label={$translate('Catatan milestone')+' '+milestone.name} onclick={()=>editNotes(stage,milestone)}>{$translate('Catatan milestone')}{milestone.notes?' *':''}</button>{/if}</th>
+      {#each columns as name}
+       {@const shared=findDocument(stage.documents??[],name)}
+       {@const doc=shared??findDocument(milestone?.documents??[],name)}
+       {#if !shared||mi===0}<td class="document-cell" rowspan={shared?Math.max(1,stage.milestones.length):1} class:unused={!doc}>
+        {#if doc}<select class="status-select" data-status={doc.status} value={doc.status} disabled={busy} aria-label={$translate('Status dokumen')+' '+job.name+' / '+stage.name+' / '+(shared?$translate('Seluruh tahap'):milestone?.name)+' / '+name} title={date(doc.updatedAt)} onchange={e=>changeStatus(stage,doc,e.currentTarget)}>{#each billingStatuses as status}<option value={status}>{status}</option>{/each}</select>{:else}<span class="sr-only">{$translate('Tidak diwajibkan')}</span>{/if}
+       </td>{/if}
+      {/each}
+      {#if mi===0}<td rowspan={Math.max(1,stage.milestones.length)} class="readiness" class:ready={stage.readiness==='SIAP'}>{$translate(stage.readiness)}</td><td rowspan={Math.max(1,stage.milestones.length)} class="notes-cell"><p class="notes">{stage.notes||$translate('Belum ada catatan.')}</p><button disabled={busy} onclick={()=>editNotes(stage)}>{$translate('Catatan tahap')}</button></td>{/if}
+     </tr>
+    {/each}
+   {/each}
+   </tbody>
   {/each}
-  {#if !stage.milestones.length}<p>{$translate('Requirement belum dikonfigurasi.')}</p>{/if}
- </article>{/each}</section>
- {:else}<p class="ws-empty">{$translate('Belum ada tahap penagihan yang cocok.')}</p>{/each}
+ </table>
+ </div>
+ {:else}<p class="ws-empty">{$translate('Belum ada tahap penagihan yang cocok.')}</p>{/if}
  {/if}{/if}
 </main>
 
 <dialog bind:this={dialog} class="ws-dialog billing-dialog" oncancel={e=>{if(busy)e.preventDefault()}} aria-labelledby="billing-editor-title">
  <form onsubmit={save}>
-  <h2 id="billing-editor-title">{$translate(mode==='configuration'?(stageId?'Edit requirement':'Tambah tahap penagihan'):mode==='status'?'Ubah status':'Edit catatan')}</h2>
+  <h2 id="billing-editor-title">{$translate(mode==='configuration'?(stageId?'Edit requirement':'Tambah tahap penagihan'):'Edit catatan')}</h2>
   {#if modalError}<p role="alert">{$translate(modalError)}</p>{/if}
   {#if conflict}<section class="conflict"><p>{$translate('Draf dipertahankan. Bandingkan dengan data terbaru sebelum mencoba lagi.')}</p>
-   {#if latest}<h3>{latest.name} — {latest.periodLabel}</h3><p>{latest.notes}</p>{#each latest.milestones as m}<h4>{m.name} — {$translate(m.readiness)}</h4><p>{m.notes}</p><ul>{#each m.documents as d}<li>{d.name}: {$translate(d.status)}</li>{/each}</ul>{/each}
-   <button type="button" disabled={busy||latest.version<=version} onclick={()=>{if(mode==='configuration')original={jobId:latest!.jobId,name:latest!.name,periodLabel:latest!.periodLabel,version:latest!.version,milestones:latest!.milestones.map(m=>({id:m.id,name:m.name,documents:m.documents.map(d=>({id:d.id,name:d.name}))}))};version=latest!.version;conflict=false;confirming=false;modalError=''}}>{$translate('Gunakan versi terbaru untuk draf ini')}</button>{/if}
+   {#if latest}<h3>{latest.name} — {latest.periodLabel}</h3><p>{latest.notes}</p><ul>{#each latest.documents??[] as d}<li>{d.name}: {$translate(d.status)}</li>{/each}</ul>{#each latest.milestones as m}<h4>{m.name} — {$translate(m.readiness)}</h4><p>{m.notes}</p><ul>{#each m.documents as d}<li>{d.name}: {$translate(d.status)}</li>{/each}</ul>{/each}
+   <button type="button" disabled={busy||latest.version<=version} onclick={()=>{if(mode==='configuration')original=configuration(latest!);version=latest!.version;conflict=false;confirming=false;modalError=''}}>{$translate('Gunakan versi terbaru untuk draf ini')}</button>{/if}
   </section>{/if}
   <fieldset disabled={busy}>
   {#if mode==='configuration'}
@@ -105,6 +143,11 @@
    <label>{$translate('Nama tahap')}<input required maxlength="255" bind:value={config.name}/></label>
    <label>{$translate('Periode penagihan')}<input required maxlength="255" bind:value={config.periodLabel}/></label>
    <p>{$translate('Pilih hanya dokumen wajib. Tanda / tidak dihitung sebagai alternatif otomatis.')}</p>
+   <fieldset class="requirement"><legend>{$translate('Dokumen bersama seluruh tahap')}</legend>
+    <p>{$translate('Satu status berlaku untuk seluruh bulan dalam tahap ini. Jangan tambahkan dokumen yang sama pada setiap bulan.')}</p>
+    {#each config.documents as doc, i}<div class="requirement-row"><label>{$translate('Dokumen tahap')} {i+1}<input required maxlength="255" list="billing-document-names" bind:value={doc.name}/></label><button type="button" onclick={()=>{config.documents=config.documents.filter((_,n)=>n!==i);confirming=false}}>{$translate('Hapus dokumen')}</button></div>{/each}
+    <button type="button" onclick={()=>{config.documents=[...config.documents,{id:0,name:''}];confirming=false}}>{$translate('Tambah dokumen tahap')}</button>
+   </fieldset>
    {#each config.milestones as milestone, i}
    <fieldset class="requirement">
     <legend>{$translate('Milestone')} {i+1}</legend>
@@ -114,14 +157,14 @@
    </fieldset>{/each}
    <button type="button" onclick={()=>{config.milestones=[...config.milestones,{id:0,name:'',documents:[{id:0,name:''}]}];confirming=false}}>{$translate('Tambah milestone')}</button>
    <datalist id="billing-document-names">{#each documentSuggestions as name}<option value={name}></option>{/each}</datalist>
-   {#if !validConfig}<p>{$translate('Isi pekerjaan, tahap, periode, minimal satu milestone dan dokumen wajib. Nama dokumen dalam milestone harus unik.')}</p>{/if}
+   {#if !validConfig}<p>{$translate('Isi pekerjaan, tahap, periode, dan minimal satu milestone. Setiap milestone memerlukan dokumen sendiri atau dokumen bersama. Nama dokumen harus unik dan tidak boleh digunakan pada kedua cakupan.')}</p>{/if}
    {#if confirming}<section role="status" class="conflict"><p>{$translate('Konfirmasi perubahan requirement. Penghapusan dapat membuat tahap menjadi SIAP. Dokumen baru dimulai BELUM ADA.')}</p><ul>{#each changes as change}<li>{change}</li>{/each}</ul></section>{/if}
-  {:else if mode==='status'}<p>{targetName}</p><label>{$translate('Status dokumen')}<select aria-label={$translate('Status dokumen')} bind:value={draftStatus}>{#each billingStatuses as status}<option value={status}>{$translate(status)}</option>{/each}</select></label>
   {:else}<p>{targetName}</p><label>{$translate('Catatan')}<textarea maxlength="4000" rows="5" bind:value={draftNotes}></textarea></label>{/if}
   </fieldset>
   <div class="ws-row"><button type="button" disabled={busy} onclick={()=>dialog.close()}>{$translate('Batal')}</button><button class="ws-primary" disabled={busy||conflict||(mode==='configuration'&&!validConfig)}>{$translate(busy?'Menyimpan...':confirming?'Konfirmasi dan simpan':'Simpan')}</button></div>
  </form>
 </dialog>
 <style>
- .ws-metrics strong{display:block}.stage{margin-top:1rem}.stage h3,.milestone h4{margin:.25rem 0;overflow-wrap:anywhere}.stage h3 small{display:block;font-weight:400;margin-top:.35rem}.billing-job{margin-top:2rem}.readiness{display:inline-block;background:var(--his-danger-soft);color:var(--his-danger);border:1px solid var(--his-danger-border);padding:.35rem .65rem;border-radius:6px;font-size:.8rem;font-weight:700;white-space:nowrap}.readiness.ready{background:var(--his-primary-soft);color:var(--his-primary);border-color:var(--his-primary)}.milestone{border-top:1px solid var(--his-border);margin-top:1.25rem;padding-top:1rem}.timestamp,.documents small{font-size:.75rem;color:var(--his-muted)}.notes{white-space:pre-wrap;overflow-wrap:anywhere}.documents{list-style:none;padding:0}.documents li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:.75rem;padding:.75rem 0;border-bottom:1px solid var(--his-border)}.documents small{display:block;margin-top:.3rem}.document-status{font-size:.8rem}.billing-dialog{font:inherit}.billing-dialog fieldset{min-width:0;border:0;padding:0;margin:1rem 0;display:grid;gap:.8rem}.billing-dialog label{display:grid;gap:.35rem}.billing-dialog input,.billing-dialog select,.billing-dialog textarea{box-sizing:border-box;width:100%;min-width:0;font:inherit;padding:.65rem;border:1px solid var(--his-border);border-radius:6px}.billing-dialog button{font:inherit;min-height:44px;padding:.5rem .7rem;border:1px solid var(--his-border);border-radius:6px;cursor:pointer}.billing-dialog .ws-primary{background:var(--his-primary);color:white}.billing-dialog .requirement,.conflict{border:1px solid var(--his-border);padding:1rem;border-radius:8px}.requirement-row{display:flex;align-items:end;gap:.5rem}.requirement-row label{flex:1;min-width:0}.billing-dialog [role=alert]{color:var(--his-danger)}.billing-dialog h3,.billing-dialog h4,.conflict li{overflow-wrap:anywhere}.billing-dialog button:disabled{opacity:.5;cursor:default}@media(max-width:464px){.documents li{grid-template-columns:minmax(0,1fr)}.documents button{justify-self:start}.ws-filters{display:grid;grid-template-columns:minmax(0,1fr)}.requirement-row{flex-direction:column;align-items:stretch}.stage{padding:14px}.billing-dialog .requirement{padding:.65rem}}
+ .billing-page{min-width:0;max-width:100%}.billing-page h1{font-size:clamp(1.05rem,2vw,1.5rem);overflow-wrap:anywhere}.billing-page>header{background:#a9c5ef;color:#102438;padding:1rem;border-radius:8px}.ws-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.billing-page .ws-metrics .ws-panel{padding:.75rem;margin-top:0}.ws-metrics strong{display:block}.document-heading,.document-cell{min-width:140px}.data-date{font-size:.85rem}.billing-scroll{position:relative;max-width:100%;overflow:auto;border:1px solid #64748b;border-radius:6px}.billing-scroll:focus-visible{outline:3px solid var(--his-primary);outline-offset:3px}.billing-table{border-collapse:separate;border-spacing:0;min-width:1850px;width:100%;font-size:.78rem;background:var(--his-surface,#fff)}.billing-table th,.billing-table td{border-right:1px solid #64748b;border-bottom:1px solid #64748b;padding:.4rem;vertical-align:middle}.billing-table thead th{background:#fff200;color:#17202a;text-align:center;font-weight:700}.billing-table tbody th{font-weight:500;text-align:left}.billing-table tbody+tbody tr:first-child>*{border-top:2px solid #334155}.billing-table button{font:inherit;min-height:44px;border:1px solid var(--his-border);border-radius:5px;background:var(--his-surface,#fff);color:var(--his-primary);padding:.4rem .5rem;cursor:pointer}.billing-table button:disabled{opacity:.6;cursor:wait}.billing-table small{display:block;font-size:.7rem;margin:.4rem 0;color:var(--his-muted)}.job-cell{min-width:90px;max-width:150px;overflow-wrap:anywhere}.stage-cell{min-width:130px;max-width:180px;overflow-wrap:anywhere}.milestone-cell{min-width:170px;max-width:220px;overflow-wrap:anywhere}.note-button{display:block;margin-top:.25rem}.notes-cell{min-width:240px;max-width:320px}.notes{white-space:pre-wrap;overflow-wrap:anywhere}.billing-table .unused{background:#d0d0d0}.readiness{background:#f4cdca;color:#70201b;min-width:100px;text-align:center;font-weight:600}.readiness.ready{background:#b5dfcf;color:#124b39}.status-select{width:100%;min-width:136px;min-height:44px;border:1px solid transparent;border-radius:8px;padding:.35rem .25rem;font:inherit;font-weight:600;cursor:pointer}.status-select:focus-visible{outline:3px solid #2563eb;outline-offset:2px}.status-select[data-status="BELUM ADA"]{background:#b91c1c;color:white}.status-select[data-status="PEMBUATAN"]{background:#ffc7aa;color:#713414}.status-select[data-status="KURANG LENGKAP"]{background:#ffe7a3;color:#63470a}.status-select[data-status="SIRKULIR TTD"]{background:#d2edbd;color:#24562b}.status-select[data-status="OK"]{background:#11784f;color:white}.status-select option{background:white;color:#17202a}.status-select:disabled{opacity:.65;cursor:wait}.sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+ .billing-dialog{font:inherit}.billing-dialog fieldset{min-width:0;border:0;padding:0;margin:1rem 0;display:grid;gap:.8rem}.billing-dialog label{display:grid;gap:.35rem}.billing-dialog input,.billing-dialog select,.billing-dialog textarea{box-sizing:border-box;width:100%;min-width:0;font:inherit;padding:.65rem;border:1px solid var(--his-border);border-radius:6px}.billing-dialog button{font:inherit;min-height:44px;padding:.5rem .7rem;border:1px solid var(--his-border);border-radius:6px;cursor:pointer}.billing-dialog .ws-primary{background:var(--his-primary);color:white}.billing-dialog .requirement,.conflict{border:1px solid var(--his-border);padding:1rem;border-radius:8px}.requirement-row{display:flex;align-items:end;gap:.5rem}.requirement-row label{flex:1;min-width:0}.billing-dialog [role=alert]{color:var(--his-danger)}.billing-dialog h3,.billing-dialog h4,.conflict li{overflow-wrap:anywhere}.billing-dialog button:disabled{opacity:.5;cursor:default}@media(max-width:464px){.ws-filters{display:grid;grid-template-columns:minmax(0,1fr)}.requirement-row{flex-direction:column;align-items:stretch}.billing-dialog .requirement{padding:.65rem}}
 </style>
