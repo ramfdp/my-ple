@@ -17,6 +17,7 @@ import (
 
 	"my-ple-backend/controller"
 	"my-ple-backend/db"
+	"my-ple-backend/email"
 	"my-ple-backend/middleware"
 	"my-ple-backend/notification"
 	"my-ple-backend/realtime"
@@ -85,6 +86,7 @@ func newHandler(database *db.Database, corsOrigin string, contexts ...context.Co
 
 // ponytail: unified protected routing for reports and employee profile
 func protectedHandler(database *db.Database, authCtrl *controller.AuthController, notificationService *notification.Service) http.Handler {
+	feedback := controller.FeedbackHandler(email.SendFeedback)
 	weeklyCtrl := controller.NewWeeklyController(database)
 	jobCtrl := &controller.JobController{DB: database}
 	checklistCtrl := &controller.DocumentChecklistController{DB: database}
@@ -99,6 +101,10 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 		current, ok := middleware.GetClaims(r.Context())
 		if !ok {
 			controller.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Autentikasi diperlukan."})
+			return
+		}
+		if r.URL.Path == "/feedback" {
+			feedback.ServeHTTP(w, r)
 			return
 		}
 		if r.URL.Path == "/attendance" || strings.HasPrefix(r.URL.Path, "/attendance/") {

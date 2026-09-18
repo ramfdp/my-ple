@@ -418,3 +418,9 @@ Pengaturan Pekerjaan menyediakan Tambah Kategori untuk pengguna yang sudah login
 dan mengembalikan `{category}`. Nama wajib, maksimal 100 karakter, dan unik dalam
 konteks divisi/role. CIHPK tetap khusus MK/Supervisi. Salary disembunyikan dari
 profil dan manajemen pengguna; field API dan data salary lama tetap dipertahankan.
+
+## Kritik & Saran
+
+Tombol pada dashboard mengirim `POST /feedback` (`{"message":"..."}`) untuk pengguna login. Pesan maksimal 4.000 karakter dikirim ke `aiple5766@gmail.com`; identitas dan `Reply-To` diambil dari sesi pengguna. Menggunakan konfigurasi SMTP existing dan `EMAIL_ENABLED=true` (atau fallback `ZOOM_EMAIL_ENABLED`). Tidak menyimpan riwayat pesan. Status sukses berarti SMTP menerima email; pengiriman yang tidak pasti tidak dicoba ulang otomatis.
+
+Uji UI dengan dev server frontend pada port 5194: `node tests/feedback.browser.mjs` dari direktori `frontend`. API dan email dimock sehingga tes tidak mengirim email sungguhan.
