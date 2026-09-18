@@ -1,13 +1,17 @@
 <script lang="ts">
- import { onMount } from 'svelte';
+ import { onMount, tick } from 'svelte';
  import { api, APIError, currentUser, type Job } from '$lib/api';
  import { locale, t as translate } from '$lib/i18n';
  import { billingStatuses, documentSuggestions, canUseBilling, type BillingStage, type BillingConfiguration, type BillingDocument, type BillingMilestone } from '$lib/billing-documents';
  import '$lib/styles/workspace.css';
+ import { subscribeChanges } from '$lib/realtime';
  const authorized = $derived(canUseBilling($currentUser?.role));
  let stages=$state<BillingStage[]>([]), jobs=$state<Job[]>([]), loading=$state(true), busy=$state(false), error=$state(''), notice=$state('');
  let jobFilter=$state(''), statusFilter=$state(''), search=$state('');
  let dialog:HTMLDialogElement;
+ let pending=false, disposed=false, generation=0;
+ const editing=()=>busy||dialog?.open||document.activeElement?.matches('.status-select');
+ async function flush(){await tick();if(pending&&!disposed&&!editing())await load(true)}
  let mode=$state<'configuration'|'notes'>('configuration'), stageId=$state(0), version=$state(0), milestoneId=$state(0);
  let draftNotes=$state(''), targetName=$state(''), modalError=$state(''), conflict=$state(false), confirming=$state(false);
  let config=$state<BillingConfiguration>({jobId:0,name:'',periodLabel:'',version:0,documents:[],milestones:[]});
@@ -43,7 +47,7 @@
   const status=element.value;
   element.value=d.status;
   if(busy||status===d.status)return;
-  busy=true;error='';notice='Menyimpan...';
+  busy=true;generation++;error='';notice='Menyimpan...';
   try{
    const {stage}=await api<{stage:BillingStage}>('/billing-documents/stages/'+s.id,{method:'PATCH',body:JSON.stringify({version:s.version,documentId:d.id,status})});
    stages=stages.map(item=>item.id===stage.id?stage:item);notice='Perubahan tersimpan.';
@@ -51,15 +55,28 @@
    notice='';
    if(e instanceof APIError&&e.status===409){await load();error='Data penagihan sudah berubah. Periksa status terbaru, lalu pilih kembali perubahan Anda.'}
    else error=(e as Error).message;
-  }finally{busy=false}
+  }finally{busy=false;void flush()}
  }
  const date=(value:string)=>new Intl.DateTimeFormat($locale,{timeZone:'Asia/Jakarta',dateStyle:'medium',timeStyle:'short'}).format(new Date(value));
- async function load(){
-  loading=true;error='';
-  try{const result=await api<{jobs:Job[];stages:BillingStage[]}>('/billing-documents');jobs=result.jobs;stages=result.stages;return true}
-  catch(e){error=(e as Error).message;return false}finally{loading=false}
+ async function load(background=false){
+  if(background&&editing()){pending=true;return false}
+  const request=++generation;pending=false;
+  if(!background)loading=true;
+  error='';
+  try{
+   const result=await api<{jobs:Job[];stages:BillingStage[]}>('/billing-documents');
+   if(disposed||request!==generation)return false;
+   if(background&&editing()){pending=true;return false}
+   jobs=result.jobs;stages=result.stages;return true;
+  }catch(e){if(!disposed&&request===generation)error=(e as Error).message;return false}
+  finally{if(request===generation)loading=false}
  }
- onMount(()=>{if(authorized)void load();else loading=false});
+ onMount(()=>{
+  if(!authorized){loading=false;return}
+  void load();
+  const stop=subscribeChanges(['billing-documents.changed','jobs.changed'],()=>load(true).then(()=>{}));
+  return()=>{disposed=true;generation++;stop()};
+ });
  function open(s:BillingStage|null,next:typeof mode){stageId=s?.id??0;version=s?.version??0;mode=next;modalError='';conflict=false;confirming=false;notice='';dialog.showModal()}
  function configure(s:BillingStage|null){
   config=s?configuration(s):{jobId:Number(jobFilter)||0,name:'',periodLabel:'',version:0,documents:[],milestones:[{id:0,name:'',documents:[{id:0,name:''}]}]};
@@ -70,22 +87,33 @@
   e.preventDefault();if(busy||conflict)return;
   if(mode==='configuration'&&!validConfig)return;
   if(mode==='configuration'&&stageId&&changes.length&&!confirming){confirming=true;return}
-  busy=true;modalError='';
+  busy=true;generation++;modalError='';
   const path='/billing-documents/stages'+(stageId?'/'+stageId:'')+(mode==='configuration'&&stageId?'/configuration':'');
   const body=mode==='configuration'?{...config,version}:{version,milestoneId,notes:draftNotes};
   try{
    const {stage}=await api<{stage:BillingStage}>(path,{method:mode==='configuration'?(stageId?'PUT':'POST'):'PATCH',body:JSON.stringify(body)});
    stages=[...stages.filter(s=>s.id!==stage.id),stage].sort((a,b)=>a.id-b.id);dialog.close();notice='Perubahan tersimpan.';
   }catch(e){modalError=(e as Error).message;if(e instanceof APIError&&e.status===409){conflict=true;await load()}}
-  finally{busy=false}
+  finally{busy=false;void flush()}
  }
 </script>
 
+{#snippet documentName(doc:{name:string},label:string)}
+ <div class="document-name-editor">
+  <label>{label}<input required maxlength="255" bind:value={doc.name}/></label>
+  <label>{$translate('Pilihan dokumen')}<select aria-label={$translate('Pilihan dokumen')+' '+label} value={doc.name} onchange={e=>{doc.name=e.currentTarget.value;confirming=false}}>
+   <option value="" disabled>{$translate('Pilih dokumen')}</option>
+   {#if doc.name&&!documentSuggestions.includes(doc.name)}<option value={doc.name}>{doc.name}</option>{/if}
+   {#each documentSuggestions as name}<option value={name}>{name}</option>{/each}
+  </select></label>
+ </div>
+{/snippet}
+
 <svelte:head><title>{$translate('Dokumen Penagihan')}</title></svelte:head>
-<main class="workspace-page billing-page">
+<main class="workspace-page billing-page" onfocusout={()=>void flush()}>
  <header class="ws-row"><div><h1>{$translate('REKAP KESIAPAN DOKUMEN TAGIHAN')}</h1><p>{$translate('Rekap kesiapan dokumen penagihan per pekerjaan.')}</p></div>{#if authorized}<button class="ws-primary" disabled={loading||busy||!jobs.some(j=>j.isActive)} onclick={()=>configure(null)}>{$translate('Tambah tahap penagihan')}</button>{/if}</header>
  {#if !authorized}<p role="alert">{$translate('Akses penagihan ditolak.')}</p>{:else}
- {#if error}<p role="alert">{$translate(error)}</p><button onclick={load}>{$translate('Muat ulang')}</button>{/if}
+ {#if error}<p role="alert">{$translate(error)}</p><button onclick={()=>load()}>{$translate('Muat ulang')}</button>{/if}
  {#if notice}<p role="status">{$translate(notice)}</p>{/if}
  <div class="ws-filters">
   <label>{$translate('Pekerjaan')}<select aria-label={$translate('Pekerjaan')} bind:value={jobFilter}><option value="">{$translate('Semua pekerjaan')}</option>{#each jobs as j}<option value={String(j.id)}>{[j.name,j.division,j.role,j.category].filter(Boolean).join(' / ')}{j.isActive?'':' ('+$translate('Nonaktif')+')'}</option>{/each}</select></label>
@@ -129,9 +157,9 @@
  {/if}{/if}
 </main>
 
-<dialog bind:this={dialog} class="ws-dialog billing-dialog" oncancel={e=>{if(busy)e.preventDefault()}} aria-labelledby="billing-editor-title">
+<dialog bind:this={dialog} class="ws-dialog billing-dialog" onclose={()=>void flush()} oncancel={e=>{if(busy)e.preventDefault()}} aria-labelledby="billing-editor-title">
  <form onsubmit={save}>
-  <h2 id="billing-editor-title">{$translate(mode==='configuration'?(stageId?'Edit requirement':'Tambah tahap penagihan'):'Edit catatan')}</h2>
+  <header class="billing-editor-header"><h2 id="billing-editor-title">{$translate(mode==='configuration'?(stageId?'Edit requirement':'Tambah tahap penagihan'):'Edit catatan')}</h2><button class="billing-close" type="button" aria-label={$translate('Tutup')} disabled={busy} onclick={()=>dialog.close()}>&times;</button></header>
   {#if modalError}<p role="alert">{$translate(modalError)}</p>{/if}
   {#if conflict}<section class="conflict"><p>{$translate('Draf dipertahankan. Bandingkan dengan data terbaru sebelum mencoba lagi.')}</p>
    {#if latest}<h3>{latest.name} — {latest.periodLabel}</h3><p>{latest.notes}</p><ul>{#each latest.documents??[] as d}<li>{d.name}: {$translate(d.status)}</li>{/each}</ul>{#each latest.milestones as m}<h4>{m.name} — {$translate(m.readiness)}</h4><p>{m.notes}</p><ul>{#each m.documents as d}<li>{d.name}: {$translate(d.status)}</li>{/each}</ul>{/each}
@@ -143,20 +171,20 @@
    <label>{$translate('Nama tahap')}<input required maxlength="255" bind:value={config.name}/></label>
    <label>{$translate('Periode penagihan')}<input required maxlength="255" bind:value={config.periodLabel}/></label>
    <p>{$translate('Pilih hanya dokumen wajib. Tanda / tidak dihitung sebagai alternatif otomatis.')}</p>
-   <fieldset class="requirement"><legend>{$translate('Dokumen bersama seluruh tahap')}</legend>
-    <p>{$translate('Satu status berlaku untuk seluruh bulan dalam tahap ini. Jangan tambahkan dokumen yang sama pada setiap bulan.')}</p>
-    {#each config.documents as doc, i}<div class="requirement-row"><label>{$translate('Dokumen tahap')} {i+1}<input required maxlength="255" list="billing-document-names" bind:value={doc.name}/></label><button type="button" onclick={()=>{config.documents=config.documents.filter((_,n)=>n!==i);confirming=false}}>{$translate('Hapus dokumen')}</button></div>{/each}
-    <button type="button" onclick={()=>{config.documents=[...config.documents,{id:0,name:''}];confirming=false}}>{$translate('Tambah dokumen tahap')}</button>
-   </fieldset>
    {#each config.milestones as milestone, i}
    <fieldset class="requirement">
     <legend>{$translate('Milestone')} {i+1}</legend>
     <label>{$translate('Nama milestone')}<input required maxlength="255" bind:value={milestone.name}/></label>
-    {#each milestone.documents as doc, j}<div class="requirement-row"><label>{$translate('Dokumen wajib')} {j+1}<input required maxlength="255" list="billing-document-names" bind:value={doc.name}/></label><button type="button" onclick={()=>{milestone.documents=milestone.documents.filter((_,n)=>n!==j);confirming=false}}>{$translate('Hapus dokumen')}</button></div>{/each}
+    {#each milestone.documents as doc, j}<div class="requirement-row">{@render documentName(doc,$translate('Dokumen wajib')+' '+(j+1))}<button type="button" onclick={()=>{milestone.documents=milestone.documents.filter((_,n)=>n!==j);confirming=false}}>{$translate('Hapus dokumen')}</button></div>{/each}
     <div class="ws-row"><button type="button" onclick={()=>{milestone.documents=[...milestone.documents,{id:0,name:''}];confirming=false}}>{$translate('Tambah dokumen wajib')}</button><button type="button" onclick={()=>{config.milestones=config.milestones.filter((_,n)=>n!==i);confirming=false}}>{$translate('Hapus milestone')}</button></div>
    </fieldset>{/each}
    <button type="button" onclick={()=>{config.milestones=[...config.milestones,{id:0,name:'',documents:[{id:0,name:''}]}];confirming=false}}>{$translate('Tambah milestone')}</button>
-   <datalist id="billing-document-names">{#each documentSuggestions as name}<option value={name}></option>{/each}</datalist>
+   <fieldset class="requirement"><legend>{$translate('Dokumen bersama seluruh tahap')}</legend>
+    <p>{$translate('Satu status berlaku untuk seluruh bulan dalam tahap ini. Jangan tambahkan dokumen yang sama pada setiap bulan.')}</p>
+    {#each config.documents as doc, i}<div class="requirement-row">{@render documentName(doc,$translate('Dokumen tahap')+' '+(i+1))}<button type="button" onclick={()=>{config.documents=config.documents.filter((_,n)=>n!==i);confirming=false}}>{$translate('Hapus dokumen')}</button></div>{/each}
+    <button type="button" onclick={()=>{config.documents=[...config.documents,{id:0,name:''}];confirming=false}}>{$translate('Tambah dokumen tahap')}</button>
+   </fieldset>
+
    {#if !validConfig}<p>{$translate('Isi pekerjaan, tahap, periode, dan minimal satu milestone. Setiap milestone memerlukan dokumen sendiri atau dokumen bersama. Nama dokumen harus unik dan tidak boleh digunakan pada kedua cakupan.')}</p>{/if}
    {#if confirming}<section role="status" class="conflict"><p>{$translate('Konfirmasi perubahan requirement. Penghapusan dapat membuat tahap menjadi SIAP. Dokumen baru dimulai BELUM ADA.')}</p><ul>{#each changes as change}<li>{change}</li>{/each}</ul></section>{/if}
   {:else}<p>{targetName}</p><label>{$translate('Catatan')}<textarea maxlength="4000" rows="5" bind:value={draftNotes}></textarea></label>{/if}
@@ -165,6 +193,7 @@
  </form>
 </dialog>
 <style>
+ .billing-editor-header{display:flex;align-items:flex-start;gap:1rem;justify-content:space-between}.billing-editor-header h2{margin:0;min-width:0}.billing-close{flex:0 0 44px;font-size:1.5rem!important}.document-name-editor{flex:1;min-width:0;display:grid;gap:.5rem;width:100%}
  .billing-page{min-width:0;max-width:100%}.billing-page h1{font-size:clamp(1.05rem,2vw,1.5rem);overflow-wrap:anywhere}.billing-page>header{background:#a9c5ef;color:#102438;padding:1rem;border-radius:8px}.ws-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.billing-page .ws-metrics .ws-panel{padding:.75rem;margin-top:0}.ws-metrics strong{display:block}.document-heading,.document-cell{min-width:140px}.data-date{font-size:.85rem}.billing-scroll{position:relative;max-width:100%;overflow:auto;border:1px solid #64748b;border-radius:6px}.billing-scroll:focus-visible{outline:3px solid var(--his-primary);outline-offset:3px}.billing-table{border-collapse:separate;border-spacing:0;min-width:1850px;width:100%;font-size:.78rem;background:var(--his-surface,#fff)}.billing-table th,.billing-table td{border-right:1px solid #64748b;border-bottom:1px solid #64748b;padding:.4rem;vertical-align:middle}.billing-table thead th{background:#fff200;color:#17202a;text-align:center;font-weight:700}.billing-table tbody th{font-weight:500;text-align:left}.billing-table tbody+tbody tr:first-child>*{border-top:2px solid #334155}.billing-table button{font:inherit;min-height:44px;border:1px solid var(--his-border);border-radius:5px;background:var(--his-surface,#fff);color:var(--his-primary);padding:.4rem .5rem;cursor:pointer}.billing-table button:disabled{opacity:.6;cursor:wait}.billing-table small{display:block;font-size:.7rem;margin:.4rem 0;color:var(--his-muted)}.job-cell{min-width:90px;max-width:150px;overflow-wrap:anywhere}.stage-cell{min-width:130px;max-width:180px;overflow-wrap:anywhere}.milestone-cell{min-width:170px;max-width:220px;overflow-wrap:anywhere}.note-button{display:block;margin-top:.25rem}.notes-cell{min-width:240px;max-width:320px}.notes{white-space:pre-wrap;overflow-wrap:anywhere}.billing-table .unused{background:#d0d0d0}.readiness{background:#f4cdca;color:#70201b;min-width:100px;text-align:center;font-weight:600}.readiness.ready{background:#b5dfcf;color:#124b39}.status-select{width:100%;min-width:136px;min-height:44px;border:1px solid transparent;border-radius:8px;padding:.35rem .25rem;font:inherit;font-weight:600;cursor:pointer}.status-select:focus-visible{outline:3px solid #2563eb;outline-offset:2px}.status-select[data-status="BELUM ADA"]{background:#b91c1c;color:white}.status-select[data-status="PEMBUATAN"]{background:#ffc7aa;color:#713414}.status-select[data-status="KURANG LENGKAP"]{background:#ffe7a3;color:#63470a}.status-select[data-status="SIRKULIR TTD"]{background:#d2edbd;color:#24562b}.status-select[data-status="OK"]{background:#11784f;color:white}.status-select option{background:white;color:#17202a}.status-select:disabled{opacity:.65;cursor:wait}.sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
  .billing-dialog{font:inherit}.billing-dialog fieldset{min-width:0;border:0;padding:0;margin:1rem 0;display:grid;gap:.8rem}.billing-dialog label{display:grid;gap:.35rem}.billing-dialog input,.billing-dialog select,.billing-dialog textarea{box-sizing:border-box;width:100%;min-width:0;font:inherit;padding:.65rem;border:1px solid var(--his-border);border-radius:6px}.billing-dialog button{font:inherit;min-height:44px;padding:.5rem .7rem;border:1px solid var(--his-border);border-radius:6px;cursor:pointer}.billing-dialog .ws-primary{background:var(--his-primary);color:white}.billing-dialog .requirement,.conflict{border:1px solid var(--his-border);padding:1rem;border-radius:8px}.requirement-row{display:flex;align-items:end;gap:.5rem}.requirement-row label{flex:1;min-width:0}.billing-dialog [role=alert]{color:var(--his-danger)}.billing-dialog h3,.billing-dialog h4,.conflict li{overflow-wrap:anywhere}.billing-dialog button:disabled{opacity:.5;cursor:default}@media(max-width:464px){.ws-filters{display:grid;grid-template-columns:minmax(0,1fr)}.requirement-row{flex-direction:column;align-items:stretch}.billing-dialog .requirement{padding:.65rem}}
 </style>

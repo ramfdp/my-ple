@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/gorilla/websocket"
 	"io"
 	"my-ple-backend/db"
 	"my-ple-backend/model"
@@ -13,6 +14,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestBillingSharedIntegration(t *testing.T) {
@@ -183,6 +185,21 @@ func TestBillingDocumentsIntegration(t *testing.T) {
 		request("GET", base, nil, 403)
 		request("POST", base+"/stages", map[string]any{}, 403)
 	}
+	dial := func() *websocket.Conn {
+		t.Helper()
+		req, _ := http.NewRequest("GET", server.URL, nil)
+		for _, cookie := range cookies {
+			req.AddCookie(cookie)
+		}
+		req.Header.Set("Origin", "http://test.local")
+		ws, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(server.URL, "http")+"/ws/notifications", req.Header)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ws
+	}
+	deniedSocket := dial()
+	defer deniedSocket.Close()
 	decode := func(r map[string]json.RawMessage) model.BillingStage {
 		t.Helper()
 		var s model.BillingStage
@@ -198,8 +215,17 @@ func TestBillingDocumentsIntegration(t *testing.T) {
 	for _, role := range []string{"Admin", "Finance", "Project Engineer", "Management"} {
 		login(role)
 		request("GET", base, nil, 200)
+		socket := dial()
 		config := model.BillingConfiguration{JobID: job, Name: role, PeriodLabel: "TW-1", Milestones: []model.BillingRequirement{{Name: "First", Documents: []model.BillingRequirement{{Name: "BAPP"}, {Name: "BAST"}}}, {Name: "Second", Documents: []model.BillingRequirement{{Name: "RAB Tagihan"}}}}}
 		s := decode(request("POST", base+"/stages", config, 200))
+		socket.SetReadDeadline(time.Now().Add(3 * time.Second))
+		var event struct {
+			Event string `json:"event"`
+		}
+		if err := socket.ReadJSON(&event); err != nil || event.Event != "billing-documents.changed" {
+			t.Fatalf("billing event: %+v %v", event, err)
+		}
+		socket.Close()
 		path := fmt.Sprintf("%s/stages/%d", base, s.ID)
 		if s.Readiness != "BELUM SIAP" || s.Milestones[0].Documents[0].Status != "BELUM ADA" {
 			t.Fatal("default", s)
@@ -275,4 +301,9 @@ func TestBillingDocumentsIntegration(t *testing.T) {
 			t.Fatal("stage missing")
 		}
 	}
+	deniedSocket.SetReadDeadline(time.Now().Add(150 * time.Millisecond))
+	if _, _, err := deniedSocket.ReadMessage(); err == nil {
+		t.Fatal("billing event leaked to unauthorized role")
+	}
+
 }

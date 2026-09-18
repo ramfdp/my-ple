@@ -262,7 +262,6 @@ di `127.0.0.1`. Untuk browser, jalankan `TestAttendanceBrowserServer` dengan
 Fixture browser mengosongkan absensi akun `attendance-browser-*` miliknya
 dan membuat ulang izin Management pada database uji tersebut sebelum setiap run.
 
-
 ### Dokumen Penagihan
 
 Halaman `/billing-documents` berdiri sendiri dan memakai master pekerjaan, sesi login,
@@ -342,7 +341,6 @@ dengan `CHECKLIST_TEST_DATABASE_URL` ke database lokal terisolasi
 dengan `CHECKLIST_BROWSER_SERVER=1`, Vite port 5189 dengan
 `VITE_API_URL=http://127.0.0.1:3001`, lalu dari `frontend` jalankan
 `node tests/document-checklist.browser.mjs`.
-
 
 ### Bahasa, menu, dan kalender Zoom
 

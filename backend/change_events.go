@@ -34,10 +34,19 @@ func changeEvents(next http.Handler, s *notification.Service) http.Handler {
 		}
 		parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
 		event := map[string]string{"reports": "reports.changed", "zoom-bookings": "zoom.changed", "zoom-resources": "zoom.changed", "jobs": "jobs.changed", "users": "users.changed", "profile": "users.changed", "attendance": "attendance.changed", "document-checklists": "document-checklists.changed", "notifications": "notifications.changed"}[parts[0]]
+		if parts[0] == "billing-documents" {
+			event = "billing-documents.changed"
+		}
 		if event != "" {
 			id := ""
 			if len(parts) > 1 {
 				id = parts[1]
+			}
+			if parts[0] == "billing-documents" {
+				id = ""
+				if len(parts) > 2 {
+					id = parts[2]
+				}
 			}
 			if parts[0] == "profile" || parts[0] == "attendance" || parts[0] == "notifications" {
 				current, ok := middleware.GetClaims(r.Context())

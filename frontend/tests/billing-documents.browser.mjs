@@ -13,7 +13,7 @@ try{
  const name='Billing browser '+Date.now();const {job}=await api('/jobs','POST',{divisionId:role.divisionId,roleId:role.id,name,isActive:true});
  await page.locator('.sidebar-nav').getByRole('link',{name:'Dokumen Penagihan',exact:true}).click();
  await page.getByRole('button',{name:'Tambah tahap penagihan',exact:true}).click();
- const dialog=page.getByRole('dialog');await dialog.getByLabel('Pekerjaan',{exact:true}).selectOption(String(job.id));await dialog.getByLabel('Nama tahap',{exact:true}).fill('Tahap browser');await dialog.getByLabel('Periode penagihan').fill('TW-1');await dialog.getByLabel('Nama milestone',{exact:true}).fill('Milestone A');await dialog.getByLabel('Dokumen wajib 1',{exact:true}).fill('BAPP');await dialog.getByRole('button',{name:'Tambah milestone',exact:true}).click();await dialog.getByLabel('Nama milestone',{exact:true}).nth(1).fill('Milestone B');await dialog.getByLabel('Dokumen wajib 1',{exact:true}).nth(1).fill('Dokumen Khusus');await dialog.getByRole('button',{name:'Tambah dokumen tahap',exact:true}).click();await dialog.getByLabel('Dokumen tahap 1',{exact:true}).fill('BAST');await save();
+ const dialog=page.getByRole('dialog');await dialog.getByRole('button',{name:'Tutup',exact:true}).click();await dialog.waitFor({state:'hidden'});await page.getByRole('button',{name:'Tambah tahap penagihan',exact:true}).click();await dialog.getByLabel('Pekerjaan',{exact:true}).selectOption(String(job.id));await dialog.getByLabel('Nama tahap',{exact:true}).fill('Tahap browser');await dialog.getByLabel('Periode penagihan').fill('TW-1');await dialog.getByLabel('Nama milestone',{exact:true}).fill('Milestone A');await dialog.getByLabel('Dokumen wajib 1',{exact:true}).fill('BAPP');await dialog.getByRole('button',{name:'Tambah milestone',exact:true}).click();await dialog.getByLabel('Nama milestone',{exact:true}).nth(1).fill('Milestone B');await dialog.getByLabel('Dokumen wajib 1',{exact:true}).nth(1).fill('Dokumen Khusus');await dialog.getByRole('button',{name:'Tambah dokumen tahap',exact:true}).click();await dialog.getByLabel('Dokumen tahap 1',{exact:true}).fill('BAST');await save();
  await page.getByRole('main').getByLabel('Pekerjaan',{exact:true}).selectOption(String(job.id));
  const stage=page.locator('tbody').filter({hasText:name});
  const status=doc=>stage.getByRole('combobox',{name:new RegExp(' / '+doc+'$')});
@@ -22,6 +22,10 @@ try{
   await status(doc).selectOption(value);assert.equal((await response).status(),expected);
   await page.waitForFunction(()=>!document.querySelector('.status-select:disabled'));
  }
+ const viewer=await context.newPage();viewer.on('pageerror',e=>errors.push(e.message));
+ await viewer.goto(origin+'/billing-documents');await viewer.getByRole('main').getByLabel('Pekerjaan',{exact:true}).selectOption(String(job.id));
+ await viewer.locator('tbody .status-select').first().waitFor();
+ await viewer.evaluate(()=>{window.billingEvents=0;window.addEventListener('billing-documents.changed',()=>window.billingEvents++)});
  assert.equal(await stage.locator('tr').count(),2);
  assert.equal(await status('BAST').count(),1);
  assert.equal(await status('BAST').locator('..').getAttribute('rowspan'),'2');
@@ -31,6 +35,21 @@ try{
  assert.ok(await page.getByRole('columnheader',{name:'Dokumen Khusus',exact:true}).count());
  for(const doc of ['BAPP','Dokumen Khusus','BAST'])await setStatus(doc,'OK');
  assert.equal(await stage.locator('.readiness').textContent(),'SIAP');
+ await viewer.waitForFunction(()=>document.querySelector('tbody .readiness')?.textContent==='SIAP');
+ assert.ok(await viewer.evaluate(()=>window.billingEvents>0),'real socket delivered billing event');
+ // Edit a prefilled shared document using its full native dropdown, retaining ID/status.
+ const originalShared=(await api('/billing-documents')).stages.find(s=>s.jobId===job.id).documents[0];
+ await stage.getByRole('button',{name:'Edit requirement',exact:true}).click();
+ assert.equal(await dialog.locator('fieldset.requirement > legend').last().textContent(),'Dokumen bersama seluruh tahap');
+ const choices=dialog.getByLabel('Pilihan dokumen Dokumen tahap 1',{exact:true});
+ assert.equal(await choices.locator('option').count(),10);
+ await choices.selectOption('RAB Tagihan');await save();
+ let renamed=(await api('/billing-documents')).stages.find(s=>s.jobId===job.id).documents[0];
+ assert.equal(renamed.id,originalShared.id);assert.equal(renamed.status,'OK');assert.equal(renamed.name,'RAB Tagihan');
+ await viewer.getByRole('combobox',{name:/ \/ RAB Tagihan$/}).waitFor();
+ await stage.getByRole('button',{name:'Edit requirement',exact:true}).click();
+ await choices.selectOption('BAST');await save();
+ await viewer.close();
  await setStatus('BAPP','KURANG LENGKAP');
  assert.equal(await stage.locator('.readiness').textContent(),'BELUM SIAP');
  await stage.getByRole('button',{name:'Catatan milestone Milestone A',exact:true}).click();

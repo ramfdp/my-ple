@@ -1,4 +1,6 @@
 export const messages = {
+  "Pilih dokumen": ["Pilih dokumen", "Select a document"],
+  "Pilihan dokumen": ["Pilihan dokumen", "Document choices"],
   "REKAP KESIAPAN DOKUMEN TAGIHAN": ["REKAP KESIAPAN DOKUMEN TAGIHAN", "BILLING DOCUMENT READINESS SUMMARY"],
   "Rekap kesiapan dokumen tagihan": ["Rekap kesiapan dokumen tagihan", "Billing document readiness summary"],
   "Data per": ["Data per", "As of"],
