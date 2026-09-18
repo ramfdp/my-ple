@@ -3,6 +3,7 @@
  import { onMount, tick } from 'svelte';
  import { subscribeChanges } from '$lib/realtime';
  import { api, download, type Job } from '$lib/api';
+ import { printTable } from '$lib/print-table';
  import type { DocumentChecklist, ChecklistSigner, ChecklistItem } from '$lib/document-checklist';
  let { job }: {job: Job} = $props();
  let checklists = $state<DocumentChecklist[]>([]), selectedId = $state(0);
@@ -18,14 +19,17 @@
  let title = $state(''), editingId = $state(0), configuring = $state(false);
  let saving: Promise<boolean> | null = null;
  let exporting = $state(false);
- async function exportPDF() {
+ async function exportPDF(asDisplayed = false) {
   if (busy || exporting) return;
   const focused = document.activeElement;
   if (focused instanceof HTMLElement && root.contains(focused)) focused.blur();
   await tick();
   if (saving && !await saving) return;
   exporting = true; error = '';
-  try { await download(endpoint + '/pdf'); }
+  try {
+   if (asDisplayed) printTable(root.querySelector('table')!, job.name);
+   else await download(endpoint + '/pdf');
+  }
   catch (e) { error = (e as Error).message; }
   finally { exporting = false; }
  }
@@ -138,7 +142,8 @@
    <span class="table-counter" aria-live="polite">{checklist.title} ({selectedIndex + 1} / {checklists.length})</span>
   </div>
   <p>{$translate("Perubahan sel disimpan setelah selesai mengisi.")}</p>
-  <button type="button" disabled={busy || exporting} onpointerdown={e => e.preventDefault()} onclick={exportPDF}>{$translate("Ekspor PDF pekerjaan")}</button>
+  <button type="button" disabled={busy || exporting} onpointerdown={e => e.preventDefault()} onclick={() => exportPDF()}>{$translate("Ekspor PDF pekerjaan")}</button>
+  <button type="button" disabled={busy || exporting} onpointerdown={e => e.preventDefault()} onclick={() => exportPDF(true)}>{$translate('Cetak / Simpan PDF')}</button>
   <form class="add-document" onsubmit={async e => {e.preventDefault(); if (newDocument.trim() && await mutate('/items', 'POST', {field: 'documentName', value: newDocument})) newDocument = '';}}>
    <label>{$translate("Dokumen baru")}<input aria-label={$translate("Dokumen baru")} required maxlength="255" bind:value={newDocument} disabled={busy}/></label><button class="ws-primary" disabled={busy || !newDocument.trim()}>{$translate("+ Tambah Isi Dokumen")}</button>
   </form>

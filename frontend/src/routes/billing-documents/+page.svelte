@@ -5,6 +5,8 @@
  import { billingStatuses, documentSuggestions, canUseBilling, type BillingStage, type BillingConfiguration, type BillingDocument, type BillingMilestone } from '$lib/billing-documents';
  import '$lib/styles/workspace.css';
  import { subscribeChanges } from '$lib/realtime';
+ import { printTable } from '$lib/print-table';
+ let billingTable = $state<HTMLTableElement>();
  const authorized = $derived(canUseBilling($currentUser?.role));
  let stages=$state<BillingStage[]>([]), jobs=$state<Job[]>([]), loading=$state(true), busy=$state(false), error=$state(''), notice=$state('');
  let jobFilter=$state(''), statusFilter=$state(''), search=$state('');
@@ -123,9 +125,10 @@
  <div class="ws-metrics"><section class="ws-panel"><span>{$translate('Tahap SIAP')}</span><strong>{ready}</strong></section><section class="ws-panel"><span>{$translate('Tahap BELUM SIAP')}</span><strong>{matched.length-ready}</strong></section></div>
  {#if loading}<p role="status">{$translate('Memuat penagihan...')}</p>{:else}
  <p class="data-date">{$translate('Data per')}: {today}</p>
+ <button class="ws-primary" disabled={busy||!visible.length} onclick={()=>{if(billingTable)printTable(billingTable,$translate('REKAP KESIAPAN DOKUMEN TAGIHAN')+' — '+today)}}>{$translate('Cetak / Simpan PDF')}</button>
  {#if visible.length}
  <div class="billing-scroll" role="region" aria-label={$translate('Rekap kesiapan dokumen tagihan')} aria-busy={busy}>
- <table class="billing-table">
+ <table class="billing-table" bind:this={billingTable}>
   <caption class="sr-only">{$translate('Rekap kesiapan dokumen tagihan')}</caption>
   <thead><tr><th colspan="3" scope="colgroup">{$translate('PEKERJAAN')}</th><th colspan={columns.length} scope="colgroup">{$translate('DOKUMEN')}</th><th rowspan="2" scope="col">{$translate('STATUS')}</th><th rowspan="2" scope="col">{$translate('CATATAN')}</th></tr>
   <tr><th scope="col">{$translate('Pekerjaan')}</th><th scope="col">{$translate('Tahap')}</th><th scope="col">{$translate('Bulan / sub-tahap')}</th>{#each columns as name}<th scope="col" class="document-heading">{name}</th>{/each}</tr></thead>

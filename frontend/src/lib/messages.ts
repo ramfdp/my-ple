@@ -1,4 +1,5 @@
 export const messages = {
+  "Cetak / Simpan PDF": ["Cetak / Simpan PDF", "Print / Save PDF"],
   "Isi pekerjaan, nama tahap, dan minimal satu sub-tahap. Setiap sub-tahap memerlukan dokumen sendiri atau dokumen per tahap. Nama dokumen harus unik dan tidak boleh digunakan pada kedua cakupan.": ["Isi pekerjaan, nama tahap, dan minimal satu sub-tahap. Setiap sub-tahap memerlukan dokumen sendiri atau dokumen per tahap. Nama dokumen harus unik dan tidak boleh digunakan pada kedua cakupan.", "Enter a job, stage name and at least one sub-stage. Each sub-stage needs its own documents or stage documents. Document names must be unique and cannot be used at both scopes."],
   "Bulan / sub-tahap": ["Bulan / sub-tahap", "Month / sub-stage"],
   "Catatan sub-tahap": ["Catatan sub-tahap", "Sub-stage notes"],
