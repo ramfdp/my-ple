@@ -42,13 +42,13 @@
 
 {#if introducing}
 	<div class="login-intro" role="status" aria-label="MyHIS">
-		<img src="/logo%20MyHIS%20terbaru.jpeg" alt="MyHIS" width="188" height="176" />
+		<img src="/harmoni%20insan%20phooto.webp" alt="MyHIS" width="188" height="176" />
 	</div>
 {:else}
 <main class="login-page">
 	<section class="login-panel" aria-labelledby="login-title">
 		<div class="login-content">
-			<img class="brand-logo" src="/logo%20MyHIS%20terbaru.jpeg" alt={$translate("MyHIS")} />
+			<img class="brand-logo" src="/harmoni%20insan%20phooto.webp" alt={$translate("MyHIS")} />
 
 			<div class="login-heading">
 				<p class="eyebrow">{$translate("MyHIS WORKSPACE")}</p>

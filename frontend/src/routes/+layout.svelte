@@ -52,7 +52,7 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" type="image/jpeg" href="/logo%20MyHIS%20terbaru.jpeg" />
+	<link rel="icon" type="image/webp" href="/harmoni%20insan%20phooto.webp" />
 </svelte:head>
 
 {#if auth === 'loading'}
