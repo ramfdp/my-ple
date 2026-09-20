@@ -518,8 +518,8 @@ func (db *Database) UpdateReport(ctx context.Context, id string, input model.Wee
 	if err := tx.QueryRowContext(ctx, `SELECT id,user_id,primary_division,work_division,report_role,work,job_id,number,completed_at,description,version FROM reports WHERE id=$1 FOR UPDATE`, id).Scan(&old.ID, &old.UserID, &old.PrimaryDivision, &old.WorkDivision, &old.Role, &old.Work, &old.JobID, &old.Number, &old.CompletedAt, &old.Description, &old.Version); err != nil {
 		return result, err
 	}
-	model.NormalizeWeeklyReport(&old)
 	if input.Version != old.Version {
+		model.NormalizeWeeklyReport(&old)
 		return old, ErrReportConflict
 	}
 	if input.PrimaryDivision != nil && *input.PrimaryDivision != old.PrimaryDivision {
