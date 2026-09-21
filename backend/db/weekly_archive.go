@@ -120,7 +120,7 @@ type DueWeek struct {
 
 func (db *Database) DueWeeks(ctx context.Context, now time.Time) ([]DueWeek, error) {
 	start, _ := model.ReportingPeriodWeek(now)
-	rows, err := db.Conn.QueryContext(ctx, `SELECT primary_division, (date_trunc('week',(completed_at AT TIME ZONE 'Asia/Jakarta')-interval '1 day')+interval '1 day') AT TIME ZONE 'Asia/Jakarta' AS week_start FROM reports WHERE completed_at<$1 GROUP BY 1,2 UNION SELECT primary_division,week_start FROM weekly_report_archives WHERE reset_at IS NULL OR status<>'finalized' ORDER BY 2,1`, start)
+	rows, err := db.Conn.QueryContext(ctx, `SELECT primary_division, date_trunc('week',completed_at AT TIME ZONE 'Asia/Jakarta') AT TIME ZONE 'Asia/Jakarta' AS week_start FROM reports WHERE completed_at<$1 GROUP BY 1,2 UNION SELECT primary_division,week_start FROM weekly_report_archives WHERE reset_at IS NULL OR status<>'finalized' ORDER BY 2,1`, start)
 	if err != nil {
 		return nil, err
 	}
