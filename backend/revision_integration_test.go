@@ -221,6 +221,18 @@ func TestRevisionIntegration(t *testing.T) {
 		if count(`SELECT count(*) FROM work_item_activity WHERE work_item_id=$1 AND field_name='revisionCount'`, task.ID) != 2 {
 			t.Fatal("repeated revision activity missing or duplicated")
 		}
+		lane := mustTask(pe, "POST", list, map[string]any{"title": "Revision board lane " + db.NewID(), "requiresQa": true})
+		lanePath := "/work-items/" + lane.ID
+		lane = mustTask(pe, "PATCH", lanePath, map[string]any{"version": lane.Version, "status": "IN_PROGRESS"})
+		lane = mustTask(qa, "PATCH", lanePath+"/qa", map[string]any{"version": lane.Version, "decision": "NEED_REVISION"})
+		lane = mustTask(pe, "PATCH", lanePath, map[string]any{"version": lane.Version, "status": "REVISION"})
+		if lane.Status != "REVISION" {
+			t.Fatal("task did not move to the Revision board lane")
+		}
+		lane = mustTask(qa, "PATCH", lanePath+"/qa", map[string]any{"version": lane.Version, "decision": "DONE"})
+		if lane.Status != "DONE" {
+			t.Fatal("QA could not complete a task from Revision")
+		}
 		// Ordinary tasks are excluded before pagination and total calculation.
 		mustTask(pe, "POST", list, map[string]any{"title": title + " untouched"})
 		query := list + "?revisionOnly=true&search=" + url.QueryEscape(title) + "&status=DONE&limit=1"

@@ -23,7 +23,7 @@ func validateQATransition(old model.WorkItem, in model.WorkItemInput, checker bo
 		return nil
 	}
 	if in.QAOnly {
-		if !old.RequiresQA || (old.Status != model.WorkInProgress && old.Status != model.WorkNeedRevision) {
+		if !old.RequiresQA || (old.Status != model.WorkInProgress && old.Status != model.WorkNeedRevision && old.Status != model.WorkRevision) {
 			return ErrWorkspaceForbidden
 		}
 		if (in.Status == model.WorkDone && in.QAStage == "COMPLETE") || (in.Status == model.WorkNeedRevision && in.QAStage == "") {

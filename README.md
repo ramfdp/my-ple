@@ -375,10 +375,13 @@ sinkronisasi antarsesi, kartu/sidebar, formulir terbuka, dan tinggi kalender Zoo
 
 ### Revisi QA workspace
 
-Tab **Revisi / Revision** memuat pekerjaan berstatus Need Revision dan riwayat
-revisi yang tetap tersedia setelah Done. Kolom Revisi dan detail menampilkan
-`revisi-1`, `revisi-2`, dan seterusnya. Tombol Validasi QA dapat digunakan dari
-In Progress maupun Need Revision; setiap keputusan Need Revision yang berhasil
+Board memiliki kolom **Revision** setelah **Need Revision**. QA mengirim pekerjaan
+ke Need Revision; pengguna memindahkannya ke Revision saat mulai mengerjakan revisi.
+QA dapat menilai ulang dari kolom Revision. Tab **Riwayat Revisi / Revision History**
+menyimpan pekerjaan yang pernah direvisi, termasuk yang sudah Done. Kolom Revisi
+dan detail menampilkan `revisi-1`, `revisi-2`, dan seterusnya. Tombol Validasi QA
+dapat digunakan dari In Progress, Need Revision, dan Revision; setiap keputusan
+Need Revision yang berhasil
 menambah hitungan sekali. Perubahan status manual tidak menambah hitungan QA.
 
 Respons pekerjaan memiliki `revisionCount` (angka, atau `null` untuk revisi lama

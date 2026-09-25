@@ -9,6 +9,7 @@ const (
 	WorkTodo         = "TODO"
 	WorkInProgress   = "IN_PROGRESS"
 	WorkNeedRevision = "NEED_REVISION"
+	WorkRevision     = "REVISION"
 	WorkDone         = "DONE"
 	PriorityLow      = "LOW"
 	PriorityMedium   = "MEDIUM"

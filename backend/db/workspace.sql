@@ -15,12 +15,14 @@ CREATE TABLE IF NOT EXISTS work_items (
  job_id INTEGER REFERENCES jobs(id), title VARCHAR(200) NOT NULL CHECK(btrim(title)<>''),
  description VARCHAR(10000) NOT NULL DEFAULT '', related_url VARCHAR(2000) NOT NULL DEFAULT '',
  start_date DATE, due_date DATE,
- status TEXT NOT NULL DEFAULT 'TODO' CHECK(status IN ('TODO','IN_PROGRESS','NEED_REVISION','DONE')),
+ status TEXT NOT NULL DEFAULT 'TODO' CHECK(status IN ('TODO','IN_PROGRESS','NEED_REVISION','REVISION','DONE')),
  priority TEXT NOT NULL DEFAULT 'MEDIUM' CHECK(priority IN ('LOW','MEDIUM','HIGH','URGENT')),
  created_by UUID NOT NULL REFERENCES users(id), created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), version INTEGER NOT NULL DEFAULT 1,
  archived_at TIMESTAMPTZ, CHECK(due_date>=start_date)
 );
+ALTER TABLE work_items DROP CONSTRAINT IF EXISTS work_items_status_check;
+ALTER TABLE work_items ADD CONSTRAINT work_items_status_check CHECK(status IN ('TODO','IN_PROGRESS','NEED_REVISION','REVISION','DONE'));
 CREATE INDEX IF NOT EXISTS work_items_workspace_status ON work_items(division_id,status) WHERE archived_at IS NULL;
 CREATE INDEX IF NOT EXISTS work_items_workspace_due ON work_items(division_id,due_date) WHERE archived_at IS NULL;
 CREATE INDEX IF NOT EXISTS work_items_job ON work_items(job_id);

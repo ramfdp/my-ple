@@ -1,6 +1,6 @@
 import { api } from '$lib/api';
 
-export const statuses = { TODO:'To Do', IN_PROGRESS:'In Progress', NEED_REVISION:'Need Revision', DONE:'Done' } as const;
+export const statuses = { TODO:'To Do', IN_PROGRESS:'In Progress', NEED_REVISION:'Need Revision', REVISION:'Revision', DONE:'Done' } as const;
 export const priorities = { LOW:'Low', MEDIUM:'Medium', HIGH:'High', URGENT:'Urgent' } as const;
 export type Status=keyof typeof statuses;
 export type Priority=keyof typeof priorities;

@@ -28,7 +28,7 @@ func ValidateWorkItem(in *model.WorkItemInput) error {
 	if in.Title == "" || len(in.Title) > 200 || len(in.Description) > 10000 || len(in.RelatedURL) > 2000 || !validWorkURL(in.RelatedURL) {
 		return ErrWorkspaceInvalid
 	}
-	if !slices.Contains([]string{model.WorkTodo, model.WorkInProgress, model.WorkNeedRevision, model.WorkDone}, in.Status) || !slices.Contains([]string{model.PriorityLow, model.PriorityMedium, model.PriorityHigh, model.PriorityUrgent}, in.Priority) {
+	if !slices.Contains([]string{model.WorkTodo, model.WorkInProgress, model.WorkNeedRevision, model.WorkRevision, model.WorkDone}, in.Status) || !slices.Contains([]string{model.PriorityLow, model.PriorityMedium, model.PriorityHigh, model.PriorityUrgent}, in.Priority) {
 		return ErrWorkspaceInvalid
 	}
 	for _, d := range []string{in.StartDate, in.DueDate} {

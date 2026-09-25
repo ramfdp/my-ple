@@ -2,7 +2,7 @@ import { translate, type Language } from './i18n';
 import type { Activity } from './workspace';
 
 const statusLabels: Record<string, string> = {
- TODO: 'Belum Dimulai', IN_PROGRESS: 'Sedang Dikerjakan', NEED_REVISION: 'Perlu Revisi', DONE: 'Selesai'
+ TODO: 'Belum Dimulai', IN_PROGRESS: 'Sedang Dikerjakan', NEED_REVISION: 'Perlu Revisi', REVISION: 'Revision', DONE: 'Selesai'
 };
 const actionLabels: Record<string, string> = {
  CREATE: 'membuat pekerjaan', STATUS_CHANGE: 'mengubah status pekerjaan',
