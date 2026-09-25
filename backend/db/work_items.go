@@ -69,7 +69,7 @@ func workspaceUUID(s string) bool {
 }
 
 const workJSON = `jsonb_build_object('id',t.id,'workspaceId',t.division_id,'jobId',t.job_id,'jobName',COALESCE(j.name,''),
- 'requiresQa',t.requires_qa,'qaStage',t.qa_stage,
+ 'requiresQa',t.requires_qa,'qaStage',t.qa_stage,'revisionCount',t.revision_count,
  'qaValidatedAt',t.qa_validated_at,'qaValidatedBy',t.qa_validated_by,'qaValidatedByName',COALESCE((SELECT name FROM users WHERE id=t.qa_validated_by),''),
  'title',t.title,'description',t.description,'relatedUrl',t.related_url,'startDate',COALESCE(t.start_date::text,''),'dueDate',COALESCE(t.due_date::text,''),
  'status',t.status,'priority',t.priority,'createdBy',COALESCE(t.created_by::text,''),'createdAt',t.created_at,'updatedAt',t.updated_at,'version',t.version,'archivedAt',t.archived_at,
@@ -122,6 +122,7 @@ func (db *Database) WorkItem(ctx context.Context, userID, id string, archived ..
 }
 
 type WorkFilter struct {
+	RevisionOnly                                         bool
 	Archived                                             bool
 	Search, Assignee, Status, Priority, Start, End, Sort string
 	JobID, Limit, Offset                                 int
@@ -159,6 +160,9 @@ func (db *Database) WorkItems(ctx context.Context, userID string, division int, 
 	archiveCondition := "t.archived_at IS NULL"
 	if f.Archived {
 		archiveCondition = "t.archived_at IS NOT NULL"
+	}
+	if f.RevisionOnly {
+		archiveCondition += " AND (t.status='NEED_REVISION' OR t.revision_count>0 OR t.revision_count IS NULL)"
 	}
 	where := `t.division_id=$1 AND ` + archiveCondition + ` AND ($2='' OR t.title ILIKE '%'||$2||'%' OR t.description ILIKE '%'||$2||'%')
  AND ($3='' OR EXISTS(SELECT 1 FROM work_item_assignees a WHERE a.work_item_id=t.id AND a.user_id=NULLIF($3,'')::uuid))
@@ -329,6 +333,16 @@ func (db *Database) SaveWorkItem(ctx context.Context, userID string, division in
 	if err != nil {
 		return empty, err
 	}
+	revisionRequested := in.QAOnly && in.Status == model.WorkNeedRevision
+	if revisionRequested {
+		var count int
+		if err = tx.QueryRowContext(ctx, `UPDATE work_items SET revision_count=COALESCE(revision_count,0)+1 WHERE id=$1 RETURNING revision_count`, id).Scan(&count); err != nil {
+			return empty, err
+		}
+		if err = recordWorkActivity(ctx, tx, id, userID, "UPDATE", "revisionCount", old.RevisionCount, count); err != nil {
+			return empty, err
+		}
+	}
 	if in.QAStage == "COMPLETE" && old.QAValidatedAt == nil && old.Status != model.WorkDone {
 		if _, err = tx.ExecContext(ctx, `UPDATE work_items SET qa_validated_at=NOW(),qa_validated_by=$2 WHERE id=$1`, id, userID); err != nil {
 			return empty, err
@@ -359,7 +373,7 @@ func (db *Database) SaveWorkItem(ctx context.Context, userID string, division in
 			added = append(added, a)
 		}
 	}
-	fieldsChanged := in.QAStage == "COMPLETE" && old.QAValidatedAt == nil && old.Status != model.WorkDone
+	fieldsChanged := revisionRequested || (in.QAStage == "COMPLETE" && old.QAValidatedAt == nil && old.Status != model.WorkDone)
 	if old.ID == "" {
 		err = recordWorkActivity(ctx, tx, id, userID, "CREATE", "", nil, in.Title)
 	} else {

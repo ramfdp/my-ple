@@ -373,6 +373,23 @@ checklist yang terisolasi. Dengan fixture browser checklist di port 3001 dan Vit
 di 5189, jalankan `node tests/language.browser.mjs` untuk memeriksa kedua bahasa,
 sinkronisasi antarsesi, kartu/sidebar, formulir terbuka, dan tinggi kalender Zoom.
 
+### Revisi QA workspace
+
+Tab **Revisi / Revision** memuat pekerjaan berstatus Need Revision dan riwayat
+revisi yang tetap tersedia setelah Done. Kolom Revisi dan detail menampilkan
+`revisi-1`, `revisi-2`, dan seterusnya. Tombol Validasi QA dapat digunakan dari
+In Progress maupun Need Revision; setiap keputusan Need Revision yang berhasil
+menambah hitungan sekali. Perubahan status manual tidak menambah hitungan QA.
+
+Respons pekerjaan memiliki `revisionCount` (angka, atau `null` untuk revisi lama
+yang belum tercatat). Daftar `/workspaces/{id}/tasks?revisionOnly=true` memfilter
+riwayat sebelum pagination; parameter status, pencarian, dan arsip tetap berlaku.
+Migrasi menandai pekerjaan lama yang sedang Need Revision sebagai Belum tercatat;
+keputusan revisi berikutnya mulai dari satu. Rilis backend beserta migrasi sebelum
+frontend. Uji alur dan migrasi: `TestRevisionIntegration/workspace_revision_count_and_history`
+dan `TestRevisionIntegration/revision_migration_preserves_legacy_counts`, menggunakan
+`TEST_DATABASE_URL` ke database lokal terisolasi `my_ple_revision_test`.
+
 ### Arsip pekerjaan workspace
 
 Tombol **Arsip Pekerjaan / Archived Jobs** menampilkan pekerjaan yang diarsipkan

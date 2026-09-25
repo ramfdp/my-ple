@@ -8,8 +8,10 @@ export interface Member {id:string;name:string;avatarUrl:string}
 export interface Workspace {id:number;name:string;canManage:boolean}
 export interface WorkspaceJob {id:number;name:string;label?:string;isActive:boolean;role?:string}
 export const qaStages={WAITING:'Menunggu QA',CHECKING:'Progress Checking',COMPLETE:'QA Validated'} as const;
+export const revisionLabel=(count:number|null)=>count===null?'Belum tercatat':count>0?`revisi-${count}`:'—';
 export const taskStatus=(task:Pick<Task,'status'|'qaStage'>)=>task.status==='DONE'?statuses.DONE:task.qaStage?qaStages[task.qaStage]:statuses[task.status];
 export interface Task {
+ revisionCount:number|null;
  archivedAt:string|null;canRestore:boolean;
  qaValidatedAt:string|null;qaValidatedBy:string|null;qaValidatedByName:string;
  requiresQa:boolean;qaStage:''|keyof typeof qaStages;canCheckQa:boolean;

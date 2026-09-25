@@ -131,7 +131,7 @@ func (c *WorkspaceController) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 			if r.Method == "GET" {
 				q := r.URL.Query()
 				number := func(k string) int { v, _ := strconv.Atoi(q.Get(k)); return v }
-				items, total, e := c.DB.WorkItems(r.Context(), user.ID, id, db.WorkFilter{Archived: q.Get("archived") == "true", Search: q.Get("search"), Assignee: q.Get("assignee"), Status: q.Get("status"), Priority: q.Get("priority"), Start: q.Get("start"), End: q.Get("end"), Sort: q.Get("sort"), JobID: number("jobId"), Limit: number("limit"), Offset: number("offset")})
+				items, total, e := c.DB.WorkItems(r.Context(), user.ID, id, db.WorkFilter{RevisionOnly: q.Get("revisionOnly") == "true", Archived: q.Get("archived") == "true", Search: q.Get("search"), Assignee: q.Get("assignee"), Status: q.Get("status"), Priority: q.Get("priority"), Start: q.Get("start"), End: q.Get("end"), Sort: q.Get("sort"), JobID: number("jobId"), Limit: number("limit"), Offset: number("offset")})
 				if e != nil {
 					workspaceError(w, e)
 					return

@@ -31,6 +31,7 @@ type WorkspaceMember struct {
 	AvatarURL string `json:"avatarUrl"`
 }
 type WorkItem struct {
+	RevisionCount     *int              `json:"revisionCount"`
 	ArchivedAt        *time.Time        `json:"archivedAt"`
 	CanRestore        bool              `json:"canRestore"`
 	QAValidatedAt     *time.Time        `json:"qaValidatedAt"`

@@ -1,4 +1,9 @@
 export const messages = {
+  "Revision": ["Revisi", "Revision"],
+  "Revisi": ["Revisi", "Revision"],
+  "Belum tercatat": ["Belum tercatat", "Not recorded"],
+  "Jumlah revisi dihitung sejak fitur diaktifkan.": ["Jumlah revisi dihitung sejak fitur diaktifkan.", "Revisions are counted from when this feature was enabled."],
+  "meminta revisi {revision}": ["meminta revisi {revision}", "requested revision {revision}"],
   "Kritik & Saran": ["Kritik & Saran", "Feedback"],
   "Sampaikan masukan Anda untuk MyHIS.": ["Sampaikan masukan Anda untuk MyHIS.", "Share your feedback for MyHIS."],
   "Email akun": ["Email akun", "Account email"],

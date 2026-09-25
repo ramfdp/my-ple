@@ -21,11 +21,11 @@
  let anchor=$state(today()),scale=$state<'week'|'month'>('month');
  let workload=$state<Workload[]>([]),overview=$state<Record<string,number>>({}),activity=$state<Activity[]>([]);
  let generation=0,opening=0;
- const tabs=['Overview','Table','Board','Timeline','Calendar','Workload','Notes'];
+ const tabs=['Overview','Table','Revision','Board','Timeline','Calendar','Workload','Notes'];
  const currentPeriod=$derived(period(anchor,view==='Calendar'?'month':scale));
  async function refresh(){
   if(!workspace)return;const wid=workspace.id,sequence=++generation;loading=true;error='';
-  const q=new URLSearchParams({archived:String(view==='Archive'),search,assignee,jobId,status,priority,start,end,sort,limit:'100',offset:String(offset)});
+  const q=new URLSearchParams({revisionOnly:String(view==='Revision'),archived:String(view==='Archive'),search,assignee,jobId,status,priority,start,end,sort,limit:'100',offset:String(offset)});
   if(view==='Overview'){for(const k of ['search','assignee','jobId','priority','start','end'])q.set(k,'');q.set('status','ACTIVE');q.set('sort','due');q.set('offset','0');q.set('limit','8')}
   if(view==='Timeline'||view==='Calendar'){q.set('start',start>currentPeriod.start?start:currentPeriod.start);q.set('end',end&&end<currentPeriod.end?end:currentPeriod.end)}
   const calendar=view==='Calendar';
@@ -43,7 +43,7 @@
  $effect(()=>{const taskId=page.url.searchParams.get('task');if(workspace&&taskId)untrack(()=>void open({id:taskId}))});
  function create(){opening++;selected=null;detail=true}
  function closeDetail(){opening++;detail=false}
- function changeView(v:string){if(v==='Archive'||view==='Archive'){search='';assignee='';jobId='';status='';priority='';start='';end='';sort=v==='Archive'?'archived':'updated'}view=v;offset=0;void refresh()}
+ function changeView(v:string){if(v==='Revision')status='';if(v==='Archive'||view==='Archive'){search='';assignee='';jobId='';status='';priority='';start='';end='';sort=v==='Archive'?'archived':'updated'}view=v;offset=0;void refresh()}
  function navigate(n:number){if(scale==='week'&&view==='Timeline')anchor=addDays(anchor,n*7);else{const d=dateValue(anchor);anchor=dateString(new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+n,1)))}offset=0;void refresh()}
 </script>
 <svelte:head><title>{workspace?.name??$translate('Division')} {$translate("Workspace | MyHIS")}</title></svelte:head>
@@ -65,7 +65,7 @@
  <section class="ws-panel"><h2>{$translate("Pekerjaan Mendekati Deadline")}</h2>{#each tasks.filter(t=>t.dueDate&&t.status!=='DONE').sort((a,b)=>a.dueDate.localeCompare(b.dueDate)).slice(0,8) as t}<p><button class="ws-link" onclick={()=>open(t)}>{t.title}</button> · {t.dueDate}</p>{:else}<p>{$translate("Belum ada deadline terdekat.")}</p>{/each}</section>
  <section class="ws-panel"><h2>{$translate("Team Workload Summary")}</h2><p>{workload.filter(w=>w.workloadLevel==='AVAILABLE').length} {$translate("Available ·")} {workload.filter(w=>w.workloadLevel==='NORMAL').length} {$translate("Normal ·")} {workload.filter(w=>w.workloadLevel==='BUSY').length} {$translate("Busy ·")} {workload.filter(w=>w.workloadLevel==='OVERLOADED').length} {$translate("Overloaded")}</p></section>
  <section class="ws-panel"><h2>{$translate("Aktivitas Terbaru")}</h2><ul class="ws-activity">{#each activity.slice(0,10) as a}{@const formatted=formatActivity(a,$language)}<li>{formatted.title}<br/><small>{formatted.timestamp}</small></li>{:else}<li>{$translate("Belum ada aktivitas terbaru.")}</li>{/each}</ul></section>
- {:else if view==='Table'||view==='Archive'}{#if view==='Archive'}<h2>{$translate('Arsip Pekerjaan')}</h2>{/if}<TaskTable archived={view==='Archive'} {tasks} onopen={open} {sort} onsort={(value)=>{sort=value;void refresh()}}/>
+ {:else if view==='Table'||view==='Archive'||view==='Revision'}{#if view==='Archive'}<h2>{$translate('Arsip Pekerjaan')}</h2>{/if}{#if view==='Revision'}<h2>{$translate('Revision')}</h2><p>{$translate('Jumlah revisi dihitung sejak fitur diaktifkan.')}</p>{/if}<TaskTable archived={view==='Archive'} {tasks} onopen={open} {sort} onsort={(value)=>{sort=value;void refresh()}}/>
  {:else if view==='Board'}<TaskBoard {tasks} onopen={open} onchanged={refresh}/>
  {:else if view==='Timeline'||view==='Calendar'}
  <div class="ws-row ws-period"><div><button onclick={()=>navigate(-1)} aria-label={$translate("Periode sebelumnya")}>←</button> <button onclick={()=>{anchor=today();offset=0;void refresh()}}>{$translate("Today")}</button> <button onclick={()=>navigate(1)} aria-label={$translate("Periode berikutnya")}>→</button></div><strong>{labelDate(currentPeriod.start, $locale)} – {labelDate(currentPeriod.end, $locale)}</strong>

@@ -20,5 +20,8 @@ export function formatActivity(activity: Activity, language: Language = 'id') {
   && Object.hasOwn(statusLabels, activity.oldValue) && Object.hasOwn(statusLabels, activity.newValue)) {
   message = translate('mengubah status dari {old} menjadi {new}',language,{old:translate(statusLabels[activity.oldValue],language),new:translate(statusLabels[activity.newValue],language)});
  }
+ if (activity.field === 'revisionCount' && typeof activity.newValue === 'number') {
+  message = translate('meminta revisi {revision}', language, {revision: `revisi-${activity.newValue}`});
+ }
  return { title: `${activity.actorName || translate('Pengguna',language)} ${message}`, timestamp: new Date(activity.createdAt).toLocaleString(language==='en'?'en-GB':'id-ID') };
 }

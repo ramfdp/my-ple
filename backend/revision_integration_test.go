@@ -183,6 +183,124 @@ func TestRevisionIntegration(t *testing.T) {
 		return n
 	}
 
+	t.Run("workspace revision count and history", func(t *testing.T) {
+		title := "QA count " + db.NewID()
+		list := fmt.Sprintf("/workspaces/%d/tasks", division)
+		task := mustTask(pe, "POST", list, map[string]any{"title": title, "requiresQa": true})
+		path := "/work-items/" + task.ID
+		check := func(want int) {
+			t.Helper()
+			if task.RevisionCount == nil || *task.RevisionCount != want {
+				t.Fatalf("revision count: got %v, want %d", task.RevisionCount, want)
+			}
+		}
+		check(0)
+		task = mustTask(pe, "PATCH", path, map[string]any{"version": task.Version, "status": "IN_PROGRESS"})
+		for want := 1; want <= 2; want++ {
+			body := map[string]any{"version": task.Version, "decision": "NEED_REVISION"}
+			task = mustTask(qa, "PATCH", path+"/qa", body)
+			check(want)
+			if status, _ := request(qa, "PATCH", path+"/qa", body); status != 409 {
+				t.Fatal("duplicate QA request", status)
+			}
+		}
+		task = mustTask(pe, "PATCH", path, map[string]any{"version": task.Version, "title": title + " edited"})
+		check(2)
+		if status, _ := request(pe, "PATCH", path, map[string]any{"version": task.Version, "revisionCount": 99}); status != 400 {
+			t.Fatal("client supplied revision count accepted", status)
+		}
+		if status, _ := request(outsider, "PATCH", path+"/qa", map[string]any{"version": task.Version, "decision": "NEED_REVISION"}); status != 403 {
+			t.Fatal("outside workspace QA accepted", status)
+		}
+		task = mustTask(qa, "PATCH", path+"/qa", map[string]any{"version": task.Version, "decision": "DONE"})
+		task = mustTask(pe, "GET", path, nil)
+		check(2)
+		if task.Status != "DONE" || task.QAValidatedAt == nil {
+			t.Fatal("revision not completed")
+		}
+		if count(`SELECT count(*) FROM work_item_activity WHERE work_item_id=$1 AND field_name='revisionCount'`, task.ID) != 2 {
+			t.Fatal("repeated revision activity missing or duplicated")
+		}
+		// Ordinary tasks are excluded before pagination and total calculation.
+		mustTask(pe, "POST", list, map[string]any{"title": title + " untouched"})
+		query := list + "?revisionOnly=true&search=" + url.QueryEscape(title) + "&status=DONE&limit=1"
+		status, result := request(pe, "GET", query, nil)
+		var total int
+		var tasks []model.WorkItem
+		if json.Unmarshal(result["total"], &total) != nil || json.Unmarshal(result["tasks"], &tasks) != nil || status != 200 || total != 1 || len(tasks) != 1 || tasks[0].ID != task.ID {
+			t.Fatal("revision history filter", status, total, tasks)
+		}
+		_, result = request(pe, "GET", query+"&offset=1", nil)
+		if json.Unmarshal(result["tasks"], &tasks) != nil || len(tasks) != 0 {
+			t.Fatal("revision pagination")
+		}
+		if status, _ := request(pe, "DELETE", path, map[string]any{"version": task.Version}); status != 204 {
+			t.Fatal("archive", status)
+		}
+		task = mustTask(pe, "GET", path+"?archived=true", nil)
+		check(2)
+		task = mustTask(pe, "POST", path+"/restore", map[string]any{"version": task.Version})
+		check(2)
+		// Legacy NULL survives Done and migration; its next revision starts at one.
+		legacy := mustTask(pe, "POST", list, map[string]any{"title": title + " legacy", "requiresQa": true})
+		legacyPath := "/work-items/" + legacy.ID
+		if _, err := conn.Exec(`UPDATE work_items SET status='NEED_REVISION',revision_count=NULL WHERE id=$1`, legacy.ID); err != nil {
+			t.Fatal(err)
+		}
+		legacy = mustTask(qa, "PATCH", legacyPath+"/qa", map[string]any{"version": legacy.Version, "decision": "DONE"})
+		if legacy.RevisionCount != nil {
+			t.Fatal("invented legacy count")
+		}
+		if err := database.Migrate(ctx); err != nil {
+			t.Fatal(err)
+		}
+		task = mustTask(pe, "GET", path, nil)
+		check(2)
+		legacy = mustTask(pe, "PATCH", legacyPath, map[string]any{"version": legacy.Version, "status": "IN_PROGRESS"})
+		task = mustTask(qa, "PATCH", legacyPath+"/qa", map[string]any{"version": legacy.Version, "decision": "NEED_REVISION"})
+		check(1)
+	})
+
+	t.Run("revision migration preserves legacy counts", func(t *testing.T) {
+		tx, err := conn.Begin()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer tx.Rollback()
+		schema := "revision_migration_" + strings.ReplaceAll(db.NewID(), "-", "")
+		if _, err = tx.Exec(`CREATE SCHEMA ` + schema + `; SET LOCAL search_path TO ` + schema + `;
+CREATE TABLE users(id UUID PRIMARY KEY);
+CREATE TABLE reports(description VARCHAR(100));
+CREATE TABLE work_items(id INTEGER PRIMARY KEY,status TEXT);
+INSERT INTO work_items VALUES(1,'NEED_REVISION'),(2,'DONE');`); err != nil {
+			t.Fatal(err)
+		}
+		migration, err := os.ReadFile("db/qa_validation.sql")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = tx.Exec(string(migration)); err != nil {
+			t.Fatal(err)
+		}
+		var unknown bool
+		if err = tx.QueryRow(`SELECT revision_count IS NULL FROM work_items WHERE id=1`).Scan(&unknown); err != nil || !unknown {
+			t.Fatal("legacy marker", err)
+		}
+		if _, err = tx.Exec(`UPDATE work_items SET revision_count=3 WHERE id=1`); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = tx.Exec(string(migration)); err != nil {
+			t.Fatal(err)
+		}
+		var revisions int
+		if err = tx.QueryRow(`SELECT revision_count FROM work_items WHERE id=1`).Scan(&revisions); err != nil || revisions != 3 {
+			t.Fatal("migration reset count", err)
+		}
+		if err = tx.QueryRow(`SELECT revision_count FROM work_items WHERE id=2`).Scan(&revisions); err != nil || revisions != 0 {
+			t.Fatal("invented Done history", err)
+		}
+	})
+
 	t.Run("existing login RBAC profile and booking regression", func(t *testing.T) {
 		loginUser := createUser("Project Engineer", "")
 		hash, e := bcrypt.GenerateFromPassword([]byte("isolated-test-password"), bcrypt.MinCost)

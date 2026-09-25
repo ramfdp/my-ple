@@ -53,13 +53,16 @@ func TestOptionalQAAllowsDirectCompletion(t *testing.T) {
 }
 
 func TestQADecisionCompletesOrRevisesTask(t *testing.T) {
-	old := model.WorkItem{ID: "task", RequiresQA: true, Status: model.WorkInProgress}
-	for _, in := range []model.WorkItemInput{
-		{RequiresQA: true, Status: model.WorkDone, QAStage: "COMPLETE", QAOnly: true},
-		{RequiresQA: true, Status: model.WorkNeedRevision, QAOnly: true},
-	} {
-		if err := validateQATransition(old, in, false); err != nil {
-			t.Fatal(err)
+	for _, status := range []string{model.WorkInProgress, model.WorkNeedRevision, model.WorkTodo, model.WorkDone} {
+		old := model.WorkItem{ID: "task", RequiresQA: true, Status: status}
+		for _, in := range []model.WorkItemInput{
+			{RequiresQA: true, Status: model.WorkDone, QAStage: "COMPLETE", QAOnly: true},
+			{RequiresQA: true, Status: model.WorkNeedRevision, QAOnly: true},
+		} {
+			allowed := status == model.WorkInProgress || status == model.WorkNeedRevision
+			if err := validateQATransition(old, in, false); (err == nil) != allowed {
+				t.Fatalf("%s -> %s: %v", status, in.Status, err)
+			}
 		}
 	}
 }

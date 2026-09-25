@@ -6,7 +6,7 @@
  import {subscribeChanges} from '$lib/realtime';
  import {commentLinks} from '$lib/utils/comment-links';
  import ProjectCombobox from './ProjectCombobox.svelte';
- import {statuses,priorities,taskInput,type Task,type TaskInput,type Workspace,type WorkspaceJob,type Member,type Comment,type Activity} from '$lib/workspace';
+ import {statuses,priorities,revisionLabel,taskInput,type Task,type TaskInput,type Workspace,type WorkspaceJob,type Member,type Comment,type Activity} from '$lib/workspace';
  let {task,workspace,members,jobs,onclose,onsaved}:{task:Task|null;workspace:Workspace;members:Member[];jobs:WorkspaceJob[];onclose:()=>void;onsaved:(task?:Task)=>Promise<void>}=$props();
  let dialog:HTMLDialogElement,qaDialog:HTMLDialogElement;
  let input=$state<TaskInput>({requiresQa:false,qaStage:'',title:'',description:'',relatedUrl:'',jobId:null,startDate:'',dueDate:'',status:'TODO',priority:'MEDIUM',assigneeIds:[],version:0});
@@ -87,8 +87,9 @@
   <p role="status">{$translate(linkFeedback)}</p>
  </section>
  {/if}
+ {#if task}<p><strong>{$translate("Revisi")}</strong>: {$translate(revisionLabel(task.revisionCount))}</p>{/if}
  {#if task?.qaValidatedAt}<p role="status"><strong>{$translate("QA Validated")}</strong> · {task.qaValidatedByName} · {time(task.qaValidatedAt)}</p>{:else if task?.requiresQa&&task.status!=='DONE'}<p>{$translate("Belum divalidasi QA.")}</p>{/if}
- {#if !archived&&task?.requiresQa&&task.status==='IN_PROGRESS'}<button class="ws-primary" type="button" disabled={saving||!!latest||removed} title={$translate("Validasi hasil pekerjaan")} onclick={()=>qaDialog.showModal()}>{$translate("Validasi QA")}</button>{/if}
+ {#if !archived&&task?.requiresQa&&(task.status==='IN_PROGRESS'||task.status==='NEED_REVISION')}<button class="ws-primary" type="button" disabled={saving||!!latest||removed} title={$translate("Validasi hasil pekerjaan")} onclick={()=>qaDialog.showModal()}>{$translate("Validasi QA")}</button>{/if}
  {#if task&&!editable&&!archived}<label>{$translate("Priority")}<select bind:value={priorityChoice}>{#each Object.entries(priorities) as [value,label]}<option {value}>{$translate(label)}</option>{/each}</select></label><button disabled={saving||removed||!!latest} onclick={()=>action('priority',{priority:priorityChoice})}>{$translate("Simpan Priority")}</button>{/if}
  {#if confirmArchive}<div class="ws-panel"><p>{$translate("Arsipkan pekerjaan ini? Pekerjaan tidak lagi muncul pada tampilan aktif.")}</p><button disabled={saving} onclick={archive}>{$translate("Ya, arsipkan")}</button> <button onclick={()=>confirmArchive=false}>{$translate("Batal")}</button></div>{/if}
  {#if task}
