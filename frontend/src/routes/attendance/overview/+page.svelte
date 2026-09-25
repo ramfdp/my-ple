@@ -83,11 +83,11 @@
     {:else if !rows.length}<p>{$translate("Tidak ada karyawan yang sesuai dengan pencarian atau filter.")}</p>
     {:else}
      <div class="table-scroll"><table>
-      <thead><tr><th scope="col">{$translate("Karyawan")}</th><th scope="col">{$translate("Role")}</th><th scope="col">{$translate("Status")}</th><th scope="col">{$translate("Mode")}</th><th scope="col">{$translate("Clock In (WIB)")}</th><th scope="col">{$translate("Clock Out (WIB)")}</th><th scope="col">{$translate("Lokasi Clock In")}</th><th scope="col">{$translate("Catatan")}</th></tr></thead>
+      <thead><tr><th scope="col">{$translate("Karyawan")}</th><th scope="col">{$translate("Role")}</th><th scope="col">{$translate("Status")}</th><th class="mode-column" scope="col">{$translate("Mode")}</th><th scope="col">{$translate("Clock In (WIB)")}</th><th scope="col">{$translate("Clock Out (WIB)")}</th><th scope="col">{$translate("Lokasi Clock In")}</th><th scope="col">{$translate("Catatan")}</th></tr></thead>
       <tbody>{#each rows as employee (employee.userId)}<tr>
        <td data-label={$translate("Karyawan")}>{employee.name}</td><td data-label={$translate("Role")}>{$translate(employee.role)}</td>
        <td data-label={$translate("Status")}><span class:present={employee.status === 'PRESENT'} class="badge">{employee.status === 'PRESENT' ? $translate('Hadir') : employee.status === 'LEAVE' ? employee.leaveTypes.replace('CUTI', $translate('Cuti')).replace('IZIN', $translate('Izin')) : $translate(missingLabel)}</span></td>
-       <td data-label={$translate("Mode")}>{employee.mode || '—'}</td>
+       <td class="mode-column" data-label={$translate("Mode")}>{employee.mode || '—'}</td>
        <td data-label={$translate("Clock In (WIB)")}>{employee.clockIn ? formatTime(employee.clockIn) : '—'}</td>
        <td data-label={$translate("Clock Out (WIB)")}>{employee.clockOut ? formatTime(employee.clockOut) : employee.clockIn ? $translate('Belum Clock Out') : '—'}</td>
        <td data-label={$translate("Lokasi Clock In")}>{#if employee.mode === 'WFA' && employee.latitude !== null && employee.longitude !== null}<span>{employee.latitude}, {employee.longitude}</span><br/><a href={`https://www.google.com/maps?q=${employee.latitude},${employee.longitude}`} target="_blank" rel="noopener noreferrer" aria-label={`Lihat lokasi ${employee.name} di Google Maps (tab baru)`}>{$translate("Lihat di Google Maps")}</a>{:else if employee.mode === 'WFO'}{$translate("Dalam radius kantor (100 m)")}{:else}—{/if}</td>
@@ -126,6 +126,7 @@
  .table-scroll { overflow-x: auto; }
  table { width: 100%; border-collapse: collapse; text-align: left; font-size: .875rem; }
  th, td { padding: 1rem .75rem; border-bottom: 1px solid var(--his-border); overflow-wrap: anywhere; }
+ .mode-column { min-width: 4.5rem; white-space: nowrap; }
  th { background: var(--his-surface); }
  .badge { display: inline-block; background: var(--his-surface); border-radius: 6px; padding: .3rem .6rem; font-weight: 600; }
  .present { background: var(--his-primary-soft); color: var(--his-primary); }
