@@ -83,7 +83,8 @@
 		<p>{$translate("Your employee information from the company directory.")}</p>
 	</div>
 
-	{#if error}
+	{#if error && user}<p role="alert">{$translate(error)}</p>{/if}
+	{#if error && !user}
 		<section class="state-card error-state" role="alert">
 			<div><h2>{$translate("Unable to load your profile")}</h2><p>{$translate(error)}</p></div>
 			<button type="button" onclick={loadProfile}>{$translate("Try again")}</button>

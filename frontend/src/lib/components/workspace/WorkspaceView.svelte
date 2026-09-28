@@ -23,20 +23,20 @@
  let generation=0,opening=0;
  const tabs=['Overview','Table','Revision History','Board','Timeline','Calendar','Workload','Notes'];
  const currentPeriod=$derived(period(anchor,view==='Calendar'?'month':scale));
- async function refresh(){
-  if(!workspace)return;const wid=workspace.id,sequence=++generation;loading=true;error='';
+ async function refresh(background=false){
+  if(!workspace)return;const wid=workspace.id,sequence=++generation;if(!background)loading=true;error='';
   const q=new URLSearchParams({revisionOnly:String(view==='Revision History'),archived:String(view==='Archive'),search,assignee,jobId,status,priority,start,end,sort,limit:'100',offset:String(offset)});
   if(view==='Overview'){for(const k of ['search','assignee','jobId','priority','start','end'])q.set(k,'');q.set('status','ACTIVE');q.set('sort','due');q.set('offset','0');q.set('limit','8')}
   if(view==='Timeline'||view==='Calendar'){q.set('start',start>currentPeriod.start?start:currentPeriod.start);q.set('end',end&&end<currentPeriod.end?end:currentPeriod.end)}
   const calendar=view==='Calendar';
   if(calendar){q.set('status','');q.set('offset','0')}
   try{if(view==='Archive'){const result=await api<{tasks:Task[];total:number}>(`/workspaces/${wid}/tasks?${q}`);if(sequence===generation){if(offset>0&&offset>=result.total){offset=Math.max(0,Math.floor((result.total-1)/100)*100);await refresh();return}tasks=result.tasks;total=result.total}return}const[t,w,o,a]=await Promise.all([api<{tasks:Task[];total:number}>(`/workspaces/${wid}/tasks?${q}`),api<{workload:Workload[]}>(`/workspaces/${wid}/workload`),api<{overview:Record<string,number>}>(`/workspaces/${wid}/overview`),api<{activity:Activity[]}>(`/workspaces/${wid}/activity`)]);while(calendar&&t.tasks.length<t.total){if(sequence!==generation)return;q.set('offset',String(t.tasks.length));const more=await api<{tasks:Task[];total:number}>(`/workspaces/${wid}/tasks?${q}`);if(!more.tasks.length)break;t.tasks.push(...more.tasks);t.total=more.total}if(sequence!==generation)return;tasks=t.tasks;total=t.total;workload=w.workload;overview=o.overview;activity=a.activity}
-  catch(e){if(sequence===generation){error=(e as Error).message;tasks=[];workload=[];overview={};activity=[]}}
+  catch(e){if(sequence===generation){error=(e as Error).message;if(!background){tasks=[];workload=[];overview={};activity=[]}}}
   finally{if(sequence===generation)loading=false}
  }
  $effect(()=>{const current=id;let active=true;generation++;opening++;workspace=null;tasks=[];selected=null;detail=false;loading=true;error='';
   void Promise.all([api<{workspace:Workspace;members:Member[]}>('/workspaces/'+current),api<{jobs:WorkspaceJob[]}>('/workspaces/'+current+'/jobs')]).then(([w,j])=>{if(!active)return;workspace=w.workspace;members=w.members;jobs=j.jobs;void refresh()}).catch(e=>{if(active){error=e.message;loading=false}});
-  const stop=subscribeChanges(['workspace.changed','jobs.changed'],async change=>{if(change.workspaceId!==undefined&&change.workspaceId!==Number(current))return;if(change.event==='jobs.changed'){const result=await api<{jobs:WorkspaceJob[]}>('/workspaces/'+current+'/jobs');if(active)jobs=result.jobs}if(view!=='Notes')await refresh()});
+  const stop=subscribeChanges(['workspace.changed','jobs.changed'],async change=>{if(change.workspaceId!==undefined&&change.workspaceId!==Number(current))return;if(change.event==='jobs.changed'){const result=await api<{jobs:WorkspaceJob[]}>('/workspaces/'+current+'/jobs');if(active)jobs=result.jobs}if(view!=='Notes')await refresh(true)});
   return()=>{active=false;generation++;opening++;stop()};
  });
  async function open(task:Pick<Task,'id'>){const sequence=++opening,wid=workspace?.id;try{const response=await api<{task:Task}>('/work-items/'+encodeURIComponent(task.id)+(view==='Archive'?'?archived=true':''));if(sequence!==opening||workspace?.id!==wid)return;if(response.task.workspaceId!==wid)throw new Error('Pekerjaan tidak berada dalam Workspace ini.');selected=response.task;detail=true}catch(e){if(sequence===opening)error=(e as Error).message}}
@@ -58,8 +58,8 @@
  <label>{$translate("Priority")}<select bind:value={priority}><option value="">{$translate("Semua priority")}</option>{#each Object.entries(priorities) as [key,label]}<option value={key}>{$translate(label)}</option>{/each}</select></label>
  <label>{$translate("Dari")}<input type="date" bind:value={start}/></label><label>{$translate("Sampai")}<input type="date" min={start||undefined} bind:value={end}/></label><button type="submit" disabled={loading}>{$translate("Terapkan")}</button><button type="button" onclick={()=>{search='';assignee='';jobId='';status='';priority='';start='';end='';offset=0;void refresh()}}>{$translate("Reset")}</button>
  </form>{/if}{/if}
- {#if error}<div role="alert"><p>{$translate(error)}</p>{#if workspace}<button onclick={refresh}>{$translate("Muat ulang")}</button>{/if}</div>{/if}
- {#if loading}<p role="status">{$translate("Memuat pekerjaan…")}</p>{/if}{#if workspace&&!error}
+ {#if error}<div role="alert"><p>{$translate(error)}</p>{#if workspace}<button onclick={() => refresh()}>{$translate("Muat ulang")}</button>{/if}</div>{/if}
+ {#if loading}<p role="status">{$translate("Memuat pekerjaan…")}</p>{/if}{#if workspace}
  {#if view==='Overview'}
  <div class="ws-metrics">{#each [['active',$translate('Active Tasks')],['inProgress',$translate('In Progress')],['needRevision',$translate('Need Revision')],['done',$translate('Completed')],['overdue',$translate('Overdue')]] as [key,label]}<article class="ws-panel"><strong>{overview[key]??0}</strong><p>{$translate(label)}</p></article>{/each}</div>
  <section class="ws-panel"><h2>{$translate("Pekerjaan Mendekati Deadline")}</h2>{#each tasks.filter(t=>t.dueDate&&t.status!=='DONE').sort((a,b)=>a.dueDate.localeCompare(b.dueDate)).slice(0,8) as t}<p><button class="ws-link" onclick={()=>open(t)}>{t.title}</button> · {t.dueDate}</p>{:else}<p>{$translate("Belum ada deadline terdekat.")}</p>{/each}</section>
@@ -75,5 +75,5 @@
  {:else if view==='Notes'}<WorkspaceNotes {workspace}/>{/if}
  {#if view!=='Overview'&&view!=='Workload'&&view!=='Notes'}{#if !tasks.length}<div class="ws-empty">{view==='Archive'?$translate('Belum ada pekerjaan yang diarsipkan.'):$translate('Belum ada pekerjaan.')} {#if view!=='Archive'}<button onclick={create}>{$translate('Tambah Pekerjaan')}</button>{/if}</div>{/if}{#if view!=='Calendar'}<div class="ws-row ws-pagination"><span>{total} {$translate("pekerjaan ·")} {total?offset+1:0}–{Math.min(offset+tasks.length,total)}</span><div><button disabled={offset===0} onclick={()=>{offset=Math.max(0,offset-100);void refresh()}}>{$translate("Sebelumnya")}</button> <button disabled={offset+100>=total} onclick={()=>{offset+=100;void refresh()}}>{$translate("Berikutnya")}</button></div></div>{/if}{/if}
  {/if}
- {#if detail&&workspace}{#key selected?.id??'new'}<TaskDetail task={selected} {workspace} {members} {jobs} onclose={closeDetail} onsaved={refresh}/>{/key}{/if}
+ {#if detail&&workspace}{#key selected?.id??'new'}<TaskDetail task={selected} {workspace} {members} {jobs} onclose={closeDetail} onsaved={() => refresh()}/>{/key}{/if}
 </main>

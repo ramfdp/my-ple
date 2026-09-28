@@ -17,13 +17,13 @@
  let dialog=$state<HTMLDialogElement>(null!);
  let generation=0;
  const time=(s:string)=>new Date(s).toLocaleString($locale,{timeZone:'Asia/Jakarta'});
- async function refresh(){
-  if(!authorized){loading=false;return}const sequence=++generation;loading=true;
+ async function refresh(background=false){
+  if(!authorized){loading=false;return}const sequence=++generation;if(!background)loading=true;
   try{const result=await api<{requests:LeaveRequest[]}>(endpoint+'?'+new URLSearchParams({status,type:kind,offset:String(offset)}));if(sequence===generation)requests=result.requests}
   catch(e){if(sequence===generation)error=(e as Error).message}finally{if(sequence===generation)loading=false}
  }
  async function open(id:string){error='';try{const result=await api<{request:LeaveRequest}>(endpoint+'/'+id);selected=result.request;reviewerNote='';creating=false;dialog.showModal()}catch(e){error=(e as Error).message}}
- onMount(()=>{status=review?'PENDING':'';void refresh();let active=true;const stop=subscribeChanges(['leave.changed'],async()=>{await refresh();const id=selected?.id;if(id){const r=await api<{request:LeaveRequest}>(endpoint+'/'+id);if(active&&selected?.id===id)selected=r.request}});return()=>{active=false;generation++;stop()}});
+ onMount(()=>{status=review?'PENDING':'';void refresh();let active=true;const stop=subscribeChanges(['leave.changed'],async()=>{await refresh(true);const id=selected?.id;if(id){const r=await api<{request:LeaveRequest}>(endpoint+'/'+id);if(active&&selected?.id===id)selected=r.request}});return()=>{active=false;generation++;stop()}});
  $effect(()=>{const id=page.url.searchParams.get('request');if(id&&authorized)untrack(()=>void open(id))});
  function create(){input={requestId:crypto.randomUUID(),requestType:'CUTI',startDate:'',endDate:'',reason:'',notes:''};error='';selected=null;creating=true;dialog.showModal()}
  function close(){if(busy)return;dialog.close();creating=false;selected=null;error=''}

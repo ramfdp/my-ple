@@ -1,5 +1,6 @@
 <script lang="ts">
- import { t as translate } from '$lib/i18n';
+	import { t as translate } from '$lib/i18n';
+	import { onMount } from 'svelte';
 	import type { ZoomBooking, ZoomBookingInput, ZoomResource } from '$lib/api';
 	import { localDate } from '$lib/utils/booking-calendar';
 
@@ -13,7 +14,7 @@
 	let startTime = $state('');
 	let endTime = $state('');
 	let error = $state('');
-	$effect(() => {
+	onMount(() => {
 		const start = booking ? new Date(booking.startAt) : new Date(Date.now() + 60 * 60 * 1000);
 		title = booking?.title ?? ''; description = booking?.description ?? ''; zoomResourceId = booking?.zoomResource.id ?? resources[0]?.id ?? 0;
 		date = localDate(start); startTime = start.toTimeString().slice(0, 5);

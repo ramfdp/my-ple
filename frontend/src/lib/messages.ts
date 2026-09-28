@@ -1,7 +1,6 @@
 export const messages = {
   "Revision": ["Revisi", "Revision"],
   "Revision History": ["Riwayat Revisi", "Revision History"],
-  "Revision History": ["Riwayat Revisi", "Revision History"],
   "Revisi": ["Revisi", "Revision"],
   "Belum tercatat": ["Belum tercatat", "Not recorded"],
   "Jumlah revisi dihitung sejak fitur diaktifkan.": ["Jumlah revisi dihitung sejak fitur diaktifkan.", "Revisions are counted from when this feature was enabled."],

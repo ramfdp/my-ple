@@ -11,8 +11,8 @@
 	let mounted = $state(false), readOnly = $state(true), checking = $state(true);
 	let descriptionInput: HTMLTextAreaElement;
 	let toast = $state({ visible: false, message: '' });
-	async function checkPeriod(selected: string) {
-		checking = true;
+	async function checkPeriod(selected: string, background = false) {
+		if(!background)checking = true;
 		try {
 			const response = await api<{ period: ReportingPeriod }>(`/reports?primaryDivision=${encodeURIComponent(selected)}`);
 			if (division === selected) readOnly = response.period.readOnly;
@@ -20,7 +20,7 @@
 		finally { if (division === selected) checking = false; }
 	}
 	$effect(() => { if (mounted) void checkPeriod(division); });
-	onMount(() => { const requested=new URLSearchParams(location.search).get('division'); if(requested)division=requested; mounted=true; return subscribeChanges(['reports.changed'], () => checkPeriod(division)); });
+	onMount(() => { const requested=new URLSearchParams(location.search).get('division'); if(requested)division=requested; mounted=true; return subscribeChanges(['reports.changed'], () => checkPeriod(division,true)); });
 	async function saveReport(event: SubmitEvent) {
 		if (checking || readOnly || jobsBusy || !selected || submitting) { event.preventDefault(); return; }
 		event.preventDefault(); error = ''; submitting = true; toast.visible = false;

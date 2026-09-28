@@ -28,16 +28,16 @@
 	let weekLabel = $derived(`${weekStart.toLocaleDateString($locale, { day: 'numeric', month: 'short' })} – ${addDays(weekStart, 2).toLocaleDateString($locale, { day: 'numeric', month: 'short', year: 'numeric' })}`);
 
 	function notify(message: string, type: 'success' | 'error' = 'success') { toast = { visible: true, message, type }; }
-	async function loadBookings() {
+	async function loadBookings(background = false) {
 		const sequence=++generation;
-		if(!bookings.length)loading = true;
+		if(!background)loading = true;
 		try {
 			const end = addDays(weekStart, 3);
 			const result=await api<{ bookings: ZoomBooking[] }>(`/zoom-bookings?start=${encodeURIComponent(weekStart.toISOString())}&end=${encodeURIComponent(end.toISOString())}`);
 			if(sequence!==generation)return;bookings=result.bookings??[];
 			if(selected)selected=bookings.find(b=>b.id===selected?.id)??null;
 		} catch (error) { notify(error instanceof Error ? error.message : 'Booking tidak dapat dimuat.', 'error'); }
-		finally { loading = false; }
+		finally { if(sequence===generation)loading = false; }
 	}
 	async function moveWeek(days: number) { weekStart = addDays(weekStart, days); await loadBookings(); }
 	async function loadResources() {
@@ -84,7 +84,7 @@
 	onMount(() => {
 		void Promise.all([loadBookings(), loadResources()]);
 		const timer = setInterval(() => (now = new Date()), 30_000);
-		const stop=subscribeChanges(['zoom.changed'],async()=>{await Promise.all([loadBookings(),loadResources()])});
+		const stop=subscribeChanges(['zoom.changed'],async()=>{await Promise.all([loadBookings(true),loadResources()])});
 		return () => {generation++;clearInterval(timer);stop()};
 	});
 </script>

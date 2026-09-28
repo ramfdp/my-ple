@@ -83,8 +83,8 @@ export function startNotifications() {
 		const {user}=await api<{user:User}>('/auth/me');
 		if(!stopped)setAuthenticated(user);
 	},change=>!change.entityId||change.entityId===current.user.id);
-	// Bounded recovery for missed relay events and silently disconnected sockets.
-	const resync=()=>{if(!stopped&&document.visibilityState==='visible')window.dispatchEvent(new Event('realtime.resync'))};
+	// Poll only while the socket is disconnected; connected views receive change events.
+	const resync=()=>{if(!stopped&&document.visibilityState==='visible'&&socket?.readyState!==WebSocket.OPEN)window.dispatchEvent(new Event('realtime.resync'))};
 	const fallback=setInterval(resync,30_000);
 	document.addEventListener('visibilitychange',resync);
 	return () => { stopped = true; stopFeed();stopUser();sound.stop(); clearTimeout(timer);clearInterval(fallback);document.removeEventListener('visibilitychange',resync); socket?.close(); notifications.set({items:[],unread:0}); };

@@ -1,9 +1,10 @@
 <script lang="ts">
- import { t as translate } from '$lib/i18n';
+	import { t as translate } from '$lib/i18n';
+	import { onMount } from 'svelte';
 	import type { ZoomResource, ZoomResourceInput } from '$lib/api';
 	let { resource, busy = false, onclose, onsave }: { resource: ZoomResource; busy?: boolean; onclose: () => void; onsave: (input: ZoomResourceInput) => void } = $props();
 	let meetingId = $state(''), hostKey = $state(''), passcode = $state(''), meetingUrl = $state(''), description = $state(''), error = $state('');
-	$effect(() => { meetingId = resource.meetingId; hostKey = resource.hostKey; passcode = resource.passcode ?? ''; meetingUrl = resource.meetingUrl; description = resource.description; });
+	onMount(() => { meetingId = resource.meetingId; hostKey = resource.hostKey; passcode = resource.passcode ?? ''; meetingUrl = resource.meetingUrl; description = resource.description; });
 	function submit(event: SubmitEvent) {
 		event.preventDefault();
 		if (meetingUrl && !meetingUrl.startsWith('https://')) { error = 'Meeting URL harus menggunakan HTTPS.'; return; }

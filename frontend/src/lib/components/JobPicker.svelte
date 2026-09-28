@@ -1,6 +1,6 @@
 <script lang="ts">
  import { t as translate } from '$lib/i18n';
- import { onMount, untrack } from 'svelte';
+ import { onMount } from 'svelte';
  import { subscribeChanges } from '$lib/realtime';
  import { api, type Job, type JobMasters, type Report } from '$lib/api';
  let { division = $bindable(''), selected = $bindable<Job | null>(null), busy = $bindable(true), existing = null, fixedDivision = false }: { division?: string; selected?: Job | null; busy?: boolean; existing?: Report | null; fixedDivision?: boolean } = $props();
@@ -23,7 +23,7 @@
  let masterRequest = 0;
  async function loadMasters(preserve = false) {
   const request = ++masterRequest;
-  error=''; busy=true;
+  error=''; if(!preserve)busy=true;
   try { const result=await api<JobMasters>('/jobs/masters'); if(request!==masterRequest)return; masters=result; if (!masters.divisions.some(d=>d.name===division)) division=masters.divisions[0]?.name ?? ''; if(!preserve)resetRole(); loaded=true; }
   catch(e){ if(request===masterRequest){busy=false; error=e instanceof Error?e.message:'Pilihan tidak dapat dimuat.';} }
  }
@@ -34,14 +34,15 @@
   if(!loaded)return;
   if(!divisionId){busy=false;selected=null;jobs=[];return;}
   const d=divisionId,r=roleId,c=categoryId;
-  const key=JSON.stringify([d,r,c]), previous=key===lastFilters?untrack(()=>selected):null;
+  const key=JSON.stringify([d,r,c]), sameFilters=key===lastFilters;
   lastFilters=key;
   let cancelled=false;
-  busy=true; if(!previous){selected=null;jobs=[];} error='';
+  busy=!sameFilters; if(!sameFilters){selected=null;jobs=[];} error='';
   const categoryFilter=selectedRole?.name==='CIHPK'?'':`&job_category_id=${c ?? 0}`;
   api<{jobs:Job[]}>(`/jobs?division_id=${d}&role_id=${r ?? 0}${categoryFilter}&active=true`).then(response=>{
    if(cancelled)return;
    jobs=response.jobs;
+   const previous=sameFilters?selected:null;
    if(previous?.isActive){selected=jobs.find(j=>j.id===previous.id)??null;return;}
    const roleName=masters.roles.find(x=>x.id===r)?.name ?? '';
    const categoryName=masters.categories.find(x=>x.id===c)?.name ?? '';
