@@ -385,13 +385,12 @@ ini, perilaku aktif tetap berlaku. `POST /work-items/{id}/restore` menerima
 
 ### Automatic weekly rollover
 
-Weekly reports close on Tuesday at 00:00 WIB. The background worker runs at
-startup and every minute, snapshots overdue weeks, saves their PDFs, then resets
-only the archived working rows. Manual export is not required; PDFs are available
-from Weekly Report History. A PDF/storage failure retains working data for retry.
-
-The week-selection SQL applies `AT TIME ZONE` to the complete Tuesday timestamp
-expression, not the added interval.
+Weekly report periods run Monday through Sunday. Starting Tuesday at 00:00 WIB,
+the background worker snapshots overdue weeks, saves their PDFs, then resets only
+the archived rows. Monday entries already belong to the new period and are never
+included in the previous week's archive. Manual export is not required; PDFs are
+available from Weekly Report History. A PDF/storage failure retains working data
+for retry.
 After rollout, check `weekly reset completed` logs and the recovered History
 periods; retained overdue reports are processed automatically without a migration.
 

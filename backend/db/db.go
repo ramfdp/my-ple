@@ -414,14 +414,6 @@ func (db *Database) CreateReport(ctx context.Context, userID string, input model
 	if err := resolveReportJob(ctx, tx, &input, nil); err != nil {
 		return result, err
 	}
-	start, _ := model.ReportingPeriodWeek(now)
-	var pendingReset bool
-	if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM reports WHERE primary_division=$1 AND completed_at<$2)`, input.PrimaryDivision, start).Scan(&pendingReset); err != nil {
-		return result, err
-	}
-	if pendingReset {
-		return result, ErrReportClosed
-	}
 	number, err := allocateReportNumber(ctx, tx, input.PrimaryDivision, input.WorkDivision, input.JobID, now)
 	if err != nil {
 		return result, err

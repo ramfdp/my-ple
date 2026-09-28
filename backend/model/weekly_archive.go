@@ -13,7 +13,7 @@ type WeeklyArchive struct {
 	ID             string        `json:"id"`
 	Division       string        `json:"division"`
 	WeekStart      time.Time     `json:"weekStart"`
-	WeekEnd        time.Time     `json:"weekEnd"` // exclusive Tuesday boundary
+	WeekEnd        time.Time     `json:"weekEnd"` // exclusive Monday boundary
 	Items          []ArchiveItem `json:"items,omitempty"`
 	Status         string        `json:"status"`
 	FinalizedAt    *time.Time    `json:"finalizedAt"`

@@ -36,18 +36,18 @@ CREATE TABLE IF NOT EXISTS weekly_report_email_deliveries (
 ALTER TABLE report_sequences ADD COLUMN IF NOT EXISTS week_start DATE NOT NULL
   DEFAULT date_trunc('week', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta')::date;
 ALTER TABLE reports ADD COLUMN IF NOT EXISTS report_week DATE GENERATED ALWAYS AS
-  ((date_trunc('week', (completed_at AT TIME ZONE 'Asia/Jakarta') - interval '1 day') + interval '1 day')::date) STORED;
+  (date_trunc('week', completed_at AT TIME ZONE 'Asia/Jakarta')::date) STORED;
 DO $$ DECLARE expression TEXT; BEGIN
  SELECT pg_get_expr(d.adbin,d.adrelid) INTO expression
  FROM pg_attribute a JOIN pg_attrdef d ON d.adrelid=a.attrelid AND d.adnum=a.attnum
  WHERE a.attrelid='reports'::regclass AND a.attname='report_week';
- IF expression NOT LIKE '%interval ''1 day''%' THEN
+ IF expression LIKE '%interval ''1 day''%' THEN
   DROP INDEX IF EXISTS reports_job_week_number_key;
   DROP INDEX IF EXISTS reports_legacy_week_number_key;
   ALTER TABLE reports DROP CONSTRAINT IF EXISTS reports_week_number_key;
   ALTER TABLE reports DROP COLUMN report_week;
   ALTER TABLE reports ADD COLUMN report_week DATE GENERATED ALWAYS AS
-   ((date_trunc('week',(completed_at AT TIME ZONE 'Asia/Jakarta')-interval '1 day')+interval '1 day')::date) STORED;
+   (date_trunc('week',completed_at AT TIME ZONE 'Asia/Jakarta')::date) STORED;
   WITH duplicates AS (
    SELECT ctid,row_number() OVER(PARTITION BY job_id,report_week,number ORDER BY completed_at,id) AS n,
     max(number) OVER(PARTITION BY job_id,report_week) AS highest
@@ -58,6 +58,9 @@ DO $$ DECLARE expression TEXT; BEGIN
     max(number) OVER(PARTITION BY primary_division,work_division,report_week) AS highest
    FROM reports WHERE job_id IS NULL
   ) UPDATE reports r SET number=d.highest+d.n FROM duplicates d WHERE r.ctid=d.ctid AND d.n>1;
+  DELETE FROM report_sequences;
+  INSERT INTO report_sequences(primary_division,work_division,week_start,last_number)
+  SELECT primary_division,work_division,report_week,MAX(number) FROM reports WHERE job_id IS NULL GROUP BY 1,2,3;
  END IF;
 END $$;
 DO $$ BEGIN

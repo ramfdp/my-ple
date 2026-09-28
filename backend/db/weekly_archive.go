@@ -13,7 +13,7 @@ import (
 var ErrReportClosed = errors.New("report period is read-only")
 
 // Serialize snapshot creation with all working mutations, including requests
-// arriving across the Monday boundary. The worker has a separate session lock.
+// arriving while a completed week is being archived. The worker has a separate session lock.
 func (db *Database) writableReport(ctx context.Context, tx *sql.Tx, id string) (time.Time, error) {
 	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(71260402)`); err != nil {
 		return time.Time{}, err
@@ -40,25 +40,7 @@ func (db *Database) writableReport(ctx context.Context, tx *sql.Tx, id string) (
 
 func (db *Database) WorkingPeriod(ctx context.Context, division string, now time.Time) (model.ReportingPeriod, error) {
 	start, next := model.ReportingPeriodWeek(now)
-	var oldest sql.NullTime
-	err := db.Conn.QueryRowContext(ctx, `SELECT MIN(completed_at) FROM reports WHERE primary_division=$1 AND completed_at<$2`, division, start).Scan(&oldest)
-	if err != nil {
-		return model.ReportingPeriod{}, err
-	}
-	readOnly := false
-	if oldest.Valid {
-		start, next = model.ReportingPeriodWeek(oldest.Time)
-		readOnly = true
-	}
-	status := "active"
-	if readOnly {
-		status = "pending"
-		err := db.Conn.QueryRowContext(ctx, `SELECT status FROM weekly_report_archives WHERE primary_division=$1 AND week_start=$2`, division, start).Scan(&status)
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return model.ReportingPeriod{}, err
-		}
-	}
-	return model.ReportingPeriod{Start: start, End: next.AddDate(0, 0, -1), Label: model.IndonesianWeekLabel(start, next), ReadOnly: readOnly, Status: status}, nil
+	return model.ReportingPeriod{Start: start, End: next.AddDate(0, 0, -1), Label: model.IndonesianWeekLabel(start, next), Status: "active"}, nil
 }
 
 const archiveColumns = `id,primary_division,week_start,week_end,snapshot,status,finalized_at,pdf_filename,pdf_sha256,pdf_generated_at,reset_at,created_at,pdf_storage_key`
@@ -119,8 +101,8 @@ type DueWeek struct {
 }
 
 func (db *Database) DueWeeks(ctx context.Context, now time.Time) ([]DueWeek, error) {
-	start, _ := model.ReportingPeriodWeek(now)
-	rows, err := db.Conn.QueryContext(ctx, `SELECT primary_division, (date_trunc('week',(completed_at AT TIME ZONE 'Asia/Jakarta')-interval '1 day')+interval '1 day') AT TIME ZONE 'Asia/Jakarta' AS week_start FROM reports WHERE completed_at<$1 GROUP BY 1,2 UNION SELECT primary_division,week_start FROM weekly_report_archives WHERE reset_at IS NULL OR status<>'finalized' ORDER BY 2,1`, start)
+	boundary := model.WeeklyFinalizationBoundary(now)
+	rows, err := db.Conn.QueryContext(ctx, `SELECT primary_division, date_trunc('week',completed_at AT TIME ZONE 'Asia/Jakarta') AT TIME ZONE 'Asia/Jakarta' AS week_start FROM reports WHERE completed_at<$1 GROUP BY 1,2 UNION SELECT primary_division,week_start FROM weekly_report_archives WHERE reset_at IS NULL OR status<>'finalized' ORDER BY 2,1`, boundary)
 	if err != nil {
 		return nil, err
 	}
