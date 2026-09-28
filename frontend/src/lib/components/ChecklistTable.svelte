@@ -38,7 +38,7 @@
  const tableEndpoint = $derived(endpoint + '/tables/' + selectedId);
  const active = $derived(checklist?.signers.filter(s => !s.archived) ?? []);
  const archived = $derived(checklist?.signers.filter(s => s.archived) ?? []);
- const groups = $derived(['internal', 'external'].map(type => ({type, label: type === 'internal' ? 'Internal' : 'External', signers: active.filter(s => s.type === type)})).filter(g => g.signers.length));
+ const groups = $derived(['internal', 'external'].map(type => ({type, label: type === 'internal' ? 'Paraf Hardcopy' : 'TTD Hardcopy', signers: active.filter(s => s.type === type)})).filter(g => g.signers.length));
  const valid = $derived(!!title.trim() && Number.isInteger(internalCount) && Number.isInteger(externalCount) && (internalCount ?? -1) >= 0 && (externalCount ?? -1) >= 0 && internal.length === internalCount && external.length === externalCount && [...internal, ...external].every(s => s.name.trim() && s.position.trim()));
  async function load(background = false) {
   if(background && (busy || configuring || editingCell())) { pending = true; return; }
@@ -151,7 +151,7 @@
    <table>
     <thead>
      <tr><th class="table-title" colspan={5 + active.length + (checklist.requireDigitalSignature ? 1 : 0)}>{checklist.title}</th></tr>
-     <tr><th rowspan={active.length ? 3 : 1} scope="col">{$translate("No.")}</th><th rowspan={active.length ? 3 : 1} scope="col">{$translate("Dokumen")}</th>{#if checklist.requireDigitalSignature}<th rowspan={active.length ? 3 : 1} scope="col">{$translate("TTD Digital")}</th>{/if}{#if active.length}<th colspan={active.length} scope="colgroup">{$translate("TTD Hardcopy")}</th>{/if}<th rowspan={active.length ? 3 : 1} scope="col">{$translate("Posisi Dokumen")}</th><th rowspan={active.length ? 3 : 1} scope="col">{$translate("Tanggal Kirim Dokumen")}</th><th rowspan={active.length ? 3 : 1} scope="col">{$translate("Catatan")}</th></tr>
+     <tr><th rowspan={active.length ? 3 : 1} scope="col">{$translate("No.")}</th><th rowspan={active.length ? 3 : 1} scope="col">{$translate("Dokumen")}</th>{#if checklist.requireDigitalSignature}<th rowspan={active.length ? 3 : 1} scope="col">{$translate("TTD Digital")}</th>{/if}{#if active.length}<th colspan={active.length} scope="colgroup">{$translate("Paraf / TTD Hardcopy")}</th>{/if}<th rowspan={active.length ? 3 : 1} scope="col">{$translate("Posisi Dokumen")}</th><th rowspan={active.length ? 3 : 1} scope="col">{$translate("Tanggal Kirim Dokumen")}</th><th rowspan={active.length ? 3 : 1} scope="col">{$translate("Catatan")}</th></tr>
      {#if active.length}<tr>{#each groups as group}<th colspan={group.signers.length} scope="colgroup">{$translate(group.label)}</th>{/each}</tr><tr>{#each groups as group}{#each group.signers as signer (signer.id)}<th class="signer-heading" scope="col">{signer.name}<small><strong>{signer.position}</strong></small></th>{/each}{/each}</tr>{/if}
     </thead>
     <tbody>
@@ -177,10 +177,10 @@
   <fieldset disabled={busy}>
    <label>{$translate("Judul Tabel")}<input required maxlength="255" bind:value={title}/></label>
    <label class="digital"><input type="checkbox" bind:checked={digital}/> {$translate("Butuh TTD Digital?")}</label>
-   <label>{$translate("Berapa banyak TTD Internal?")}<input type="number" min="0" step="1" required bind:value={internalCount} oninput={e => {internalCount=e.currentTarget.valueAsNumber;resize('internal',internalCount);}}/></label>
-   {#each internal as signer, i}<fieldset><legend>{$translate("TTD Internal")} {i+1}</legend><label>{$translate("Nama")}<input required maxlength="255" bind:value={signer.name}/></label><label>{$translate("Sebagai")}<input required maxlength="255" bind:value={signer.position}/></label></fieldset>{/each}
-   <label>{$translate("Berapa banyak TTD External?")}<input type="number" min="0" step="1" required bind:value={externalCount} oninput={e => {externalCount=e.currentTarget.valueAsNumber;resize('external',externalCount);}}/></label>
-   {#each external as signer, i}<fieldset><legend>{$translate("TTD External")} {i+1}</legend><label>{$translate("Nama")}<input required maxlength="255" bind:value={signer.name}/></label><label>{$translate("Sebagai")}<input required maxlength="255" bind:value={signer.position}/></label></fieldset>{/each}
+   <label>{$translate("Paraf Hardcopy")}<input type="number" min="0" step="1" required bind:value={internalCount} oninput={e => {internalCount=e.currentTarget.valueAsNumber;resize('internal',internalCount);}}/></label>
+   {#each internal as signer, i}<fieldset><legend>{$translate("Paraf Hardcopy")} {i+1}</legend><label>{$translate("Nama")}<input required maxlength="255" bind:value={signer.name}/></label><label>{$translate("Sebagai")}<input required maxlength="255" bind:value={signer.position}/></label></fieldset>{/each}
+   <label>{$translate("Berapa banyak TTD Hardcopy?")}<input type="number" min="0" step="1" required bind:value={externalCount} oninput={e => {externalCount=e.currentTarget.valueAsNumber;resize('external',externalCount);}}/></label>
+   {#each external as signer, i}<fieldset><legend>{$translate("TTD Hardcopy")} {i+1}</legend><label>{$translate("Nama")}<input required maxlength="255" bind:value={signer.name}/></label><label>{$translate("Sebagai")}<input required maxlength="255" bind:value={signer.position}/></label></fieldset>{/each}
   </fieldset>
   <div class="ws-row"><button type="button" disabled={busy} onclick={() => dialog.close()}>{$translate("Batal")}</button><button class="ws-primary" disabled={busy || !valid}>{busy ? $translate('Menyimpan...') : $translate('Simpan')}</button></div>
  </form>

@@ -1,14 +1,25 @@
 <script lang="ts">
  import { t as translate } from '$lib/i18n';
  import {onMount} from 'svelte';
- import {api,currentUser} from '$lib/api';
+ import {api,APIError,currentUser} from '$lib/api';
  import {subscribeChanges} from '$lib/realtime';
  import type {Workspace,Note,NoteInput,PageLine} from '$lib/workspace';
  let {workspace}:{workspace:Workspace}=$props();
  let pages=$state<Note[]>([]),selected=$state<Note|null>(null),editing=$state(false),busy=$state(false),loading=$state(true),error=$state(''),confirmDelete=$state(false);
  let input=$state<NoteInput>({title:'',parentId:null,visibility:'DIVISION',content:[],version:0});
- async function load(background=false){if(!background)loading=true;try{pages=(await api<{pages:Note[]}>('/workspaces/'+workspace.id+'/pages')).pages}catch(e){error=(e as Error).message}finally{loading=false}}
- onMount(()=>{void load();return subscribeChanges(['workspace.changed'],async c=>{if(c.workspaceId!==undefined&&c.workspaceId!==workspace.id)return;await load(true);if(selected){const latest=pages.find(p=>p.id===selected?.id);if(editing){if(!latest||latest.version!==selected.version)error='Catatan server berubah. Draf tetap tersedia; batalkan edit untuk memuat versi terbaru.'}else selected=latest??null}})});
+ let request=0;
+ async function load(background=false){const sequence=++request;if(!background)loading=true;try{const result=await api<{pages:Note[]}>('/workspaces/'+workspace.id+'/pages');if(sequence!==request)return false;pages=result.pages;return true}catch(e){if(sequence===request)error=(e as Error).message;return false}finally{if(sequence===request)loading=false}}
+ onMount(()=>{void load();const stop=subscribeChanges(['workspace.changed'],async c=>{
+  if(c.workspaceId!==undefined&&c.workspaceId!==workspace.id)return;
+  const id=selected?.id,version=selected?.version;
+  if(!await load(true)||!id||selected?.id!==id)return;
+  const latest=pages.find(p=>p.id===id);
+  if(editing){if(!latest||latest.version!==version)error='Catatan server berubah. Draf tetap tersedia; batalkan edit untuk memuat versi terbaru.';return}
+  if(!latest){selected=null;confirmDelete=false;return}
+  if(latest.version===version)return;
+  try{const detail=(await api<{page:Note}>('/workspace-pages/'+id)).page;if(selected?.id===id&&selected.version===version&&!editing)selected=detail}
+  catch(e){if(selected?.id!==id||selected.version!==version||editing)return;if(e instanceof APIError&&(e.status===403||e.status===404)){selected=null;confirmDelete=false}else error=(e as Error).message}
+ });return()=>{request++;stop()}});
  async function open(note:Note){if(busy)return;busy=true;selected=null;error='';try{selected=(await api<{page:Note}>('/workspace-pages/'+note.id)).page;editing=false;confirmDelete=false}catch(e){error=(e as Error).message}finally{busy=false}}
  function create(parent:Note|null=null){selected=null;input={title:'',parentId:parent?.id??null,visibility:parent?.visibility??'DIVISION',content:[{kind:'text',text:'',checked:false}],version:0};editing=true;error=''}
  function edit(){if(!selected)return;input={title:selected.title,parentId:selected.parentId,visibility:selected.visibility,content:selected.content.map(l=>({...l})),version:selected.version};editing=true}

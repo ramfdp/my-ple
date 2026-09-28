@@ -138,15 +138,15 @@ func checklistPDF(job string, tables []*model.DocumentChecklist) ([]byte, error)
 					for _, w := range widths[:signatureStart] {
 						x += w
 					}
-					cell(x, y, signatureSpace, 8, "TTD Hardcopy", true)
+					cell(x, y, signatureSpace, 8, "Paraf / TTD Hardcopy", true)
 					for start := 0; start < count; {
 						end := start + 1
 						for end < count && panel[end].Type == panel[start].Type {
 							end++
 						}
-						group := "Internal"
+						group := "Paraf Hardcopy"
 						if panel[start].Type == "external" {
-							group = "External"
+							group = "TTD Hardcopy"
 						}
 						cell(x+float64(start)*signerWidth, y+8, float64(end-start)*signerWidth, 8, group, true)
 						start = end
@@ -234,11 +234,17 @@ func checklistPDF(job string, tables []*model.DocumentChecklist) ([]byte, error)
 						cell(x, y, widths[i], h, text, false)
 						if checked, ok := checks[i]; ok {
 							cx, cy := x+widths[i]/2-1.6, y+h/2-1.6
-							pdf.Rect(cx, cy, 3.2, 3.2, "D")
-							if checked {
-								pdf.Line(cx+.5, cy+1.6, cx+1.3, cy+2.5)
-								pdf.Line(cx+1.3, cy+2.5, cx+2.8, cy+.6)
-							}
+						pdf.Rect(cx, cy, 3.2, 3.2, "D")
+						if checked {
+							red, green, blue := pdf.GetDrawColor()
+							lineWidth := pdf.GetLineWidth()
+							pdf.SetDrawColor(0, 0, 0)
+							pdf.SetLineWidth(0.7)
+							pdf.Line(cx+.5, cy+1.6, cx+1.3, cy+2.5)
+							pdf.Line(cx+1.3, cy+2.5, cx+2.8, cy+.6)
+							pdf.SetLineWidth(lineWidth)
+							pdf.SetDrawColor(red, green, blue)
+						}
 						}
 						x += widths[i]
 					}
