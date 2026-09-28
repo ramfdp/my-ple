@@ -252,15 +252,7 @@ Karyawan mengacu pada akun yang **aktif saat ini** dan sudah dibuat pada tanggal
 pilihan; status keaktifan historis tidak direkonstruksi. Halaman ini tidak mengubah
 kewenangan persetujuan izin/cuti. Rebuild aplikasi untuk menerapkan halaman baru.
 
-Verifikasi: `go test ./...` dari `backend`, lalu `npm run check` dan
-`npm run build` dari `frontend`. Tes integrasi `TestAttendanceIntegration` memakai
-fixture PostgreSQL lokal terisolasi yang sama dengan tes checklist:
-`CHECKLIST_TEST_DATABASE_URL` harus menunjuk database `my_ple_checklist_test`
-di `127.0.0.1`. Untuk browser, jalankan `TestAttendanceBrowserServer` dengan
-`ATTENDANCE_BROWSER_SERVER=1`, Vite di port 5189 dengan
-`VITE_API_URL=http://127.0.0.1:3001`, lalu `node tests/attendance.browser.mjs`.
-Fixture browser mengosongkan absensi akun `attendance-browser-*` miliknya
-dan membuat ulang izin Management pada database uji tersebut sebelum setiap run.
+Verifikasi build: `npm run check` dan `npm run build` dari `frontend`.
 
 ### Dokumen Penagihan
 
@@ -292,10 +284,6 @@ dikirim mempertahankan dokumen bersama; array kosong mengarsipkannya. Nama dokum
 tidak boleh dipakai sekaligus pada kedua cakupan dalam satu tahap. Migrasi otomatis
 mempertahankan dokumen lama per milestone; tidak ada penggabungan data otomatis.
 
-Tes: `go test ./model -run TestBilling` dan
-`go test . -run TestBilling` dengan database uji lokal
-`CHECKLIST_TEST_DATABASE_URL` yang sama seperti tes checklist. Browser:
-`node tests/billing-documents.browser.mjs` dengan fixture 3001 dan Vite 5189.
 Rollback aplikasi dapat menghapus menu/routing; pertahankan tabel `billing_*`
 agar data dapat dipulihkan. Deploy backend dan frontend bersamaan.
 
@@ -335,13 +323,6 @@ Operasi dokumen menggunakan `/document-checklists/{jobId}/tables/{tableId}/items
 dan `.../items/{itemId}`. Konfigurasi wajib menyertakan `title`; mutasi mengembalikan
 `{checklist: ...}`. Route mutasi lama tanpa ID tabel tidak lagi digunakan.
 
-Tes checklist: jalankan `go test . -run TestDocumentChecklist -v` dari `backend`
-dengan `CHECKLIST_TEST_DATABASE_URL` ke database lokal terisolasi
-`my_ple_checklist_test`. Untuk browser, jalankan `TestDocumentChecklistBrowserServer`
-dengan `CHECKLIST_BROWSER_SERVER=1`, Vite port 5189 dengan
-`VITE_API_URL=http://127.0.0.1:3001`, lalu dari `frontend` jalankan
-`node tests/document-checklist.browser.mjs`.
-
 ### Bahasa, menu, dan kalender Zoom
 
 Pemilih **Bahasa Indonesia / English** di samping notifikasi dashboard menyimpan
@@ -367,11 +348,7 @@ dan scroll horizontal tetap tersedia di kalender. Pada lebar hingga 1050 px,
 informasi Zoom berada di atas kalender, tertutup secara default, dan dapat dibuka
 dari tombol Informasi Zoom. Desktop tetap menampilkan informasi di samping kalender.
 
-Verifikasi: `npm test`, `npm run check`, `npm run build` dari `frontend`, serta
-`go test ./...` dari `backend`. `TestLanguagePreference` menggunakan database uji
-checklist yang terisolasi. Dengan fixture browser checklist di port 3001 dan Vite
-di 5189, jalankan `node tests/language.browser.mjs` untuk memeriksa kedua bahasa,
-sinkronisasi antarsesi, kartu/sidebar, formulir terbuka, dan tinggi kalender Zoom.
+Verifikasi build: `npm run check` dan `npm run build` dari `frontend`.
 
 ### Revisi QA workspace
 
@@ -406,11 +383,6 @@ ini, perilaku aktif tetap berlaku. `POST /work-items/{id}/restore` menerima
 `{ "version": number }`, mengembalikan `{ "task": ... }`, dan memancarkan
 `workspace.changed`. Tidak ada migrasi baru. Rilis backend sebelum frontend.
 
-Uji integrasi arsip menggunakan `TestRevisionIntegration/workspace_archive_and_restore`
-dan database lokal `TEST_DATABASE_URL` yang sama dengan pengujian revisi.
-Uji browser: jalankan fixture `TestDocumentChecklistBrowserServer` dan Vite seperti
-pengujian bahasa, lalu `node tests/workspace-archive.browser.mjs` dari `frontend`.
-
 ### Automatic weekly rollover
 
 Weekly reports close on Tuesday at 00:00 WIB. The background worker runs at
@@ -419,10 +391,7 @@ only the archived working rows. Manual export is not required; PDFs are availabl
 from Weekly Report History. A PDF/storage failure retains working data for retry.
 
 The week-selection SQL applies `AT TIME ZONE` to the complete Tuesday timestamp
-expression, not the added interval. Regression coverage is
-`go test . -run TestWeeklyLifecycleAutomaticRollover -count=1` from `backend`, with
-`CHECKLIST_TEST_DATABASE_URL` set to the isolated local checklist test database.
-The test creates and removes a disposable database and disables email delivery.
+expression, not the added interval.
 After rollout, check `weekly reset completed` logs and the recovered History
 periods; retained overdue reports are processed automatically without a migration.
 
@@ -442,5 +411,3 @@ profil dan manajemen pengguna; field API dan data salary lama tetap dipertahanka
 ## Kritik & Saran
 
 Tombol pada dashboard mengirim `POST /feedback` (`{"message":"..."}`) untuk pengguna login. Pesan maksimal 4.000 karakter dikirim ke `aiple5766@gmail.com`; identitas dan `Reply-To` diambil dari sesi pengguna. Menggunakan konfigurasi SMTP existing dan `EMAIL_ENABLED=true` (atau fallback `ZOOM_EMAIL_ENABLED`). Tidak menyimpan riwayat pesan. Status sukses berarti SMTP menerima email; pengiriman yang tidak pasti tidak dicoba ulang otomatis.
-
-Uji UI dengan dev server frontend pada port 5194: `node tests/feedback.browser.mjs` dari direktori `frontend`. API dan email dimock sehingga tes tidak mengirim email sungguhan.

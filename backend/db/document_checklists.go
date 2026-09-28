@@ -101,7 +101,7 @@ func (db *Database) SaveDocumentChecklist(ctx context.Context, jobID, checklistI
 	if err != nil {
 		return 0, err
 	}
-	// Archive removed/changed identities; never reassign their historical checkboxes.
+	// Keep signer IDs (and their checkboxes) when names or positions change.
 	rows, err := tx.QueryContext(ctx, `SELECT id,signer_type,name,position FROM document_checklist_signers WHERE checklist_id=$1 AND archived_at IS NULL`, id)
 	if err != nil {
 		return 0, err
@@ -126,8 +126,8 @@ func (db *Database) SaveDocumentChecklist(ctx context.Context, jobID, checklistI
 			if !ok {
 				return 0, model.ErrInvalidChecklist
 			}
-			if previous.Type == s.Type && previous.Name == s.Name && previous.Position == s.Position {
-				if _, err = tx.ExecContext(ctx, `UPDATE document_checklist_signers SET display_order=$2 WHERE id=$1`, s.ID, s.DisplayOrder); err != nil {
+			if previous.Type == s.Type {
+				if _, err = tx.ExecContext(ctx, `UPDATE document_checklist_signers SET name=$2,position=$3,display_order=$4 WHERE id=$1`, s.ID, s.Name, s.Position, s.DisplayOrder); err != nil {
 					return 0, err
 				}
 				delete(old, s.ID)

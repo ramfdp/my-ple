@@ -673,6 +673,7 @@ export const messages = {
  "Pekerjaan ↕": ["Pekerjaan ↕", "Job ↕"],
  "Pekerjaan, dokumen, atau penandatangan tidak ditemukan.": ["Pekerjaan, dokumen, atau penandatangan tidak ditemukan.", "Job, document, or signer not found."],
  "Penandatangan yang dihapus atau diubah akan diarsipkan beserta status lamanya. Penandatangan pengganti dimulai tanpa centang. Lanjutkan?": ["Penandatangan yang dihapus atau diubah akan diarsipkan beserta status lamanya. Penandatangan pengganti dimulai tanpa centang. Lanjutkan?", "Removed or changed signers and their old statuses will be archived. Replacement signers start unchecked. Continue?"],
+ "Penandatangan yang dihapus akan diarsipkan beserta status lamanya. Lanjutkan?": ["Penandatangan yang dihapus akan diarsipkan beserta status lamanya. Lanjutkan?", "Removed signers and their old statuses will be archived. Continue?"],
  "Pencarian lokasi habis waktu. Aktifkan GPS/lokasi presisi dan coba lagi.": ["Pencarian lokasi habis waktu. Aktifkan GPS/lokasi presisi dan coba lagi.", "Location request timed out. Enable precise location and try again."],
  "Pengajuan Anda harus ditinjau oleh Admin atau Management lain.": ["Pengajuan Anda harus ditinjau oleh Admin atau Management lain.", "Another Admin or Management user must review your request."],
  "Pengajuan Saya": ["Pengajuan Saya", "My Requests"],

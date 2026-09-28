@@ -31,6 +31,23 @@ func checklistPDF(job string, tables []*model.DocumentChecklist) ([]byte, error)
 			pdf.CellFormat(w-4, line, value, "", 0, "C", false, 0, "")
 		}
 	}
+	signerCell := func(x, y, w, h float64, signer model.ChecklistSigner) {
+		pdf.Rect(x, y, w, h, "DF")
+		pdf.SetFont("Report", "", 8)
+		name := pdf.SplitText(signer.Name, w-4)
+		pdf.SetFont("Report", "B", 8)
+		position := pdf.SplitText(signer.Position, w-4)
+		start := y + (h-float64(len(name)+len(position))*line)/2
+		pdf.SetFont("Report", "", 8)
+		for _, part := range [][]string{name, position} {
+			for _, value := range part {
+				pdf.SetXY(x+2, start)
+				pdf.CellFormat(w-4, line, value, "", 0, "C", false, 0, "")
+				start += line
+			}
+			pdf.SetFont("Report", "B", 8)
+		}
+	}
 	newPage := func() {
 		pdf.AddPage()
 		pdf.SetFont("Report", "B", 11)
@@ -61,7 +78,10 @@ func checklistPDF(job string, tables []*model.DocumentChecklist) ([]byte, error)
 				}
 				signerHeight = 8
 				for _, s := range signers[first : first+count] {
-					signerHeight = max(signerHeight, float64(len(pdf.SplitText(s.Name+"\n"+s.Position, signerWidth-4)))*line+4)
+					pdf.SetFont("Report", "", 8)
+					nameLines := len(pdf.SplitText(s.Name, signerWidth-4))
+					pdf.SetFont("Report", "B", 8)
+					signerHeight = max(signerHeight, float64(nameLines+len(pdf.SplitText(s.Position, signerWidth-4)))*line+4)
 				}
 				if signerHeight <= 90 || count <= 1 {
 					break
@@ -132,7 +152,7 @@ func checklistPDF(job string, tables []*model.DocumentChecklist) ([]byte, error)
 						start = end
 					}
 					for i, s := range panel {
-						cell(x+float64(i)*signerWidth, y+16, signerWidth, headerHeight-16, s.Name+"\n"+s.Position, true)
+						signerCell(x+float64(i)*signerWidth, y+16, signerWidth, headerHeight-16, s)
 					}
 				}
 				pdf.SetXY(10, y+headerHeight)
