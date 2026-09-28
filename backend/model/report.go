@@ -20,7 +20,11 @@ func ReportingWeek(now time.Time) (time.Time, time.Time) {
 }
 
 func ReportingPeriodWeek(now time.Time) (time.Time, time.Time) {
-	return ReportingWeek(now)
+	location, _ := time.LoadLocation(ReportingTimezone)
+	local := now.In(location)
+	daysSinceTuesday := (int(local.Weekday()) + 5) % 7
+	start := time.Date(local.Year(), local.Month(), local.Day()-daysSinceTuesday, 0, 0, 0, 0, location)
+	return start, start.AddDate(0, 0, 7)
 }
 
 func IndonesianWeekLabel(start, next time.Time) string {
