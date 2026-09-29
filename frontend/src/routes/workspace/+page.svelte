@@ -11,9 +11,30 @@
 <svelte:head><title>{$translate("Team Workspace | MyHIS")}</title></svelte:head>
 <main class="workspace-page">
  <a class="back-link" href="/dashboard">{$translate("← Kembali ke Dashboard")}</a>
- <header><p class="dashboard-kicker">{$translate("TEAM WORKSPACE")}</p><h1>{$translate("Pilih Workspace Divisi")}</h1><p>{$translate("Catatan, timeline, dan koordinasi pekerjaan tim.")}</p></header>
+ <header>
+  <p class="dashboard-kicker">{$translate("TEAM WORKSPACE")}</p>
+  <h1>{$translate("Pilih Workspace Divisi")}</h1>
+  <p>{$translate("Catatan, timeline, dan koordinasi pekerjaan tim.")}</p>
+ </header>
  {#if error && workspaces.length}<p role="alert">{$translate(error)}</p>{/if}
- {#if loading}<p role="status">{$translate("Memuat workspace…")}</p>{:else if error && !workspaces.length}<p role="alert">{$translate(error)}</p><button onclick={() => load()}>{$translate("Coba lagi")}</button>
- {:else if !workspaces.length}<div class="ws-empty">{$translate("Belum ada workspace yang dapat Anda akses. Hubungi administrator untuk memeriksa peran akun.")}</div>
- {:else}<div class="ws-directory">{#each workspaces as workspace}<a class="ws-panel" href={'/workspace/'+workspace.id}><h2>{workspace.name}</h2><p>{workspace.memberCount} {$translate("anggota ·")} {workspace.activeTaskCount} {$translate("pekerjaan aktif")}</p><strong>{$translate("Buka Workspace →")}</strong></a>{/each}</div>{/if}
+ {#if loading}
+  <p role="status">{$translate("Memuat workspace…")}</p>
+ {:else if error && !workspaces.length}
+  <p role="alert">{$translate(error)}</p><button onclick={() => load()}>{$translate("Coba lagi")}</button>
+ {:else if !workspaces.length}
+  <div class="ws-empty">{$translate("Belum ada workspace yang dapat Anda akses. Hubungi administrator untuk memeriksa peran akun.")}</div>
+ {:else}
+  <div class="ws-directory">
+   {#each workspaces as workspace}
+    <a class="ws-panel" href={'/workspace/'+workspace.id}>
+     <h2>{workspace.name}</h2>
+     <p>
+      <span class="ws-chip">{workspace.memberCount} {$translate("anggota")}</span>
+      <span class="ws-chip ws-chip--task">{workspace.activeTaskCount} {$translate("aktif")}</span>
+     </p>
+     <strong>{$translate("Buka Workspace →")}</strong>
+    </a>
+   {/each}
+  </div>
+ {/if}
 </main>
