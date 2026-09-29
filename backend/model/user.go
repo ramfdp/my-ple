@@ -9,7 +9,6 @@ type Role struct {
 	CreatedAt   time.Time `json:"createdAt,omitempty"`
 }
 
-// ponytail: single unified User model accommodating all profile fields
 type User struct {
 	Language         string    `json:"language"`
 	ID               string    `json:"id"`

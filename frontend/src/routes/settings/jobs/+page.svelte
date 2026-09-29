@@ -92,8 +92,8 @@
  </form>
  {:else}<button class="report-button" type="button" disabled={busy || loading || !divisionId || showCategoryForm} onclick={()=>openForm(null)}>{$translate("+ Tambah Pekerjaan")}</button>{/if}
  {#if loading}<p role="status">{$translate("Memuat pekerjaan…")}</p>{:else if !visible.length}<p role="status">{search?$translate('Tidak ada pekerjaan yang cocok.'):$translate('Belum ada pekerjaan pada kategori ini.')}</p>{:else}
- <div class="work-table-wrap"><table class="work-table"><thead><tr><th>{$translate("Pekerjaan")}</th><th>{$translate("Divisi")}</th><th>{$translate("Role")}</th><th>{$translate("Kategori")}</th><th>{$translate("Status")}</th><th>{$translate("Aksi")}</th></tr></thead><tbody>
- {#each visible as job (job.id)}<tr><td>{job.name}<JobPICEditor jobId={job.id} pics={job.pics ?? []} onchange={(pics)=>job.pics=pics} /></td><td>{job.division}</td><td>{job.role || '—'}</td><td>{job.category || '—'}</td><td><button type="button" role="switch" aria-checked={job.isActive} aria-label={`Status ${job.name}`} disabled={busy} onclick={()=>void toggle(job)}>{job.isActive?$translate('Aktif'):$translate('Nonaktif')}</button></td><td><div class="actions"><button class="edit-report" type="button" disabled={busy || showCategoryForm} onclick={()=>openForm(job)}>{$translate("Edit")}</button><button class="delete-report" type="button" disabled={busy} onclick={()=>{error='';deleting=job;}}>{$translate("Hapus")}</button></div></td></tr>{/each}
+ <div class="work-table-wrap"><table class="work-table"><thead><tr><th class="col-job">{$translate("Pekerjaan")}</th><th class="col-division">{$translate("Divisi")}</th><th class="col-role">{$translate("Role")}</th><th class="col-category">{$translate("Kategori")}</th><th class="col-status">{$translate("Status")}</th><th class="col-actions">{$translate("Aksi")}</th></tr></thead><tbody>
+ {#each visible as job (job.id)}<tr><td class="cell-job"><div class="job-meta"><strong class="job-title-text">{job.name}</strong>{#if job.description}<p class="job-description-text">{job.description}</p>{/if}</div><JobPICEditor jobId={job.id} jobName={job.name} pics={job.pics ?? []} onchange={(pics)=>job.pics=pics} /></td><td class="cell-division">{job.division}</td><td class="cell-role">{job.role || '—'}</td><td class="cell-category">{job.category || '—'}</td><td class="cell-status"><button type="button" class="status-btn" class:active={job.isActive} role="switch" aria-checked={job.isActive} aria-label={`Status ${job.name}`} disabled={busy} onclick={()=>void toggle(job)}><span class="status-indicator"></span>{job.isActive?$translate('Aktif'):$translate('Nonaktif')}</button></td><td class="cell-actions"><div class="actions"><button class="edit-report" type="button" disabled={busy || showCategoryForm} onclick={()=>openForm(job)}>{$translate("Edit")}</button><button class="delete-report" type="button" disabled={busy} onclick={()=>{error='';deleting=job;}}>{$translate("Hapus")}</button></div></td></tr>{/each}
  </tbody></table></div>{/if}
  </section>{/if}
 </div></main>
@@ -102,5 +102,33 @@
  {#if error}<p role="alert">{$translate(error)}</p>{/if}<div class="delete-modal-actions"><button class="delete-report-confirm" type="button" disabled={busy} onclick={()=>void remove()}>{busy?$translate('Menghapus…'):$translate('Hapus pekerjaan')}</button><button class="drawer-cancel" type="button" disabled={busy} onclick={()=>deleting=null}>{$translate("Batal")}</button></div>
 </dialog>
 <style>
- .filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:16px;margin-bottom:24px}.actions{display:flex;gap:8px;flex-wrap:wrap}.job-form{margin:24px 0;padding:20px;background:var(--his-surface,#f6f8fa);border-radius:12px}.work-table-wrap{margin-top:20px}td{overflow-wrap:anywhere}dialog{position:fixed;inset:0;margin:auto;transform:none;border:0;max-width:min(480px,calc(100vw - 32px));max-height:90dvh;overflow:auto}dialog::backdrop{background:#0006}
+ .filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:16px;margin-bottom:24px}
+ .actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+ .job-form{margin:24px 0;padding:20px;background:var(--his-surface,#f6f8fa);border-radius:12px}
+ .work-table-wrap{margin-top:20px}
+ 
+ /* Proportional column widths */
+ .col-job{width:36%;text-align:left!important;padding-left:18px!important}
+ .col-division{width:13%}
+ .col-role{width:13%}
+ .col-category{width:14%}
+ .col-status{width:11%}
+ .col-actions{width:13%}
+ 
+ .cell-job{text-align:left!important;vertical-align:top!important;padding:16px 18px!important;overflow-wrap:break-word}
+ .job-meta{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
+ .job-title-text{font-size:.95rem;font-weight:700;color:var(--his-text);line-height:1.4}
+ .job-description-text{margin:0;font-size:.8rem;color:var(--his-muted);line-height:1.4}
+ 
+ .cell-division,.cell-role,.cell-category{vertical-align:middle!important;font-size:.88rem}
+ .cell-status,.cell-actions{vertical-align:middle!important}
+ .cell-actions .actions button{min-width:unset!important;min-height:unset!important;padding:6px 14px!important;font-size:.78rem}
+ 
+ .status-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:unset!important;min-height:unset!important;padding:5px 12px!important;border-radius:999px;border:1px solid var(--his-border);background:#f3f4f6;color:var(--his-muted);font-size:.78rem;font-weight:700;cursor:pointer;transition:all 160ms ease}
+ .status-btn.active{border-color:#bbf7d0;background:var(--his-primary-soft);color:var(--his-primary)}
+ .status-indicator{width:7px;height:7px;border-radius:50%;background:#9ca3af}
+ .status-btn.active .status-indicator{background:var(--his-primary)}
+ 
+ dialog.report-delete-modal{position:fixed;inset:0;margin:auto;transform:none;border:0;max-width:min(480px,calc(100vw - 32px));max-height:90dvh;overflow:auto}
+ dialog.report-delete-modal::backdrop{background:#0006}
 </style>
