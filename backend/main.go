@@ -355,6 +355,11 @@ func startCleanup(database *db.Database) func() {
 	ctx, cancel := context.WithCancel(context.Background())
 	workerDone := make(chan struct{})
 	go func() { defer close(workerDone); (&notification.ZoomEmailWorker{DB: database}).Start(ctx) }()
+	
+	// Start attendance reminder service
+	attendanceReminder := notification.NewAttendanceReminderService(database)
+	attendanceReminder.Start(ctx)
+	
 	go func() {
 		timer := time.NewTimer(time.Until(time.Now().Truncate(time.Minute).Add(time.Minute)))
 		defer timer.Stop()
