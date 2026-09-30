@@ -119,7 +119,7 @@ func checklistPDF(job string, tables []*model.DocumentChecklist) ([]byte, error)
 				}
 			}
 			if count > 0 {
-				headerHeight = max(headerHeight, 16+signerHeight)
+				headerHeight = max(headerHeight, 8+signerHeight)
 			}
 			drawHeader := func() {
 				pdf.SetFont("Report", "B", 8)
@@ -138,7 +138,6 @@ func checklistPDF(job string, tables []*model.DocumentChecklist) ([]byte, error)
 					for _, w := range widths[:signatureStart] {
 						x += w
 					}
-					cell(x, y, signatureSpace, 8, "Paraf / TTD Hardcopy", true)
 					for start := 0; start < count; {
 						end := start + 1
 						for end < count && panel[end].Type == panel[start].Type {
@@ -148,11 +147,11 @@ func checklistPDF(job string, tables []*model.DocumentChecklist) ([]byte, error)
 						if panel[start].Type == "external" {
 							group = "TTD Hardcopy"
 						}
-						cell(x+float64(start)*signerWidth, y+8, float64(end-start)*signerWidth, 8, group, true)
+						cell(x+float64(start)*signerWidth, y, float64(end-start)*signerWidth, 8, group, true)
 						start = end
 					}
 					for i, s := range panel {
-						signerCell(x+float64(i)*signerWidth, y+16, signerWidth, headerHeight-16, s)
+						signerCell(x+float64(i)*signerWidth, y+8, signerWidth, headerHeight-8, s)
 					}
 				}
 				pdf.SetXY(10, y+headerHeight)
