@@ -75,7 +75,6 @@
    status = '';
    error = failure instanceof Error ? failure.message : 'Absensi gagal diproses. Coba lagi.';
   } finally {
-   // Reconcile even when the response was lost: the server may have saved the action.
    if (submitted || pending) {
     pending = false;
     try { await load(); }
@@ -96,7 +95,7 @@
   {:else if active}
    {#if data?.open && data.open.date !== data.todayDate}<p class="notice">{$translate("Absensi tanggal")} {data.open.date} {$translate("masih terbuka. Selesaikan Clock Out sebelum memulai hari ini.")}</p>{/if}
    <dl><div><dt>{$translate("Clock In")}</dt><dd>{formatTime(active.clockIn)}</dd></div><div><dt>{$translate("Clock Out")}</dt><dd>{active.clockOut ? formatTime(active.clockOut) : $translate('Belum Clock Out')}</dd></div></dl>
-   <p class="attendance-notes"><strong>{$translate("Catatan")}:</strong> {active.notes || "—"}</p>
+   <p class="attendance-notes"><strong>{$translate("Catatan")}:</strong> <span>{active.notes || "—"}</span></p>
    {#if data?.open}<button class="primary" disabled={busy || loading || !ready} onclick={clock}>{$translate("Clock Out")}</button><p class="hint">{$translate("Clock Out mencatat waktu saja dan tidak memerlukan lokasi.")}</p>
    {:else}<p class="complete">{$translate("Absensi hari ini selesai.")}</p>{/if}
   {:else if data}
@@ -129,57 +128,68 @@
     <tbody>{#each data.records as record (record.id)}<tr>
      <td data-label={$translate("Tanggal")}>{record.date}</td><td data-label={$translate("Mode")}><span class="badge">{record.mode}</span></td><td data-label={$translate("Clock In (WIB)")}>{formatTime(record.clockIn)}</td><td data-label={$translate("Clock Out (WIB)")}>{record.clockOut ? formatTime(record.clockOut) : $translate('Belum Clock Out')}</td>
      <td data-label={$translate("Lokasi Clock In")}>{#if record.mode === 'WFA' && record.latitude !== null && record.longitude !== null}<a href={`https://www.google.com/maps?q=${record.latitude},${record.longitude}`} target="_blank" rel="noopener noreferrer" aria-label={`Lihat lokasi Clock In ${record.date} di Google Maps (tab baru)`}>{$translate("Lihat lokasi ↗")}</a>{:else}{$translate("Tidak disimpan")}{/if}</td>
-    <td class="attendance-notes" data-label={$translate("Catatan")}>{record.notes || "—"}</td></tr>{/each}</tbody>
-   </table></div>
+     <td class="attendance-notes" data-label={$translate("Catatan")}><span>{record.notes || "—"}</span></td></tr>{/each}</tbody>
+    </table></div>
   {/if}
  </section>
 </main>
 
 <style>
- .attendance-notes { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 400px; }
- .notes-field { display: grid; margin-bottom: 1rem; }
- textarea { width: 100%; min-width: 0; box-sizing: border-box; padding: .75rem; border: 1px solid var(--his-border); border-radius: 8px; font: inherit; resize: vertical; }
+ @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+ @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+ .attendance-notes { white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+ .attendance-notes span { display: block; }
+ .notes-field { display: grid; margin-bottom: 1rem; gap: .5rem; }
+ textarea { width: 100%; min-width: 0; box-sizing: border-box; padding: 1rem; border: 2px solid var(--his-border); border-radius: 12px; font: inherit; resize: vertical; transition: all 200ms ease; }
+ textarea:focus { border-color: var(--his-primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); outline: none; }
  .attendance-page { padding: var(--his-page-padding); max-width: 1200px; margin: auto; }
- header { margin-bottom: 2rem; }
- h1, h2, p { margin-top: 0; }
+ header { margin-bottom: 2rem; animation: slideIn 400ms ease-out; }
+ h1, h2, p { margin-top: 0; margin-bottom: 0; }
  h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: clamp(1.8rem, 4vw, 2.5rem); letter-spacing: -.04em; margin-bottom: .75rem; }
- h2 { font-size: 1.15rem; margin-bottom: 0; }
- header > p:last-child, .hint, dt { color: var(--his-muted); line-height: 1.6; }
- .eyebrow { color: var(--his-primary); font-size: .75rem; font-weight: 700; letter-spacing: .12em; }
- section { background: white; border: 1px solid var(--his-border); border-radius: 16px; padding: clamp(1rem, 3vw, 2rem); margin-bottom: 1.5rem; }
+ h2 { font-size: 1.15rem; }
+ header > p:last-child, .hint, dt { color: var(--his-muted); line-height: 1.6; font-size: .95rem; }
+ .eyebrow { color: var(--his-primary); font-size: .75rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+ section { background: linear-gradient(135deg, white 0%, rgba(79, 70, 229, 0.02) 100%); border: 1px solid var(--his-border); border-radius: 16px; padding: clamp(1.5rem, 4vw, 2.5rem); margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04); animation: fadeIn 300ms ease-out; }
  .section-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
- button, input { border: 1px solid var(--his-border); border-radius: 8px; background: white; color: var(--his-text); padding: .75rem 1rem; min-height: 44px; }
- button:disabled { cursor: not-allowed; opacity: .55; }
- .modes { display: flex; gap: 1rem; margin: 1rem 0; }
- .modes button { flex: 1; max-width: 240px; text-align: left; padding: 1rem; }
+ button, input { border: 2px solid var(--his-border); border-radius: 12px; background: white; color: var(--his-text); padding: .875rem 1.25rem; min-height: 44px; font-size: 1rem; transition: all 200ms ease; font-family: inherit; }
+ button, input[type="month"] { cursor: pointer; }
+ button:hover:not(:disabled) { border-color: var(--his-primary); background: rgba(79, 70, 229, 0.05); }
+ button:active:not(:disabled) { transform: scale(0.98); }
+ button:disabled { cursor: not-allowed; opacity: .5; }
+ .modes { display: flex; gap: 1rem; margin: 1rem 0; flex-wrap: wrap; }
+ .modes button { flex: 1; min-width: 140px; max-width: 240px; text-align: left; padding: 1.25rem; border: 2px solid var(--his-border); transition: all 250ms ease; }
  .modes strong, .modes span { display: block; }
- .modes strong { font-size: 1.2rem; margin-bottom: .4rem; }
+ .modes strong { font-size: 1.2rem; margin-bottom: .5rem; font-weight: 700; }
  .modes span { font-size: .85rem; color: var(--his-muted); }
- .modes .selected { border-color: var(--his-primary); background: var(--his-primary-soft); box-shadow: inset 0 0 0 1px var(--his-primary); }
- .primary { background: var(--his-primary); color: white; border-color: var(--his-primary); min-width: 180px; font-weight: 700; margin-bottom: .75rem; }
- .badge { display: inline-block; background: var(--his-primary-soft); color: var(--his-primary); border-radius: 6px; padding: .3rem .6rem; font-size: .8rem; font-weight: 700; }
- dl { display: flex; flex-wrap: wrap; gap: 1.5rem 3rem; margin: 0 0 1.5rem; }
- dd { margin: .5rem 0 0; font-weight: 600; }
- .notice, .error { padding: 1rem; border-radius: 8px; line-height: 1.5; }
- .notice { background: var(--his-surface); border: 1px solid var(--his-border); }
- .error { background: var(--his-danger-soft); color: var(--his-danger); }
- .status, .complete { color: var(--his-primary); font-weight: 600; }
+ .modes .selected { border-color: var(--his-primary); background: linear-gradient(135deg, var(--his-primary-soft) 0%, rgba(79, 70, 229, 0.08) 100%); box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15); transform: translateY(-2px); }
+ .modes .selected strong { color: var(--his-primary); }
+ .primary { background: linear-gradient(135deg, var(--his-primary) 0%, rgba(79, 70, 229, 0.85) 100%); color: white; border-color: var(--his-primary); min-width: 180px; font-weight: 700; margin-bottom: .75rem; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25); transition: all 250ms ease; }
+ .primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(79, 70, 229, 0.35); }
+ .primary:active:not(:disabled) { transform: translateY(0); }
+ .badge { display: inline-block; background: linear-gradient(135deg, var(--his-primary-soft) 0%, rgba(79, 70, 229, 0.1) 100%); color: var(--his-primary); border-radius: 8px; padding: .4rem .8rem; font-size: .8rem; font-weight: 700; border: 1px solid rgba(79, 70, 229, 0.2); }
+ dl { display: flex; flex-wrap: wrap; gap: 2rem 3rem; margin: 0 0 1.5rem; padding: 1.5rem; background: rgba(79, 70, 229, 0.04); border-radius: 12px; border-left: 4px solid var(--his-primary); }
+ dd { margin: .5rem 0 0; font-weight: 700; font-size: 1.1rem; }
+ .notice { padding: 1rem 1.25rem; border-radius: 12px; line-height: 1.6; background: linear-gradient(135deg, var(--his-surface) 0%, rgba(79, 70, 229, 0.04) 100%); border: 2px solid var(--his-border); border-left: 4px solid var(--his-primary); }
+ .error { padding: 1rem 1.25rem; border-radius: 12px; line-height: 1.6; background: linear-gradient(135deg, var(--his-danger-soft) 0%, rgba(220, 38, 38, 0.08) 100%); color: var(--his-danger); border: 2px solid rgba(220, 38, 38, 0.2); border-left: 4px solid var(--his-danger); animation: slideIn 250ms ease-out; }
+ .status, .complete { color: var(--his-primary); font-weight: 600; animation: fadeIn 200ms ease-out; }
  .status:empty { display: none; }
  .hint { font-size: .875rem; }
- .policy { border-top: 1px solid var(--his-border); padding-top: 1rem; margin: 1rem 0 0; }
- label { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; }
- .table-scroll { overflow-x: auto; }
+ .policy { border-top: 2px solid var(--his-border); padding-top: 1rem; margin: 1.5rem 0 0; font-size: .85rem; }
+ label { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; font-weight: 500; }
+ .table-scroll { overflow-x: auto; border-radius: 12px; border: 1px solid var(--his-border); }
  table { width: 100%; border-collapse: collapse; text-align: left; font-size: .875rem; }
- th, td { padding: 1rem .75rem; border-bottom: 1px solid var(--his-border); white-space: nowrap; }
- th { background: var(--his-surface); }
- a { color: var(--his-primary); text-underline-offset: 3px; }
+ th, td { padding: 1rem; border-bottom: 1px solid var(--his-border); overflow-wrap: break-word; word-break: break-word; }
+ th { background: linear-gradient(135deg, var(--his-surface) 0%, rgba(79, 70, 229, 0.05) 100%); font-weight: 700; }
+ a { color: var(--his-primary); text-underline-offset: 3px; font-weight: 500; transition: all 150ms ease; }
+ a:hover { opacity: .8; }
  @media (max-width: 1100px) {
   table, tbody { display: block; }
   thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  tr { display: grid; grid-template-columns: 1fr 1fr; padding: .5rem 0; border-bottom: 1px solid var(--his-border); }
-  td { border: 0; padding: .75rem .25rem; white-space: normal; min-width: 0; }
-  td::before { content: attr(data-label); display: block; color: var(--his-muted); font-size: .75rem; margin-bottom: .4rem; }
+  tr { display: grid; grid-template-columns: 1fr 1fr; gap: 0; padding: 1rem 0; border-bottom: 2px solid var(--his-border); margin-bottom: .5rem; background: linear-gradient(135deg, white 0%, rgba(79, 70, 229, 0.02) 100%); border-radius: 12px; }
+  td { border: 0; min-width: 0; padding: .75rem 1rem; overflow-wrap: break-word; word-break: break-word; }
   td:last-child { grid-column: 1 / -1; }
+  td::before { content: attr(data-label); display: block; color: var(--his-primary); font-size: .75rem; font-weight: 700; margin-bottom: .5rem; text-transform: uppercase; letter-spacing: .05em; }
  }
- @media (max-width: 480px) { .modes { gap: .75rem; } .modes button { padding: .75rem; } .primary { width: 100%; } }
+ @media (max-width: 640px) { .modes { gap: .75rem; } .modes button { padding: 1rem; font-size: .95rem; min-width: 0; } .primary { width: 100%; } dl { gap: 1.5rem; padding: 1rem; } dd { font-size: 1rem; } section { padding: 1.25rem; } }
 </style>
