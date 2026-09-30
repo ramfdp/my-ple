@@ -128,7 +128,7 @@
     <tbody>{#each data.records as record (record.id)}<tr>
      <td data-label={$translate("Tanggal")}>{record.date}</td><td data-label={$translate("Mode")}><span class="badge">{record.mode}</span></td><td data-label={$translate("Clock In (WIB)")}>{formatTime(record.clockIn)}</td><td data-label={$translate("Clock Out (WIB)")}>{record.clockOut ? formatTime(record.clockOut) : $translate('Belum Clock Out')}</td>
      <td data-label={$translate("Lokasi Clock In")}>{#if record.mode === 'WFA' && record.latitude !== null && record.longitude !== null}<a href={`https://www.google.com/maps?q=${record.latitude},${record.longitude}`} target="_blank" rel="noopener noreferrer" aria-label={`Lihat lokasi Clock In ${record.date} di Google Maps (tab baru)`}>{$translate("Lihat lokasi ↗")}</a>{:else}{$translate("Tidak disimpan")}{/if}</td>
-     <td class="attendance-notes" data-label={$translate("Catatan")}><span>{record.notes || "—"}</span></td></tr>{/each}</tbody>
+     <td data-label={$translate("Catatan")}><span class="attendance-notes">{record.notes || "—"}</span></td></tr>{/each}</tbody>
     </table></div>
   {/if}
  </section>
@@ -138,8 +138,7 @@
  @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
- .attendance-notes { white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
- .attendance-notes span { display: block; }
+ .attendance-notes { white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
  .notes-field { display: grid; margin-bottom: 1rem; gap: .5rem; }
  textarea { width: 100%; min-width: 0; box-sizing: border-box; padding: 1rem; border: 2px solid var(--his-border); border-radius: 12px; font: inherit; resize: vertical; transition: all 200ms ease; }
  textarea:focus { border-color: var(--his-primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); outline: none; }

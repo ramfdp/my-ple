@@ -91,7 +91,7 @@
        <td data-label={$translate("Clock In (WIB)")}>{employee.clockIn ? formatTime(employee.clockIn) : '—'}</td>
        <td data-label={$translate("Clock Out (WIB)")}>{employee.clockOut ? formatTime(employee.clockOut) : employee.clockIn ? $translate('Belum Clock Out') : '—'}</td>
        <td data-label={$translate("Lokasi Clock In")}>{#if employee.mode === 'WFA' && employee.latitude !== null && employee.longitude !== null}<span class="coords">{employee.latitude}, {employee.longitude}</span><br/><a href={`https://www.google.com/maps?q=${employee.latitude},${employee.longitude}`} target="_blank" rel="noopener noreferrer" aria-label={`Lihat lokasi ${employee.name} di Google Maps (tab baru)`}>{$translate("Lihat di Google Maps")}</a>{:else if employee.mode === 'WFO'}{$translate("Dalam radius kantor (100 m)")}{:else}—{/if}</td>
-      <td class="attendance-notes" data-label={$translate("Catatan")}><span>{employee.notes || "—"}</span></td></tr>{/each}</tbody>
+      <td data-label={$translate("Catatan")}><span class="attendance-notes">{employee.notes || "—"}</span></td></tr>{/each}</tbody>
      </table></div>
     {/if}
    {/if}
@@ -103,8 +103,7 @@
  @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
- .attendance-notes { white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
- .attendance-notes span { display: block; }
+ .attendance-notes { white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
  .coords { font-family: 'Courier New', monospace; font-size: .8rem; color: var(--his-muted); display: block; margin-bottom: .25rem; }
  .overview-page { padding: var(--his-page-padding); max-width: 1400px; margin: auto; }
  header { margin-bottom: 2rem; animation: slideIn 400ms ease-out; }
