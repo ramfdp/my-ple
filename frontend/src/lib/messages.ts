@@ -775,6 +775,7 @@ export const messages = {
  "Saving": ["Menyimpan", "Saving"],
  "Saving…": ["Menyimpan…", "Saving…"],
  "Sebagai": ["Sebagai", "Position"],
+ "Jabatan": ["Jabatan", "Position"],
  "Sebelumnya": ["Sebelumnya", "Previous"],
  "Selamat datang kembali.": ["Selamat datang kembali.", "Welcome back."],
  "Select role": ["Pilih peran", "Select role"],
