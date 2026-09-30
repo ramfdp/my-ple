@@ -33,19 +33,19 @@ func checklistPDF(job string, tables []*model.DocumentChecklist) ([]byte, error)
 	}
 	signerCell := func(x, y, w, h float64, signer model.ChecklistSigner) {
 		pdf.Rect(x, y, w, h, "DF")
-		pdf.SetFont("Report", "", 8)
-		name := pdf.SplitText(signer.Name, w-4)
 		pdf.SetFont("Report", "B", 8)
 		position := pdf.SplitText(signer.Position, w-4)
-		start := y + (h-float64(len(name)+len(position))*line)/2
 		pdf.SetFont("Report", "", 8)
-		for _, part := range [][]string{name, position} {
+		name := pdf.SplitText(signer.Name, w-4)
+		start := y + (h-float64(len(name)+len(position))*line)/2
+		pdf.SetFont("Report", "B", 8)
+		for _, part := range [][]string{position, name} {
 			for _, value := range part {
 				pdf.SetXY(x+2, start)
 				pdf.CellFormat(w-4, line, value, "", 0, "C", false, 0, "")
 				start += line
 			}
-			pdf.SetFont("Report", "B", 8)
+			pdf.SetFont("Report", "", 8)
 		}
 	}
 	newPage := func() {
