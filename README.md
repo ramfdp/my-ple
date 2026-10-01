@@ -50,7 +50,7 @@ Gunakan domain yang sama pada perintah ngrok dan `NGROK_DOMAIN`.
 Contoh untuk domain testing saat ini:
 
 ```sh
-ngrok http 8081 --url https://unrecessive-fibular-alyce.ngrok-free.dev
+ngrok http 127.0.0.1:8081 --url https://unrecessive-fibular-alyce.ngrok-free.dev
 ```
 
 Jalankan hanya satu perintah ngrok untuk domain tersebut. Tunggu status `online`,

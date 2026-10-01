@@ -128,7 +128,7 @@
     <tbody>{#each data.records as record (record.id)}<tr>
      <td data-label={$translate("Tanggal")}>{record.date}</td><td data-label={$translate("Mode")}><span class="badge">{record.mode}</span></td><td data-label={$translate("Clock In (WIB)")}>{formatTime(record.clockIn)}</td><td data-label={$translate("Clock Out (WIB)")}>{record.clockOut ? formatTime(record.clockOut) : $translate('Belum Clock Out')}</td>
      <td data-label={$translate("Lokasi Clock In")}>{#if record.mode === 'WFA' && record.latitude !== null && record.longitude !== null}<a href={`https://www.google.com/maps?q=${record.latitude},${record.longitude}`} target="_blank" rel="noopener noreferrer" aria-label={`Lihat lokasi Clock In ${record.date} di Google Maps (tab baru)`}>{$translate("Lihat lokasi ↗")}</a>{:else}{$translate("Tidak disimpan")}{/if}</td>
-     <td data-label={$translate("Catatan")}><span class="attendance-notes">{record.notes || "—"}</span></td></tr>{/each}</tbody>
+     <td class="attendance-notes" data-label={$translate("Catatan")}><span>{record.notes || "—"}</span></td></tr>{/each}</tbody>
     </table></div>
   {/if}
  </section>
@@ -138,7 +138,8 @@
  @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
- .attendance-notes { white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+ .attendance-notes { white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; }
+ .attendance-notes span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
  .notes-field { display: grid; margin-bottom: 1rem; gap: .5rem; }
  textarea { width: 100%; min-width: 0; box-sizing: border-box; padding: 1rem; border: 2px solid var(--his-border); border-radius: 12px; font: inherit; resize: vertical; transition: all 200ms ease; }
  textarea:focus { border-color: var(--his-primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); outline: none; }
@@ -186,9 +187,9 @@
   table, tbody { display: block; }
   thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   tr { display: grid; grid-template-columns: 1fr 1fr; gap: 0; padding: 1rem 0; border-bottom: 2px solid var(--his-border); margin-bottom: .5rem; background: linear-gradient(135deg, white 0%, rgba(79, 70, 229, 0.02) 100%); border-radius: 12px; }
-  td { border: 0; min-width: 0; padding: .75rem 1rem; overflow-wrap: break-word; word-break: break-word; }
-  td:last-child { grid-column: 1 / -1; }
-  td::before { content: attr(data-label); display: block; color: var(--his-primary); font-size: .75rem; font-weight: 700; margin-bottom: .5rem; text-transform: uppercase; letter-spacing: .05em; }
+  td { border: 0; min-width: 0; padding: .75rem 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: clamp(0.7rem, 2vw, 0.875rem); }
+  td:last-child { grid-column: 1 / -1; white-space: normal; overflow: visible; text-overflow: clip; font-size: 0.875rem; }
+  td::before { content: attr(data-label); display: block; color: var(--his-primary); font-size: .75rem; font-weight: 700; margin-bottom: .5rem; text-transform: uppercase; letter-spacing: .05em; white-space: normal; }
  }
  @media (max-width: 640px) { .modes { gap: .75rem; } .modes button { padding: 1rem; font-size: .95rem; min-width: 0; } .primary { width: 100%; } dl { gap: 1.5rem; padding: 1rem; } dd { font-size: 1rem; } section { padding: 1.25rem; } }
 </style>
