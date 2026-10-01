@@ -13,82 +13,699 @@ otomatis oleh backend. Data database lokal yang sudah ada tidak diimpor otomatis
 
 ## Testing dengan domain ngrok
 
-Jalankan dari direktori testing di VPS (`cd /opt/my-ple-testing`).
-Docker Compose menjalankan aplikasi, tetapi **ngrok harus dinyalakan terpisah**
-agar domain testing dapat diakses.
+Environment testing dijalankan dari VPS pada direktori:
 
-Jika `ngrok: command not found`, instal sekali di VPS Ubuntu/Debian:
+```sh
+cd /opt/my-ple-testing
+```
+
+Testing menggunakan konfigurasi berikut:
+
+- branch Git: `testing`
+- environment file: `.env.testing`
+- Compose utama: `compose.yaml`
+- Compose tambahan testing: `compose.testing.yaml`
+- frontend lokal: `127.0.0.1:5174`
+- backend/Nginx lokal: `127.0.0.1:3001`
+- gateway testing: `127.0.0.1:8081`
+- domain testing: `https://unrecessive-fibular-alyce.ngrok-free.dev`
+
+Project `my-ple-testing` mempunyai database PostgreSQL, upload, dan arsip laporan
+sendiri. Email testing dinonaktifkan.
+
+> **Penting:** seluruh operasi Docker Compose untuk environment testing harus
+> menggunakan `.env.testing`, `compose.yaml`, dan `compose.testing.yaml`.
+> Jangan menggunakan `docker compose up`, `docker compose down`, atau command
+> Compose lain tanpa konfigurasi tersebut karena service `gateway` berada di
+> `compose.testing.yaml`.
+
+### Konfigurasi environment testing
+
+Salin `.env.testing.example` menjadi `.env.testing` jika file belum tersedia:
+
+```sh
+cp .env.testing.example .env.testing
+```
+
+Isi `NGROK_DOMAIN` dengan hostname dari dashboard ngrok tanpa `https://` dan tanpa
+trailing slash. Gunakan password PostgreSQL khusus testing.
+
+Contoh:
+
+```dotenv
+COMPOSE_PROJECT_NAME=my-ple-testing
+BACKEND_ENV_FILE=./.env.testing
+
+BACKEND_HOST_PORT=3001
+FRONTEND_HOST_PORT=5174
+
+POSTGRES_PASSWORD=ganti-dengan-password-testing
+
+NGROK_DOMAIN=unrecessive-fibular-alyce.ngrok-free.dev
+FRONTEND_ORIGIN=https://${NGROK_DOMAIN:?Isi NGROK_DOMAIN di .env.testing}
+VITE_API_URL=${FRONTEND_ORIGIN}/api
+
+APP_ENV=testing
+COOKIE_SECURE=true
+SESSION_TTL=8h
+
+EMAIL_ENABLED=false
+ZOOM_EMAIL_ENABLED=false
+```
+
+File `.env.testing` tidak masuk Git.
+
+`POSTGRES_PASSWORD` hanya digunakan untuk menginisialisasi password saat volume
+PostgreSQL pertama kali dibuat. Mengubah nilainya pada `.env.testing` tidak otomatis
+mengubah password role PostgreSQL yang sudah tersimpan pada volume lama.
+
+### Update source code testing dari Git
+
+Sebelum deployment, pastikan VPS berada pada branch `testing` dan working tree bersih:
+
+```sh
+cd /opt/my-ple-testing
+
+git checkout testing
+git status
+git pull --ff-only origin testing
+```
+
+`git pull --ff-only` digunakan agar VPS tidak membuat merge commit deployment secara
+tidak sengaja. Perubahan kode sebaiknya dibuat dan di-commit dari development machine,
+kemudian di-push ke branch `testing`.
+
+### Validasi konfigurasi Docker Compose
+
+Sebelum menjalankan stack:
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  config --quiet
+```
+
+Jika command selesai tanpa error, konfigurasi Compose valid.
+
+Untuk melihat konfigurasi hasil gabungan:
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  config
+```
+
+### Build dan menjalankan testing
+
+Untuk build image terbaru dan menjalankan seluruh stack:
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  up -d --build --wait
+```
+
+Service yang harus berjalan:
+
+```text
+db
+backend
+nginx
+frontend
+gateway
+```
+
+Periksa status:
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  ps
+```
+
+Kondisi normal:
+
+```text
+db         healthy
+backend    healthy
+nginx      healthy
+frontend   running
+gateway    running
+```
+
+Gateway harus memiliki mapping:
+
+```text
+127.0.0.1:8081->80/tcp
+```
+
+### Build ulang tanpa menjalankan container
+
+Untuk build seluruh image:
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  build
+```
+
+Kemudian jalankan:
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  up -d --wait
+```
+
+Jika perlu memastikan Docker tidak memakai build cache:
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  build --no-cache
+```
+
+### Build backend saja
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  build backend
+```
+
+Kemudian:
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  up -d backend
+```
+
+### Build frontend saja
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  build frontend
+```
+
+Kemudian:
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  up -d frontend
+```
+
+Karena `VITE_API_URL` dimasukkan ke bundle frontend saat proses build, frontend harus
+dibuild ulang setelah `NGROK_DOMAIN`, `FRONTEND_ORIGIN`, atau `VITE_API_URL` berubah.
+
+Untuk memaksa build frontend dari nol:
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  build --no-cache frontend
+
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  up -d --no-deps --force-recreate frontend
+```
+
+### Verifikasi frontend dan API testing
+
+Sebelum menjalankan ngrok, pastikan gateway dapat diakses langsung dari VPS:
+
+```sh
+curl -I --max-time 10 http://127.0.0.1:8081/
+```
+
+Respons normal:
+
+```text
+HTTP/1.1 200 OK
+```
+
+Periksa backend melalui gateway:
+
+```sh
+curl --fail --show-error --max-time 10 \
+  http://127.0.0.1:8081/api/health
+```
+
+Respons normal:
+
+```json
+{"database":"configured","status":"ok"}
+```
+
+Gateway meneruskan:
+
+```text
+/api/*  -> nginx -> backend
+/*      -> frontend
+```
+
+Dengan demikian browser hanya perlu mengakses domain HTTPS ngrok.
+
+### Log Docker testing
+
+Semua log:
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  logs -f
+```
+
+100 log backend terakhir:
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  logs --tail=100 backend
+```
+
+Log backend secara realtime:
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  logs -f backend
+```
+
+Log frontend:
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  logs -f frontend
+```
+
+Log gateway:
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  logs -f gateway
+```
+
+Log database:
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  logs -f db
+```
+
+Gunakan `Ctrl+C` untuk keluar dari tampilan log. Container tetap berjalan.
+
+### Restart service
+
+Restart backend:
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  restart backend
+```
+
+Restart frontend:
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  restart frontend
+```
+
+Restart gateway:
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  restart gateway
+```
+
+### Stop testing
+
+Untuk menghentikan container tanpa menghapusnya:
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  stop
+```
+
+Untuk menjalankannya kembali:
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  start
+```
+
+### Mematikan dan menghapus container testing
+
+Gunakan:
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  down
+```
+
+Command `down` mempertahankan named volume database, upload, dan storage.
+
+Jangan gunakan untuk deployment normal:
+
+```sh
+docker compose down -v
+```
+
+Opsi `-v` menghapus named volume beserta data testing di dalamnya.
+
+Jangan pula menjalankan hanya:
+
+```sh
+docker compose down
+```
+
+karena command tersebut tidak membaca `compose.testing.yaml` sehingga container
+`gateway` dapat tertinggal dan membuat network Docker tetap digunakan.
+
+### Masuk ke PostgreSQL testing
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  exec db \
+  psql -U my_ple -d my_ple
+```
+
+Keluar dari PostgreSQL:
+
+```text
+\q
+```
+
+### Instalasi ngrok
+
+Docker Compose hanya menjalankan aplikasi. Tunnel ngrok dijalankan sebagai proses
+terpisah pada VPS.
+
+Jika `ngrok: command not found`, instal sekali pada Ubuntu/Debian:
 
 ```sh
 curl -fsSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc \
   | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+
 echo "deb https://ngrok-agent.s3.amazonaws.com bookworm main" \
   | sudo tee /etc/apt/sources.list.d/ngrok.list
+
 sudo apt update
 sudo apt install -y ngrok
 ```
 
-Sebagai user yang akan menjalankan ngrok (misalnya `deploy`), tambahkan authtoken
-dari akun pemilik domain. Ganti `TOKEN_ANDA` dengan token dari dashboard ngrok:
+Tambahkan authtoken dari dashboard ngrok:
 
 ```sh
 ngrok config add-authtoken TOKEN_ANDA
 ```
 
-Salin `.env.testing.example` menjadi `.env.testing`. Isi `NGROK_DOMAIN` dengan
-hostname milik Anda di dashboard ngrok (tanpa `https://`) dan ganti password
-database testing sebelum pertama kali menjalankan stack.
+### Menjalankan tunnel testing
+
+Pastikan terlebih dahulu:
 
 ```sh
-docker compose --env-file .env.testing -f compose.yaml -f compose.testing.yaml config --quiet
-docker compose --env-file .env.testing -f compose.yaml -f compose.testing.yaml up -d --build --wait
-curl -I --max-time 10 http://127.0.0.1:8081
-ngrok http 8081 --url https://DOMAIN-NGROK-ANDA
+curl -I http://127.0.0.1:8081/
+curl http://127.0.0.1:8081/api/health
 ```
 
-Gunakan domain yang sama pada perintah ngrok dan `NGROK_DOMAIN`.
-Contoh untuk domain testing saat ini:
+Kemudian jalankan:
 
 ```sh
-ngrok http 127.0.0.1:8081 --url https://unrecessive-fibular-alyce.ngrok-free.dev
+ngrok http 127.0.0.1:8081 \
+  --url https://unrecessive-fibular-alyce.ngrok-free.dev
 ```
 
-Jalankan hanya satu perintah ngrok untuk domain tersebut. Tunggu status `online`,
-lalu biarkan terminal ngrok terbuka. `Ctrl+C`, putusnya sesi SSH, atau reboot VPS
-dapat menghentikan tunnel; jalankan kembali perintah ngrok di atas jika berhenti.
-Cara manual ini belum memasang service untuk otomatis berjalan setelah reboot.
+Gunakan `127.0.0.1:8081`, **bukan** `localhost:8081`.
 
-Jika muncul `ERR_NGROK_3200`, periksa dari terminal SSH lain:
+Pada server tertentu `localhost` dapat diterjemahkan menjadi IPv6 `::1`, sedangkan
+gateway testing dipublikasikan hanya pada IPv4 `127.0.0.1:8081`. Kondisi tersebut
+menghasilkan error seperti:
+
+```text
+ERR_NGROK_8012
+dial tcp [::1]:8081: connect: connection refused
+```
+
+Jalankan hanya satu proses ngrok untuk domain testing yang sama.
+
+Periksa proses yang sedang berjalan:
+
+```sh
+pgrep -a ngrok
+```
+
+Untuk menghentikan tunnel lama:
+
+```sh
+pkill -f ngrok
+```
+
+Kemudian jalankan kembali command ngrok dengan `127.0.0.1:8081`.
+
+Tunnel manual akan berhenti jika terminal ngrok ditutup, `Ctrl+C` ditekan, sesi SSH
+terputus dan proses ikut berakhir, atau VPS direboot. Konfigurasi ini belum memasang
+ngrok sebagai system service.
+
+### Troubleshooting ERR_NGROK_8012
+
+Jika muncul:
+
+```text
+ERR_NGROK_8012
+```
+
+periksa service testing:
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  ps
+```
+
+Pastikan `gateway` berjalan dan memiliki port:
+
+```text
+127.0.0.1:8081->80/tcp
+```
+
+Tes gateway:
+
+```sh
+curl -v http://127.0.0.1:8081/
+```
+
+Tes API:
+
+```sh
+curl -v http://127.0.0.1:8081/api/health
+```
+
+Jika keduanya menghasilkan `200 OK`, jalankan ngrok dengan:
+
+```sh
+ngrok http 127.0.0.1:8081 \
+  --url https://unrecessive-fibular-alyce.ngrok-free.dev
+```
+
+Jika `gateway` tidak muncul pada `docker compose ps`, kemungkinan stack dijalankan
+tanpa `compose.testing.yaml`. Jalankan kembali:
+
+```sh
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  up -d --wait
+```
+
+### Troubleshooting ERR_NGROK_3200
+
+Jika domain menampilkan:
+
+```text
+ERR_NGROK_3200
+```
+
+periksa apakah aplikasi dan proses ngrok masih aktif:
 
 ```sh
 curl -I --max-time 10 http://127.0.0.1:8081
 pgrep -a ngrok
 ```
 
-Jika aplikasi merespons `200 OK` tetapi tidak ada proses ngrok, nyalakan kembali
-ngrok. Jika prosesnya ada, periksa status/error pada terminal ngrok dan pastikan
-domainnya sesuai. Jika port `8081` tidak merespons, periksa stack testing:
+Jika aplikasi merespons tetapi `pgrep` tidak menampilkan proses ngrok, jalankan kembali:
+
+```sh
+ngrok http 127.0.0.1:8081 \
+  --url https://unrecessive-fibular-alyce.ngrok-free.dev
+```
+
+Jika proses ngrok sudah ada, lihat terminal tempat ngrok dijalankan untuk mengetahui
+error dan pastikan tidak ada dua agent yang menggunakan domain yang sama.
+
+### Workflow deployment testing
+
+Workflow normal setelah perubahan pada branch `testing`:
+
+```sh
+cd /opt/my-ple-testing
+
+git checkout testing
+git status
+git pull --ff-only origin testing
+
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  config --quiet
+
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  up -d --build --wait
+
+docker compose \
+  --env-file .env.testing \
+  -f compose.yaml \
+  -f compose.testing.yaml \
+  ps
+
+curl --fail --show-error http://127.0.0.1:8081/api/health
+```
+
+Setelah aplikasi sehat, jalankan atau restart tunnel:
+
+```sh
+ngrok http 127.0.0.1:8081 \
+  --url https://unrecessive-fibular-alyce.ngrok-free.dev
+```
+
+Buka domain berikut untuk pengujian:
+
+```text
+https://unrecessive-fibular-alyce.ngrok-free.dev
+```
+
+Karena login testing memakai secure cookie, pengujian dari browser dilakukan melalui
+domain HTTPS ngrok.
+
+### Ringkasan command penting testing
+
+Menjalankan:
+
+```sh
+docker compose --env-file .env.testing -f compose.yaml -f compose.testing.yaml up -d --build --wait
+```
+
+Status:
 
 ```sh
 docker compose --env-file .env.testing -f compose.yaml -f compose.testing.yaml ps
 ```
 
-Buka URL HTTPS ngrok untuk testing login; cookie testing memakai HTTPS.
-Gateway meneruskan `/api/` ke backend (termasuk upload dan WebSocket),
-dan path lainnya ke frontend. Setelah mengubah domain, jalankan ulang perintah
-`up -d --build --wait` agar URL API dalam bundle frontend diperbarui.
+Log:
 
-Project `my-ple-testing` mempunyai database, upload, dan arsip sendiri.
-Port lokal testing: gateway `8081`, backend `3001`, frontend `5174`.
-Email testing dinonaktifkan. File `.env.testing` tidak masuk Git.
-Branch Git tidak memilih environment otomatis; selalu gunakan kedua file
-Compose dan `--env-file .env.testing` seperti di atas, termasuk saat `logs`,
-`ps`, atau `down`. Hindari `down -v` jika data testing masih dibutuhkan.
+```sh
+docker compose --env-file .env.testing -f compose.yaml -f compose.testing.yaml logs -f
+```
 
-Rujukan: [project Compose](https://docs.docker.com/compose/how-tos/project-name/)
-dan [instalasi ngrok Linux](https://ngrok.com/download/linux),
-[CLI ngrok](https://ngrok.com/docs/agent/cli), serta
-[ERR_NGROK_3200](https://ngrok.com/docs/errors/err_ngrok_3200).
+Mematikan:
+
+```sh
+docker compose --env-file .env.testing -f compose.yaml -f compose.testing.yaml down
+```
+
+Health check:
+
+```sh
+curl http://127.0.0.1:8081/api/health
+```
+
+Ngrok:
+
+```sh
+ngrok http 127.0.0.1:8081 \
+  --url https://unrecessive-fibular-alyce.ngrok-free.dev
+```
+
+Rujukan:
+
+- [Docker Compose project](https://docs.docker.com/compose/how-tos/project-name/)
+- [Docker Compose multiple files](https://docs.docker.com/compose/how-tos/multiple-compose-files/)
+- [Docker Compose environment variables](https://docs.docker.com/compose/how-tos/environment-variables/)
+- [Instalasi ngrok Linux](https://ngrok.com/download/linux)
+- [ngrok CLI](https://ngrok.com/docs/agent/cli)
+- [ERR_NGROK_8012](https://ngrok.com/docs/errors/err_ngrok_8012/)
+- [ERR_NGROK_3200](https://ngrok.com/docs/errors/err_ngrok_3200/)
 
 ## Deployment production (VPS)
 
@@ -188,225 +805,3 @@ docker compose down
 
 Frontend memakai [adapter Node SvelteKit](https://svelte.dev/docs/kit/adapter-node).
 Urutan startup mengikuti [health check Compose](https://docs.docker.com/compose/how-tos/startup-order/).
-
-## Absensi pribadi
-
-Dashboard **Absensi** dan menu **Attendance** membuka `/attendance` untuk semua
-pengguna yang masuk. WFO memeriksa jarak maksimal 100 meter dan akurasi lokasi
-maksimal 100 meter saat Clock In; koordinat WFO tidak disimpan. WFA menyimpan
-koordinat Clock In dan menyediakan tautan Google Maps di riwayat pribadi.
-Absensi hanya mencatat waktu Clock In dan Clock Out, tanpa perhitungan
-keterlambatan atau lembur. Clock Out tidak memerlukan lokasi.
-
-Pin kantor Giri Mekar Permai adalah **-6.896211064380826, 107.69234020127173**,
-dengan radius WFO **100 meter**. Docker Compose memakai pin ini sebagai default.
-Untuk mengganti pin pada Docker Compose, isi
-`ATTENDANCE_OFFICE_LATITUDE` dan `ATTENDANCE_OFFICE_LONGITUDE` di `.env` root
-atau file yang diberikan ke `docker compose --env-file`. Untuk backend langsung,
-isi variabel tersebut di environment backend. Keduanya harus berupa angka desimal
-dengan titik. Untuk menjalankan backend langsung, gunakan:
-
-```dotenv
-ATTENDANCE_OFFICE_LATITUDE=-6.896211064380826
-ATTENDANCE_OFFICE_LONGITUDE=107.69234020127173
-```
-
-Recreate container backend setelah mengubah pin pada Compose, atau restart proses
-backend langsung. Tanpa pin yang valid, WFO diblokir dan WFA
-tetap tersedia. Tidak diperlukan Google Maps API key atau library peta.
-
-Gunakan HTTPS untuk akses dari perangkat lain; geolocation dapat digunakan di
-localhost untuk pengujian. Pengguna harus mengizinkan lokasi di browser dan
-mengaktifkan lokasi presisi perangkat. Browser melaporkan lokasi, bukan bukti
-GPS perangkat aktif, dan koordinat dari klien tidak menjadi jaminan anti-spoofing.
-Tidak ada pelacakan latar belakang atau pencatatan koordinat ke log aplikasi.
-
-Waktu berasal dari server dan tanggal kehadiran menggunakan `Asia/Jakarta`.
-Satu pengguna hanya memiliki satu record per hari dan satu record terbuka.
-Record lama harus di-Clock Out sebelum Clock In hari berikutnya; tanggal awal
-tetap dipertahankan. Riwayat pribadi hanya dapat dibaca pemiliknya. Migrasi tabel absensi
-berjalan bersama migrasi database yang sudah ada.
-
-### Absensi Karyawan
-
-Menu **Absensi Karyawan** (`/attendance/overview`) tersedia untuk **HR, Management,
-dan Admin**. Halaman menampilkan karyawan aktif per tanggal (default hari ini WIB),
-pencarian nama, filter status, ringkasan jumlah, dan waktu Clock In/Out. Data dimuat
-ulang melalui tombol atau saat jendela kembali aktif.
-
-Status **Hadir** berlaku jika ada Clock In, termasuk setelah Clock Out. Tanpa Clock
-In, pengajuan **Izin/Cuti** yang sudah disetujui ditampilkan terpisah; pengajuan
-pending atau ditolak tidak dihitung. Sisanya berstatus **Belum Clock In** (hari ini)
-atau **Tidak ada Clock In** (tanggal lampau), tanpa penilaian keterlambatan atau penalti.
-Pengajuan izin/cuti yang bertumpuk tidak menggandakan baris karyawan.
-
-API `GET /attendance/overview?date=YYYY-MM-DD` memeriksa role di server dan menolak
-tanggal tidak valid atau masa depan. Respons berisi `date`, `todayDate`, dan
-`employees` dengan `userId`, `name`, `role`, `status` (`PRESENT`, `LEAVE`, `MISSING`),
-`leaveTypes`, `mode`, `clockIn`, `clockOut`, `latitude`, dan `longitude`. Lokasi Clock In
-WFA ditampilkan dengan tautan Google Maps; WFO menampilkan verifikasi radius kantor
-100 meter tanpa menyimpan koordinat karyawan. Tidak ada gaji atau
-alasan izin/cuti dalam respons. Tidak diperlukan migrasi tambahan.
-
-Karyawan mengacu pada akun yang **aktif saat ini** dan sudah dibuat pada tanggal
-pilihan; status keaktifan historis tidak direkonstruksi. Halaman ini tidak mengubah
-kewenangan persetujuan izin/cuti. Rebuild aplikasi untuk menerapkan halaman baru.
-
-Verifikasi build: `npm run check` dan `npm run build` dari `frontend`.
-
-### Dokumen Penagihan
-
-Halaman `/billing-documents` berdiri sendiri dan memakai master pekerjaan, sesi login,
-serta PostgreSQL yang sudah tersedia. Admin, Finance, Project Engineer, dan Management
-dapat membuat dan mengedit tahap/periode, milestone, requirement, status, dan catatan.
-Tidak ada integrasi spreadsheet atau relasi dengan checklist dokumen.
-
-Setiap dokumen aktif merupakan requirement wajib; dokumen baru dimulai `BELUM ADA`.
-Tabel rekap memakai sembilan kolom dokumen standar, ditambah kolom dokumen khusus.
-Dokumen bersama seluruh tahap memakai satu dropdown dalam sel gabungan; dokumen
-per bulan tetap disimpan terpisah. Sel abu-abu berarti tidak diwajibkan. Dropdown
-langsung menyimpan; kegagalan memulihkan status tersimpan dan konflik memuat ulang
-data terbaru agar pengguna memilih kembali. Tabel bergulir horizontal pada layar kecil.
-Milestone `SIAP` hanya jika mempunyai dokumen wajib sendiri atau bersama dan semuanya
-`OK`; tahap `SIAP` hanya jika mempunyai milestone dan semuanya `SIAP`. Kesiapan dihitung backend, tidak
-disimpan. Requirement yang dikeluarkan diarsipkan dan tidak dihitung. Tanda `/` pada
-nama dokumen tidak menandakan alternatif otomatis. Perubahan requirement dikonfirmasi
-sebelum disimpan; konflik versi mempertahankan draf untuk dibandingkan.
-
-API: `GET /billing-documents`, `POST /billing-documents/stages`,
-`PUT /billing-documents/stages/{id}/configuration`, dan
-`PATCH /billing-documents/stages/{id}`. Mutasi tahap existing menyertakan `version`.
-Respons mutasi berisi `stage` dan status hasil kalkulasi. Perubahan status/catatan
-memperbarui waktu server; tampilan waktu menggunakan WIB. Tidak ada ekspor/import.
-Respons tahap dan konfigurasi menerima `documents` untuk dokumen bersama, selain
-`milestones[].documents`. Pada konfigurasi existing, field `documents` yang tidak
-dikirim mempertahankan dokumen bersama; array kosong mengarsipkannya. Nama dokumen
-tidak boleh dipakai sekaligus pada kedua cakupan dalam satu tahap. Migrasi otomatis
-mempertahankan dokumen lama per milestone; tidak ada penggabungan data otomatis.
-
-Rollback aplikasi dapat menghapus menu/routing; pertahankan tabel `billing_*`
-agar data dapat dipulihkan. Deploy backend dan frontend bersamaan.
-
-### Tabel checklist dokumen
-
-Checklist hanya menampilkan pekerjaan ber-role Project Engineer (termasuk pekerjaan
-nonaktif), bukan QA atau CIHPK. Akses tetap untuk Project Engineer, Finance, Management,
-dan Admin. Setiap pekerjaan dapat memiliki beberapa tabel berjudul; gunakan panah
-sebelumnya/berikutnya untuk memilih tabel, lalu **Edit Tabel Checklist** untuk mengubah
-judul dan penandatangan. **Tambah Isi Dokumen** menambah baris; isi sel tetap disimpan
-otomatis. Kolom Aksi dan tombol hapus tidak ditampilkan.
-
-**Ekspor PDF pekerjaan** mengunduh semua tabel pekerjaan yang dipilih melalui
-`GET /document-checklists/{jobId}/pdf`, dengan izin akses checklist yang sama.
-PDF memakai struktur header website, termasuk kolom penandatangan Internal/External,
-header hijau muda, dan seluruh isi rata tengah. Tabel pendek berbagi halaman A4
-landscape; header diulang saat berlanjut, catatan panjang tetap lengkap, dan kolom
-penandatangan yang terlalu banyak dilanjutkan dalam bagian kolom tanpa mengecilkan font.
-Label TTD Basah kini **TTD Hardcopy**; grup panah dan tombol edit terkunci di tengah
-pada baris tersendiri, terpisah dari tombol tambah dan judul tabel.
-
-Kalender Zoom menampilkan tiga hari mulai hari ini (sembilan kolom untuk tiga resource),
-dengan navigasi maju/mundur tiga hari. Pembuat dan assignee aktif pekerjaan dapat
-mengatur assignee dari anggota divisi; izin server berlaku pada kedua endpoint edit.
-Detail riwayat laporan menggunakan `groups` dari `GET /reports/history/{id}`, yang
-dibentuk dari snapshot arsip oleh pengelompokan yang sama dengan laporan aktif dan PDF.
-Tombol Kembali tersedia pada layout bersama, dengan fallback dashboard saat halaman
-dibuka langsung; tombol nonaktif pada login atau dashboard tanpa riwayat navigasi.
-
-Migrasi otomatis mempertahankan tabel, dokumen, dan riwayat tanda tangan yang ada,
-memberi judul awal **Checklist Dokumen**, dan menghapus batas satu tabel per pekerjaan.
-Data checklist pekerjaan non-PE tetap tersimpan tetapi tidak tersedia pada fitur ini.
-Deploy backend dan frontend bersamaan: `GET /document-checklists/{jobId}` sekarang
-mengembalikan `{checklists: [...]}`; `POST` pada URL tersebut membuat tabel.
-`GET`/`PUT /document-checklists/{jobId}/tables/{tableId}` membaca/mengubah tabel.
-Operasi dokumen menggunakan `/document-checklists/{jobId}/tables/{tableId}/items`
-dan `.../items/{itemId}`. Konfigurasi wajib menyertakan `title`; mutasi mengembalikan
-`{checklist: ...}`. Route mutasi lama tanpa ID tabel tidak lagi digunakan.
-
-### Bahasa, menu, dan kalender Zoom
-
-Pemilih **Bahasa Indonesia / English** di samping notifikasi dashboard menyimpan
-pilihan pada akun. Akun lama maupun baru memakai `id` secara default. Browser
-mengingat bahasa terakhir untuk halaman masuk; preferensi akun mengambil alih
-setelah login dan tersinkron melalui event pengguna pada sesi lain yang terbuka.
-`PATCH /profile/language` menerima `{language: "id" | "en"}` dan mengembalikan
-`{user}` dengan properti `language`. Endpoint hanya mengubah akun yang sedang login.
-Migrasi kolom bahasa bersifat tambahan; rilis backend sebelum atau bersama frontend.
-
-Terjemahan mencakup antarmuka situs, tanggal, status, notifikasi sistem, serta pesan
-kesalahan. Nama, judul, catatan, isi laporan, email, dan file unduhan tetap seperti
-semula. Tambahkan kedua bahasa untuk label baru pada `frontend/src/lib/messages.ts`,
-lalu gunakan store terjemahan dari `i18n.ts` saat menampilkan label. Nilai formulir,
-role untuk otorisasi, dan enum API tidak diterjemahkan. Respons error mempertahankan
-field lama dan menambahkan `messageCode`; pesan yang belum dikenal memakai fallback
-terjemahan di klien.
-
-Dashboard dan sidebar memakai `navigation.ts` dengan aturan akses yang sama.
-Dashboard dan Keluar tetap merupakan navigasi/aksi, bukan kartu layanan.
-Kalender Zoom mengikuti tinggi seluruh isinya; scroll vertikal menggunakan halaman
-dan scroll horizontal tetap tersedia di kalender. Pada lebar hingga 1050 px,
-informasi Zoom berada di atas kalender, tertutup secara default, dan dapat dibuka
-dari tombol Informasi Zoom. Desktop tetap menampilkan informasi di samping kalender.
-
-Verifikasi build: `npm run check` dan `npm run build` dari `frontend`.
-
-### Revisi QA workspace
-
-Board memiliki kolom **Revision** setelah **Need Revision**. QA mengirim pekerjaan
-ke Need Revision; pengguna memindahkannya ke Revision saat mulai mengerjakan revisi.
-QA dapat menilai ulang dari kolom Revision. Tab **Riwayat Revisi / Revision History**
-menyimpan pekerjaan yang pernah direvisi, termasuk yang sudah Done. Kolom Revisi
-dan detail menampilkan `revisi-1`, `revisi-2`, dan seterusnya. Tombol Validasi QA
-dapat digunakan dari In Progress, Need Revision, dan Revision; setiap keputusan
-Need Revision yang berhasil
-menambah hitungan sekali. Perubahan status manual tidak menambah hitungan QA.
-
-Respons pekerjaan memiliki `revisionCount` (angka, atau `null` untuk revisi lama
-yang belum tercatat). Daftar `/workspaces/{id}/tasks?revisionOnly=true` memfilter
-riwayat sebelum pagination; parameter status, pencarian, dan arsip tetap berlaku.
-Migrasi menandai pekerjaan lama yang sedang Need Revision sebagai Belum tercatat;
-keputusan revisi berikutnya mulai dari satu. Rilis backend beserta migrasi sebelum
-frontend. Uji alur dan migrasi: `TestRevisionIntegration/workspace_revision_count_and_history`
-dan `TestRevisionIntegration/revision_migration_preserves_legacy_counts`, menggunakan
-`TEST_DATABASE_URL` ke database lokal terisolasi `my_ple_revision_test`.
-
-### Arsip pekerjaan workspace
-
-Tombol **Arsip Pekerjaan / Archived Jobs** menampilkan pekerjaan yang diarsipkan
-pada workspace saat ini, dengan pencarian, filter, dan paginasi. Detail, komentar,
-dan riwayat tetap dapat dibaca. Pembuat pekerjaan dan pengelola workspace dapat
-memulihkan pekerjaan dengan status, penugasan, dan validasi QA sebelumnya.
-
-API daftar `/workspaces/{id}/tasks` serta GET detail, komentar, dan aktivitas
-`/work-items/{id}` menerima `archived=true` untuk membaca arsip. Tanpa parameter
-ini, perilaku aktif tetap berlaku. `POST /work-items/{id}/restore` menerima
-`{ "version": number }`, mengembalikan `{ "task": ... }`, dan memancarkan
-`workspace.changed`. Tidak ada migrasi baru. Rilis backend sebelum frontend.
-
-### Automatic weekly rollover
-
-Weekly report periods run Monday through Sunday. Starting Tuesday at 00:00 WIB,
-the background worker snapshots overdue weeks, saves their PDFs, then resets only
-the archived rows. Monday entries already belong to the new period and are never
-included in the previous week's archive. Manual export is not required; PDFs are
-available from Weekly Report History. A PDF/storage failure retains working data
-for retry.
-After rollout, check `weekly reset completed` logs and the recovered History
-periods; retained overdue reports are processed automatically without a migration.
-
-## Catatan absensi dan kategori pekerjaan
-
-Clock In WFO/WFA menerima `notes` opsional (teks biasa, maksimal 4.000 karakter).
-Catatan tampil pada absensi hari ini, riwayat, dan rekap; Clock Out atau retry
-Clock In tidak mengubah catatan tersimpan. Migrasi backend menambahkan kolom
-catatan dengan nilai kosong untuk absensi lama; jalankan backend sebelum frontend baru.
-
-Pengaturan Pekerjaan menyediakan Tambah Kategori untuk pengguna yang sudah login.
-`POST /jobs/categories` menerima `{divisionId, roleId, name}` (`roleId` boleh null),
-dan mengembalikan `{category}`. Nama wajib, maksimal 100 karakter, dan unik dalam
-konteks divisi/role. CIHPK tetap khusus MK/Supervisi. Salary disembunyikan dari
-profil dan manajemen pengguna; field API dan data salary lama tetap dipertahankan.
-
-## Kritik & Saran
-
-Tombol pada dashboard mengirim `POST /feedback` (`{"message":"..."}`) untuk pengguna login. Pesan maksimal 4.000 karakter dikirim ke `aiple5766@gmail.com`; identitas dan `Reply-To` diambil dari sesi pengguna. Menggunakan konfigurasi SMTP existing dan `EMAIL_ENABLED=true` (atau fallback `ZOOM_EMAIL_ENABLED`). Tidak menyimpan riwayat pesan. Status sukses berarti SMTP menerima email; pengiriman yang tidak pasti tidak dicoba ulang otomatis.

@@ -437,10 +437,10 @@ func (db *Database) CreateReport(ctx context.Context, userID string, input model
 
 func (db *Database) ListReports(ctx context.Context, primaryDivision string, weekStart, nextWeekStart time.Time) ([]model.WeeklyReport, error) {
 	rows, err := db.Conn.QueryContext(ctx, `
-		SELECT id, user_id, primary_division, work_division, number, report_role, COALESCE((SELECT name FROM jobs WHERE id=reports.job_id),work), description, completed_at, reports.job_id, p.pics, reports.version
-		FROM reports LEFT JOIN job_pic_summary p ON p.job_id=reports.job_id WHERE primary_division = $1 AND completed_at >= $2 AND completed_at < $3
+		SELECT reports.id, user_id, primary_division, work_division, number, report_role, COALESCE(j.name,work), reports.description, completed_at, reports.job_id, p.pics, reports.version, COALESCE(j.sort_order,2147483647)
+		FROM reports LEFT JOIN jobs j ON j.id=reports.job_id LEFT JOIN job_pic_summary p ON p.job_id=reports.job_id WHERE primary_division = $1 AND completed_at >= $2 AND completed_at < $3
 		ORDER BY CASE work_division WHEN 'MK supervisi' THEN 1 WHEN 'Non-MK supervisi' THEN 2 WHEN 'QA 1' THEN 3 WHEN 'QA 2' THEN 4 ELSE 5 END,
-		work_division, report_role, MIN(number) OVER (PARTITION BY primary_division, work_division, report_role, work), number, completed_at, id`, primaryDivision, weekStart, nextWeekStart)
+		work_division, report_role, COALESCE(j.sort_order,2147483647), MIN(number) OVER (PARTITION BY primary_division, work_division, report_role, work), number, completed_at, id`, primaryDivision, weekStart, nextWeekStart)
 	if err != nil {
 		return nil, err
 	}
@@ -448,7 +448,7 @@ func (db *Database) ListReports(ctx context.Context, primaryDivision string, wee
 	reports := []model.WeeklyReport{}
 	for rows.Next() {
 		var item model.WeeklyReport
-		if err := rows.Scan(&item.ID, &item.UserID, &item.PrimaryDivision, &item.WorkDivision, &item.Number, &item.Role, &item.Work, &item.Description, &item.CompletedAt, &item.JobID, &item.PICs, &item.Version); err != nil {
+		if err := rows.Scan(&item.ID, &item.UserID, &item.PrimaryDivision, &item.WorkDivision, &item.Number, &item.Role, &item.Work, &item.Description, &item.CompletedAt, &item.JobID, &item.PICs, &item.Version, &item.SortOrder); err != nil {
 			return nil, err
 		}
 		model.NormalizeWeeklyReport(&item)
@@ -475,6 +475,9 @@ func SortReports(reports []model.WeeklyReport) {
 		}
 		if a.WorkDivision != b.WorkDivision {
 			return a.WorkDivision < b.WorkDivision
+		}
+		if a.SortOrder != b.SortOrder {
+			return a.SortOrder < b.SortOrder
 		}
 		if a.Work != b.Work {
 			return a.Work < b.Work
