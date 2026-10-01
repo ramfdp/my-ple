@@ -131,6 +131,7 @@ type WeeklyReportInput struct {
 type WeeklyReport struct {
 	Version         int       `json:"version"`
 	DisplayNumber   int       `json:"displayNumber"`
+	SortOrder       int       `json:"-"`
 	PICs            JobPICs   `json:"pics,omitempty"`
 	JobID           *int      `json:"jobId,omitempty"`
 	ID              string    `json:"id"`

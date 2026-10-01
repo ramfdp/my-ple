@@ -100,7 +100,7 @@
 		const requested = new URLSearchParams(location.search).get('division');
 		const index = divisions.indexOf(requested ?? '');
 		if (index >= 0) void selectDivision(index);
-		const stop=subscribeChanges(['reports.changed'],()=>{if(selectedDivision!==null)return selectDivision(selectedDivision,true)});
+		const stop=subscribeChanges(['reports.changed','jobs.changed'],()=>{if(selectedDivision!==null)return selectDivision(selectedDivision,true)});
 		return()=>{loadGeneration++;stop()};
 	});
 </script>
