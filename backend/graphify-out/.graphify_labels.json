@@ -1,0 +1,21 @@
+{
+  "0": "go_pkg_my_ple_backend_model",
+  "1": "net/http.ResponseWriter",
+  "2": "time.Time",
+  "3": "NewID",
+  "4": "smtp.go",
+  "5": "Hub",
+  "6": "db.go",
+  "7": "context.Context",
+  "8": "Database",
+  "9": "User",
+  "10": "Attendance",
+  "11": "document_checklist.go",
+  "12": ".CreateLeave",
+  "13": "Job",
+  "14": "lockBilling",
+  "15": "resolveReportJob",
+  "16": ".checkAndSendReminders",
+  "17": "mutationResponse",
+  "18": "my-ple-backend"
+}
