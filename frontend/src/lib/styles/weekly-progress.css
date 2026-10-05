@@ -159,7 +159,7 @@
 	.report-actions { justify-content: flex-start; }
 	.selected-division { text-align: left; }
 	.work-table-wrap { margin-top: 20px; }
-	.current-report-table { min-width: 0; font-size: .78rem; }
+	.current-report-table { min-width: 0; font-size: .78rem; width: 100%; }
 	.current-report-table th:nth-child(-n+2),
 	.current-report-table .task-role,
 	.current-report-table .task-category { display: none; }
