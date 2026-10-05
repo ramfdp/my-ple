@@ -51,5 +51,5 @@
 </div>
 
 <style>
-	.booking-description { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; white-space: pre-wrap; }
+	.booking-description { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; overflow-wrap: break-word; white-space: pre-wrap; }
 </style>

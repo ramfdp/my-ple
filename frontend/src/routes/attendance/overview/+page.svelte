@@ -103,7 +103,7 @@
  @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
- .attendance-notes { white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; }
+ .attendance-notes { white-space: pre-wrap; overflow-wrap: break-word; word-break: normal; }
  .attendance-notes span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
  .coords { font-family: 'Courier New', monospace; font-size: .8rem; color: var(--his-muted); display: block; margin-bottom: .25rem; }
  .overview-page { padding: var(--his-page-padding); max-width: 1400px; margin: auto; }

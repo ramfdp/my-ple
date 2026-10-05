@@ -6,7 +6,7 @@
 }
 
 .weekly-progress-shell {
-	overflow-wrap: anywhere;
+	overflow-wrap: break-word;
 	width: min(100%, 980px);
 	margin-inline: auto;
 }
@@ -92,7 +92,8 @@
 .report-button:disabled { opacity: .55; cursor: not-allowed; }
 .export-button { background: var(--his-primary); }
 .work-table-wrap { min-width: 0; max-width: 100%; overscroll-behavior-x: contain; margin-top: 28px; overflow-x: auto; border: 1px solid var(--his-border); border-radius: 14px; }
-.work-table { width: 100%; min-width: 640px; table-layout: fixed; border-collapse: collapse; background: #fff; text-align: left; overflow-wrap: anywhere; }
+.work-table { width: 100%; min-width: 640px; table-layout: auto; border-collapse: collapse; background: #fff; text-align: left; overflow-wrap: normal; }
+.work-table th, .work-table button { white-space: nowrap; }
 .work-table th { box-sizing: border-box; padding: 15px 14px; background: var(--his-primary); color: #fff; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-align: center; text-transform: uppercase; }
 .work-table td { box-sizing: border-box; padding: 14px; border-top: 1px solid var(--his-border); color: var(--his-text); line-height: 1.55; text-align: center; vertical-align: middle; }
 .work-table .task-role, .work-table .task-category { color: var(--his-primary); font-weight: 800; }
@@ -144,10 +145,16 @@
 .drawer-form-actions,
 .delete-modal-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .drawer-cancel { padding: 11px 16px; border: 1px solid var(--his-border); border-radius: 10px; background: #fff; color: var(--his-text); font: inherit; font-weight: 700; cursor: pointer; }
-.report-delete-modal { position: relative; width: min(100%, 420px); max-height: calc(100dvh - 32px); overflow: auto; overflow-wrap: anywhere; padding: 28px; border-radius: 18px; background: #fff; box-shadow: 0 20px 56px rgb(23 23 23 / 0.24); }
+.report-delete-modal { position: relative; width: min(100%, 420px); max-height: calc(100dvh - 32px); overflow: auto; overflow-wrap: break-word; padding: 28px; border-radius: 18px; background: #fff; box-shadow: 0 20px 56px rgb(23 23 23 / 0.24); }
 .report-delete-modal p { margin: 12px 0 24px; color: var(--his-muted); line-height: 1.6; }
 .delete-report-confirm { padding: 11px 16px; border: 0; border-radius: 10px; background: var(--his-danger); color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
 
+
+@media (max-width: 868px) {
+	.work-table { font-size: clamp(.875rem, 3vw, 1rem); }
+	.work-table th { font-size: .8em; letter-spacing: .04em; }
+	.work-table th, .work-table td { padding: 10px 8px; }
+}
 
 @media (max-width: 560px) {
 	.weekly-progress-page { padding: 28px 20px; }

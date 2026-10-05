@@ -189,5 +189,5 @@
 dialog.report-delete-modal:not([open]){display:none}
 dialog.report-delete-modal{position:fixed;border:0;max-height:calc(100dvh - 32px);overflow-y:auto}
 dialog.report-delete-modal::backdrop{background:#152a4699}
-.job-heading{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;overflow-wrap:anywhere}.job-heading span,.job-heading small{min-width:0;max-width:100%}.job-heading small{font-weight:400}
+.job-heading{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;overflow-wrap: break-word}.job-heading span,.job-heading small{min-width:0;max-width:100%}.job-heading small{font-weight:400}
 </style>

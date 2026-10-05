@@ -138,7 +138,7 @@
  @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
- .attendance-notes { white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; }
+ .attendance-notes { white-space: pre-wrap; overflow-wrap: break-word; word-break: normal; }
  .attendance-notes span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
  .notes-field { display: grid; margin-bottom: 1rem; gap: .5rem; }
  textarea { width: 100%; min-width: 0; box-sizing: border-box; padding: 1rem; border: 2px solid var(--his-border); border-radius: 12px; font: inherit; resize: vertical; transition: all 200ms ease; }
@@ -179,7 +179,7 @@
  label { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; font-weight: 500; }
  .table-scroll { overflow-x: auto; border-radius: 12px; border: 1px solid var(--his-border); }
  table { width: 100%; border-collapse: collapse; text-align: left; font-size: .875rem; }
- th, td { padding: 1rem; border-bottom: 1px solid var(--his-border); overflow-wrap: break-word; word-break: break-word; }
+ th, td { padding: 1rem; border-bottom: 1px solid var(--his-border); overflow-wrap: break-word; word-break: normal; }
  th { background: linear-gradient(135deg, var(--his-surface) 0%, rgba(79, 70, 229, 0.05) 100%); font-weight: 700; }
  a { color: var(--his-primary); text-underline-offset: 3px; font-weight: 500; transition: all 150ms ease; }
  a:hover { opacity: .8; }

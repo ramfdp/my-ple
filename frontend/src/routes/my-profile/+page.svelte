@@ -157,8 +157,8 @@
 	.avatar-wrap { z-index: 1; flex: 0 0 auto; margin-top: -54px; }
 	.identity-copy { min-width: 0; flex: 1; padding-top: 20px; }
 	.name-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-	.name-row h2 { min-width: 0; overflow-wrap: anywhere; font-family: 'Plus Jakarta Sans', sans-serif; font-size: clamp(1.35rem, 3vw, 1.75rem); letter-spacing: -.035em; }
-	.identity-copy p { margin: 6px 0 0; color: var(--his-muted); overflow-wrap: anywhere; }
+	.name-row h2 { min-width: 0; overflow-wrap: break-word; font-family: 'Plus Jakarta Sans', sans-serif; font-size: clamp(1.35rem, 3vw, 1.75rem); letter-spacing: -.035em; }
+	.identity-copy p { margin: 6px 0 0; color: var(--his-muted); overflow-wrap: break-word; }
 	.join-date { display: grid; gap: 3px; flex: 0 0 auto; text-align: right; }
 	.join-date span { color: var(--his-muted); font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; }
 	.join-date strong { font-size: .9rem; }

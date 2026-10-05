@@ -112,6 +112,6 @@
 		font-weight: 600;
 		color: var(--his-text);
 		letter-spacing: -0.015em;
-		word-break: break-word;
+		word-break: normal;
 	}
 </style>
