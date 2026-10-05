@@ -20,7 +20,8 @@ func ReportingWeek(now time.Time) (time.Time, time.Time) {
 }
 
 func ReportingPeriodWeek(now time.Time) (time.Time, time.Time) {
-	return ReportingWeek(now)
+	start := WeeklyFinalizationBoundary(now)
+	return start, start.AddDate(0, 0, 7)
 }
 
 // WeeklyFinalizationBoundary returns the exclusive end of the latest period

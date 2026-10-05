@@ -28,7 +28,7 @@ func (db *Database) writableReport(ctx context.Context, tx *sql.Tx, id string) (
 	}
 	var completed time.Time
 	var archived bool
-	err := tx.QueryRowContext(ctx, `SELECT completed_at, EXISTS(SELECT 1 FROM weekly_report_archives a WHERE a.primary_division=r.primary_division AND r.completed_at>=a.week_start AND r.completed_at<a.week_end) FROM reports r WHERE id=$1 FOR UPDATE`, id).Scan(&completed, &archived)
+	err := tx.QueryRowContext(ctx, `SELECT report_week::timestamp AT TIME ZONE 'Asia/Jakarta', EXISTS(SELECT 1 FROM weekly_report_archives a WHERE a.primary_division=r.primary_division AND r.report_week=(a.week_start AT TIME ZONE 'Asia/Jakarta')::date) FROM reports r WHERE id=$1 FOR UPDATE`, id).Scan(&completed, &archived)
 	if err != nil {
 		return now, err
 	}
@@ -102,7 +102,7 @@ type DueWeek struct {
 
 func (db *Database) DueWeeks(ctx context.Context, now time.Time) ([]DueWeek, error) {
 	boundary := model.WeeklyFinalizationBoundary(now)
-	rows, err := db.Conn.QueryContext(ctx, `SELECT primary_division, date_trunc('week',completed_at AT TIME ZONE 'Asia/Jakarta') AT TIME ZONE 'Asia/Jakarta' AS week_start FROM reports WHERE completed_at<$1 GROUP BY 1,2 UNION SELECT primary_division,week_start FROM weekly_report_archives WHERE reset_at IS NULL OR status<>'finalized' ORDER BY 2,1`, boundary)
+	rows, err := db.Conn.QueryContext(ctx, `SELECT primary_division, report_week::timestamp AT TIME ZONE 'Asia/Jakarta' AS week_start FROM reports WHERE report_week<($1::timestamptz AT TIME ZONE 'Asia/Jakarta')::date GROUP BY 1,2 UNION SELECT primary_division,week_start FROM weekly_report_archives WHERE reset_at IS NULL OR status<>'finalized' ORDER BY 2,1`, boundary)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +135,7 @@ func (db *Database) SnapshotWeek(ctx context.Context, w DueWeek) (model.WeeklyAr
 	if !errors.Is(err, sql.ErrNoRows) {
 		return existing, err
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT r.id,r.user_id,r.primary_division,r.work_division,r.number,r.report_role,COALESCE((SELECT name FROM jobs WHERE id=r.job_id),r.work),r.description,r.completed_at,r.job_id,u.name,u.role_id,roles.name,p.pics FROM reports r LEFT JOIN job_pic_summary p ON p.job_id=r.job_id JOIN users u ON u.id=r.user_id JOIN roles ON roles.id=u.role_id WHERE r.primary_division=$1 AND r.completed_at>=$2 AND r.completed_at<$3 ORDER BY r.report_role,r.work_division,r.work,r.number,r.completed_at,r.id`, w.Division, start, next)
+	rows, err := tx.QueryContext(ctx, `SELECT r.id,r.user_id,r.primary_division,r.work_division,r.number,r.report_role,COALESCE((SELECT name FROM jobs WHERE id=r.job_id),r.work),r.description,r.completed_at,r.job_id,u.name,u.role_id,roles.name,p.pics FROM reports r LEFT JOIN job_pic_summary p ON p.job_id=r.job_id JOIN users u ON u.id=r.user_id JOIN roles ON roles.id=u.role_id WHERE r.primary_division=$1 AND r.report_week=($2::timestamptz AT TIME ZONE 'Asia/Jakarta')::date ORDER BY r.report_role,r.work_division,r.work,r.number,r.completed_at,r.id`, w.Division, start)
 	if err != nil {
 		return existing, err
 	}
@@ -186,7 +186,7 @@ func (db *Database) ResetArchivedWeek(ctx context.Context, a model.WeeklyArchive
 		return 0, err
 	}
 	// Delete exactly the snapshotted IDs, never an unrelated/new report.
-	result, err := tx.ExecContext(ctx, `DELETE FROM reports r USING weekly_report_archives a WHERE a.id=$1 AND a.status='finalized' AND a.pdf_sha256=$2 AND r.primary_division=a.primary_division AND r.completed_at>=a.week_start AND r.completed_at<a.week_end AND EXISTS(SELECT 1 FROM jsonb_array_elements(a.snapshot) item WHERE item->>'id'=r.id::text)`, a.ID, a.SHA256)
+	result, err := tx.ExecContext(ctx, `DELETE FROM reports r USING weekly_report_archives a WHERE a.id=$1 AND a.status='finalized' AND a.pdf_sha256=$2 AND r.primary_division=a.primary_division AND r.report_week=(a.week_start AT TIME ZONE 'Asia/Jakarta')::date AND EXISTS(SELECT 1 FROM jsonb_array_elements(a.snapshot) item WHERE item->>'id'=r.id::text)`, a.ID, a.SHA256)
 	if err != nil {
 		return 0, err
 	}

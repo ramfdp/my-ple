@@ -37,32 +37,16 @@ ALTER TABLE report_sequences ADD COLUMN IF NOT EXISTS week_start DATE NOT NULL
   DEFAULT date_trunc('week', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta')::date;
 ALTER TABLE reports ADD COLUMN IF NOT EXISTS report_week DATE GENERATED ALWAYS AS
   (date_trunc('week', completed_at AT TIME ZONE 'Asia/Jakarta')::date) STORED;
-DO $$ DECLARE expression TEXT; BEGIN
- SELECT pg_get_expr(d.adbin,d.adrelid) INTO expression
- FROM pg_attribute a JOIN pg_attrdef d ON d.adrelid=a.attrelid AND d.adnum=a.attnum
- WHERE a.attrelid='reports'::regclass AND a.attname='report_week';
- IF expression LIKE '%interval ''1 day''%' THEN
-  DROP INDEX IF EXISTS reports_job_week_number_key;
-  DROP INDEX IF EXISTS reports_legacy_week_number_key;
-  ALTER TABLE reports DROP CONSTRAINT IF EXISTS reports_week_number_key;
-  ALTER TABLE reports DROP COLUMN report_week;
-  ALTER TABLE reports ADD COLUMN report_week DATE GENERATED ALWAYS AS
-   (date_trunc('week',completed_at AT TIME ZONE 'Asia/Jakarta')::date) STORED;
-  WITH duplicates AS (
-   SELECT ctid,row_number() OVER(PARTITION BY job_id,report_week,number ORDER BY completed_at,id) AS n,
-    max(number) OVER(PARTITION BY job_id,report_week) AS highest
-   FROM reports WHERE job_id IS NOT NULL
-  ) UPDATE reports r SET number=d.highest+d.n FROM duplicates d WHERE r.ctid=d.ctid AND d.n>1;
-  WITH duplicates AS (
-   SELECT ctid,row_number() OVER(PARTITION BY primary_division,work_division,report_week,number ORDER BY completed_at,id) AS n,
-    max(number) OVER(PARTITION BY primary_division,work_division,report_week) AS highest
-   FROM reports WHERE job_id IS NULL
-  ) UPDATE reports r SET number=d.highest+d.n FROM duplicates d WHERE r.ctid=d.ctid AND d.n>1;
-  DELETE FROM report_sequences;
-  INSERT INTO report_sequences(primary_division,work_division,week_start,last_number)
-  SELECT primary_division,work_division,report_week,MAX(number) FROM reports WHERE job_id IS NULL GROUP BY 1,2,3;
- END IF;
+-- Preserve existing period assignments; Monday additions belong to the closing week.
+ALTER TABLE reports ALTER COLUMN report_week DROP EXPRESSION IF EXISTS;
+ALTER TABLE reports ALTER COLUMN report_week SET NOT NULL;
+CREATE OR REPLACE FUNCTION assign_report_week() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ NEW.report_week := date_trunc('week', (NEW.completed_at AT TIME ZONE 'Asia/Jakarta') - interval '1 day')::date;
+ RETURN NEW;
 END $$;
+CREATE OR REPLACE TRIGGER reports_assign_week BEFORE INSERT ON reports
+FOR EACH ROW EXECUTE FUNCTION assign_report_week();
 DO $$ BEGIN
  IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conrelid='report_sequences'::regclass AND conname='report_sequences_job_scope') THEN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='report_sequences'::regclass AND conname='report_sequences_week_pk') THEN
