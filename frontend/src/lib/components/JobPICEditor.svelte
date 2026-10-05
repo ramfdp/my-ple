@@ -494,7 +494,7 @@
   font-weight: 600;
   color: var(--his-muted, #595959);
   line-height: 1.4;
-  word-break: break-word;
+  word-break: normal;
  }
  .dialog-close-btn {
   min-width: unset !important;

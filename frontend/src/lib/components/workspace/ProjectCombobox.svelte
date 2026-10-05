@@ -44,8 +44,8 @@
  .project-picker{min-width:0;display:grid;gap:5px}
  input{width:100%;min-width:0}
  ul{list-style:none;margin:0;padding:4px;border:1px solid #cbd5e1;border-radius:6px;max-height:min(200px,30dvh);overflow-y:auto;overscroll-behavior:contain;background:white}
- li{margin:0;overflow-wrap:anywhere}
+ li{margin:0;overflow-wrap: break-word}
  li[role=presentation]{padding:12px;color:#64748b}
- li button{width:100%;min-height:44px;border:0!important;text-align:left;white-space:normal;overflow-wrap:anywhere}
+ li button{width:100%;min-height:44px;border:0!important;text-align:left;white-space:normal;overflow-wrap: break-word}
  li.active button,li[aria-selected=true] button{background:#e1eff7}
 </style>

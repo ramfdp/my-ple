@@ -75,6 +75,6 @@
 	.page-back { padding: var(--his-page-padding) var(--his-page-padding) 0; }
 	@media print { .page-back { display: none; } }
 	.feature-shell { display: flex; min-height: 100dvh; }
-	.feature-content { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+	.feature-content { min-width: 0; flex: 1; overflow-wrap: break-word; }
 	@media (max-width: 868px) { .feature-shell { flex-direction: column; } }
 </style>

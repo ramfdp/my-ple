@@ -1,7 +1,7 @@
 /* ─── Page shell ─────────────────────────────────────────────────────────── */
 .workspace-page {
 	min-width: 0;
-	overflow-wrap: anywhere;
+	overflow-wrap: break-word;
 	padding: var(--his-page-padding);
 	max-width: 1600px;
 	margin: auto;
@@ -282,7 +282,7 @@
 	padding: 12px;
 	border-bottom: 1px solid #e2e8f0;
 	max-width: 270px;
-	overflow-wrap: anywhere;
+	overflow-wrap: break-word;
 }
 
 .ws-table tbody tr {
@@ -402,7 +402,7 @@
 }
 
 .ws-assignees input  { flex: 0 0 auto; width: 18px; height: 18px; }
-.ws-assignees label  { min-height: 44px; max-width: 100%; overflow-wrap: anywhere; flex-direction: row; align-items: center; }
+.ws-assignees label  { min-height: 44px; max-width: 100%; overflow-wrap: break-word; flex-direction: row; align-items: center; }
 
 /* ─── Board ──────────────────────────────────────────────────────────────── */
 .ws-board {
@@ -432,7 +432,7 @@
 	border-radius: 10px;
 	padding: 14px;
 	margin-top: 10px;
-	overflow-wrap: anywhere;
+	overflow-wrap: break-word;
 	box-shadow: 0 2px 6px rgb(0 0 0 / .04);
 	transition: transform 180ms ease, box-shadow 180ms ease;
 	cursor: pointer;
@@ -459,7 +459,7 @@
 }
 
 .ws-timeline-label {
-	overflow-wrap: anywhere;
+	overflow-wrap: break-word;
 	padding: 12px;
 	background: #f8fafc;
 	position: sticky;
@@ -525,7 +525,7 @@
 	padding: 5px;
 	background: #e1eff7;
 	margin-top: 5px;
-	overflow-wrap: anywhere;
+	overflow-wrap: break-word;
 	border-radius: 4px;
 	transition: filter 130ms ease;
 }
@@ -536,13 +536,13 @@
 
 /* ─── Activity feed ──────────────────────────────────────────────────────── */
 .ws-activity { padding-left: 18px; }
-.ws-activity li { margin: 10px 0; overflow-wrap: anywhere; line-height: 1.5; }
+.ws-activity li { margin: 10px 0; overflow-wrap: break-word; line-height: 1.5; }
 .ws-activity span { font-size: 13px; color: #64748b; }
 small.ws-activity-time { font-size: 12px; color: #94a3b8; }
 
 /* ─── Comment ────────────────────────────────────────────────────────────── */
 .ws-comment { border-bottom: 1px solid #e2e8f0; padding: 12px 0; }
-.ws-comment p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.ws-comment p { white-space: pre-wrap; overflow-wrap: break-word; }
 
 .ws-comment-form { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; min-width: 0; }
 .ws-comment-form textarea { width: 100%; max-width: 100%; box-sizing: border-box; min-height: 96px; resize: vertical; }
@@ -553,12 +553,12 @@ small.ws-activity-time { font-size: 12px; color: #94a3b8; }
 
 /* ─── Notes ──────────────────────────────────────────────────────────────── */
 .ws-notes { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 20px; }
-.ws-note-tree { padding-left: 16px; overflow-wrap: anywhere; }
+.ws-note-tree { padding-left: 16px; overflow-wrap: break-word; }
 .ws-note-tree li { margin: 12px 0; }
 .ws-note-form { min-width: 0; border: 0; padding: 0; display: grid; gap: 14px; }
 .ws-note-line { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; }
 .ws-note-text { flex: 1 1 180px; min-width: 0; }
-.ws-document { line-height: 1.75; overflow-wrap: anywhere; }
+.ws-document { line-height: 1.75; overflow-wrap: break-word; }
 .ws-document p { white-space: pre-wrap; }
 
 /* ─── Mentions ───────────────────────────────────────────────────────────── */

@@ -52,7 +52,7 @@
 
 <style>
  .info-toggle{display:flex;align-items:center;justify-content:space-between;gap:1rem;width:100%;min-height:44px;padding:0;border:0;background:transparent;color:inherit;font:inherit;cursor:pointer}.info-toggle:focus-visible{outline:3px solid var(--his-primary);outline-offset:3px}
-	dd { min-width: 0; overflow-wrap: anywhere; }
+	dd { min-width: 0; overflow-wrap: break-word; }
 	.copy-actions { display: flex !important; flex-wrap: wrap; align-items: center; gap: 8px !important; margin-top: 6px; }
 	.copy-actions button { min-height: 44px; padding: 6px 12px; border: 1px solid var(--his-border); border-radius: 6px; background: var(--his-primary-soft); color: var(--his-primary); font: inherit; }
 	.copy-actions span { font-size: .75rem; }

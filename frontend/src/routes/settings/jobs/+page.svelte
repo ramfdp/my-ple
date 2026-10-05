@@ -117,16 +117,16 @@
  
  .cell-job{text-align:left!important;vertical-align:top!important;padding:16px 18px!important;overflow-wrap:break-word}
  .job-meta{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
- .job-title-text{font-size:.95rem;font-weight:700;color:var(--his-text);line-height:1.4}
- .job-description-text{margin:0;font-size:.8rem;color:var(--his-muted);line-height:1.4}
+ .job-title-text{font-size:.95em;font-weight:700;color:var(--his-text);line-height:1.4}
+ .job-description-text{margin:0;font-size:.8em;color:var(--his-muted);line-height:1.4}
  
- .cell-division,.cell-role,.cell-category{vertical-align:middle!important;font-size:.88rem}
+ .cell-division,.cell-role,.cell-category{vertical-align:middle!important;font-size:.88em;white-space:nowrap}
  .cell-status,.cell-actions{vertical-align:middle!important}
  .cell-actions .actions button{min-width:unset!important;min-height:unset!important;padding:6px 14px!important;font-size:.78rem}
  
  .status-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:unset!important;min-height:unset!important;padding:5px 12px!important;border-radius:999px;border:1px solid var(--his-border);background:#f3f4f6;color:var(--his-muted);font-size:.78rem;font-weight:700;cursor:pointer;transition:all 160ms ease}
  .status-btn.active{border-color:#bbf7d0;background:var(--his-primary-soft);color:var(--his-primary)}
- .status-indicator{width:7px;height:7px;border-radius:50%;background:#9ca3af}
+ .status-indicator{flex-shrink:0;width:7px;height:7px;border-radius:50%;background:#9ca3af}
  .status-btn.active .status-indicator{background:var(--his-primary)}
  
  dialog.report-delete-modal{position:fixed;inset:0;margin:auto;transform:none;border:0;max-width:min(480px,calc(100vw - 32px));max-height:90dvh;overflow:auto}

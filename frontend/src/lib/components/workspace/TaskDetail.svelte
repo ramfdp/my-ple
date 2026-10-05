@@ -55,7 +55,7 @@
  <div><dt>{$translate('Start Date')}</dt><dd>{task.startDate||$translate('Tanpa tanggal')}</dd></div>
  <div><dt>{$translate('Due Date')}</dt><dd>{task.dueDate||$translate('Tanpa deadline')}</dd></div>
  <div class="ws-full"><dt>{$translate('Assignees')}</dt><dd>{task.assignees.map(a=>a.name).join(', ')||$translate('Belum ditugaskan')}</dd></div>
- <div class="ws-full"><dt>{$translate('Deskripsi')}</dt><dd style="white-space:pre-wrap;overflow-wrap:anywhere">{task.description}</dd></div>
+ <div class="ws-full"><dt>{$translate('Deskripsi')}</dt><dd style="white-space:pre-wrap;overflow-wrap: break-word">{task.description}</dd></div>
  </dl>
  {:else}<form onsubmit={save}>
  <fieldset disabled={!editable||saving} class="ws-form">
@@ -100,7 +100,7 @@
 </dialog>
 <style>
  .related-link { margin: 1.5rem 0; }
- .related-link > a { display: block; overflow-wrap: anywhere; margin-bottom: .75rem; }
+ .related-link > a { display: block; overflow-wrap: break-word; margin-bottom: .75rem; }
  .related-link > button { margin: 0 .5rem .5rem 0; }
  .related-link form { display: grid; gap: .75rem; margin-top: .75rem; }
  .related-link form label { display: grid; gap: .5rem; }

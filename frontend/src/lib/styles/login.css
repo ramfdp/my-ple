@@ -28,7 +28,7 @@
 }
 
 .login-content {
-	min-width: 0; overflow-wrap: anywhere;
+	min-width: 0; overflow-wrap: break-word;
 	width: min(100%, 390px);
 }
 

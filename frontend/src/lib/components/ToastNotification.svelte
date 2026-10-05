@@ -117,7 +117,7 @@
 
 	.toast-message {
 		min-width: 0;
-		overflow-wrap: anywhere;
+		overflow-wrap: break-word;
 		font-size: 0.875rem;
 		font-weight: 600;
 		color: var(--his-text);

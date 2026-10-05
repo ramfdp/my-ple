@@ -20,7 +20,7 @@
 	padding-bottom: clamp(48px, 8vw, 88px);
 }
 
-.dashboard-header > div:first-child { flex: 1 1 320px; min-width: 0; overflow-wrap: anywhere; }
+.dashboard-header > div:first-child { flex: 1 1 320px; min-width: 0; overflow-wrap: break-word; }
 
 .dashboard-kicker {
 	margin: 0 0 10px;
@@ -106,7 +106,7 @@
 .notification-panel li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--his-border); }
 .notification-panel li:hover { background: #fafafa; }
 .notification-panel li.unread { background: var(--his-primary-soft); }
-.notification-content { display: grid; min-width: 0; overflow-wrap: anywhere; flex: 1 0 100%; gap: 5px; color: var(--his-text); text-align: left; }
+.notification-content { display: grid; min-width: 0; overflow-wrap: break-word; flex: 1 0 100%; gap: 5px; color: var(--his-text); text-align: left; }
 .notification-content strong { line-height: 1.4; }
 .notification-content span, .notification-content small { color: var(--his-muted); font-size: .78rem; }
 .notification-panel a { color: var(--his-primary); font-size: .78rem; font-weight: 600; text-decoration: none; }
