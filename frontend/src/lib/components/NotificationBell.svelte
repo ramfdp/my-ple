@@ -19,7 +19,7 @@
 	};
 </script>
 
-<svelte:window onresize={() => panel?.hidePopover()} />
+<svelte:window onresize={() => panel?.hidePopover()} onscroll={() => panel?.hidePopover()} />
 
 <div class="notification-wrap">
 	<button class="notification-button" type="button" aria-label={$translate("Notifikasi")} aria-expanded={open} onclick={toggle}>
