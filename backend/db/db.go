@@ -391,8 +391,7 @@ func (db *Database) FindRoleByID(ctx context.Context, id int) (model.Role, error
 }
 
 // Both create and reassignment allocate in PostgreSQL, in the caller's transaction.
-func allocateReportNumber(ctx context.Context, tx *sql.Tx, division, category string, jobID *int, completed time.Time) (int, error) {
-	start, _ := model.ReportingPeriodWeek(completed)
+func allocateReportNumber(ctx context.Context, tx *sql.Tx, division, category string, jobID *int, start time.Time) (int, error) {
 	var number int
 	err := tx.QueryRowContext(ctx, `INSERT INTO report_sequences(primary_division,work_division,week_start,job_id,last_number)
  VALUES($1,$2,$3,$4,1) ON CONFLICT ON CONSTRAINT report_sequences_job_scope
@@ -414,7 +413,8 @@ func (db *Database) CreateReport(ctx context.Context, userID string, input model
 	if err := resolveReportJob(ctx, tx, &input, nil); err != nil {
 		return result, err
 	}
-	number, err := allocateReportNumber(ctx, tx, input.PrimaryDivision, input.WorkDivision, input.JobID, now)
+	start, _ := model.ReportingPeriodWeek(now)
+	number, err := allocateReportNumber(ctx, tx, input.PrimaryDivision, input.WorkDivision, input.JobID, start)
 	if err != nil {
 		return result, err
 	}
@@ -438,7 +438,7 @@ func (db *Database) CreateReport(ctx context.Context, userID string, input model
 func (db *Database) ListReports(ctx context.Context, primaryDivision string, weekStart, nextWeekStart time.Time) ([]model.WeeklyReport, error) {
 	rows, err := db.Conn.QueryContext(ctx, `
 		SELECT reports.id, user_id, primary_division, work_division, number, report_role, COALESCE(j.name,work), reports.description, completed_at, reports.job_id, p.pics, reports.version, COALESCE(j.sort_order,2147483647)
-		FROM reports LEFT JOIN jobs j ON j.id=reports.job_id LEFT JOIN job_pic_summary p ON p.job_id=reports.job_id WHERE primary_division = $1 AND completed_at >= $2 AND completed_at < $3
+		FROM reports LEFT JOIN jobs j ON j.id=reports.job_id LEFT JOIN job_pic_summary p ON p.job_id=reports.job_id WHERE primary_division = $1 AND reports.report_week >= ($2::timestamptz AT TIME ZONE 'Asia/Jakarta')::date AND reports.report_week < ($3::timestamptz AT TIME ZONE 'Asia/Jakarta')::date
 		ORDER BY CASE work_division WHEN 'MK supervisi' THEN 1 WHEN 'Non-MK supervisi' THEN 2 WHEN 'QA 1' THEN 3 WHEN 'QA 2' THEN 4 ELSE 5 END,
 		work_division, report_role, COALESCE(j.sort_order,2147483647), MIN(number) OVER (PARTITION BY primary_division, work_division, report_role, work), number, completed_at, id`, primaryDivision, weekStart, nextWeekStart)
 	if err != nil {
@@ -510,7 +510,8 @@ func (db *Database) UpdateReport(ctx context.Context, id string, input model.Wee
 		return result, err
 	}
 	var old model.WeeklyReport
-	if err := tx.QueryRowContext(ctx, `SELECT id,user_id,primary_division,work_division,report_role,work,job_id,number,completed_at,description,version FROM reports WHERE id=$1 FOR UPDATE`, id).Scan(&old.ID, &old.UserID, &old.PrimaryDivision, &old.WorkDivision, &old.Role, &old.Work, &old.JobID, &old.Number, &old.CompletedAt, &old.Description, &old.Version); err != nil {
+	var reportWeek time.Time
+	if err := tx.QueryRowContext(ctx, `SELECT id,user_id,primary_division,work_division,report_role,work,job_id,number,completed_at,description,version,report_week FROM reports WHERE id=$1 FOR UPDATE`, id).Scan(&old.ID, &old.UserID, &old.PrimaryDivision, &old.WorkDivision, &old.Role, &old.Work, &old.JobID, &old.Number, &old.CompletedAt, &old.Description, &old.Version, &reportWeek); err != nil {
 		return result, err
 	}
 	if input.Version != old.Version {
@@ -538,7 +539,7 @@ func (db *Database) UpdateReport(ctx context.Context, id string, input model.Wee
 	}
 	number := old.Number
 	if resolved.JobID != nil && (old.JobID == nil || *resolved.JobID != *old.JobID) {
-		number, err = allocateReportNumber(ctx, tx, resolved.PrimaryDivision, resolved.WorkDivision, resolved.JobID, old.CompletedAt)
+		number, err = allocateReportNumber(ctx, tx, resolved.PrimaryDivision, resolved.WorkDivision, resolved.JobID, reportWeek)
 		if err != nil {
 			return result, err
 		}
