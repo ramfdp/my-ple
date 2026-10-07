@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import {subscribeChanges} from '$lib/realtime';
 	import { api, session, type ZoomBooking, type ZoomBookingInput, type ZoomResource, type ZoomResourceInput } from '$lib/api';
+	import { goBack } from '$lib/navigation';
 	import ToastNotification from '$lib/components/ToastNotification.svelte';
 	import WeeklyZoomCalendar from '$lib/components/WeeklyZoomCalendar.svelte';
 	import ZoomBookingForm from '$lib/components/ZoomBookingForm.svelte';
@@ -91,7 +92,7 @@
 
 <svelte:head><title>{$translate("Booking Zoom | MyHIS")}</title><meta name="description" content={$translate("Jadwalkan dan kelola meeting Zoom.")} /></svelte:head>
 <main class="booking-page"><div class="booking-shell">
-	<a class="booking-back" href="/dashboard">{$translate("← Kembali ke dashboard")}</a>
+	<a class="booking-back" href="/dashboard" onclick={goBack}>← {$translate("Kembali")}</a>
 	<header class="booking-header"><div><p class="zoom-kicker">{$translate("BOOKING ZOOM")}</p><h1>{$translate("Booking Zoom")}</h1><p>{$translate("Jadwalkan dan kelola meeting Zoom Anda.")}</p></div><button class="zoom-primary" type="button" onclick={() => { editing = null; formOpen = true; }}>{$translate("+ Buat Booking")}</button></header>
 	<div class="booking-workspace"><section class="schedule-card" aria-labelledby="week-title">
 		<div class="schedule-toolbar"><button type="button" class="week-button" onclick={() => void moveWeek(-3)} aria-label={$translate("3 hari sebelumnya")}>←</button><div><p>{$translate("JADWAL 3 HARI")}</p><h2 id="week-title">{weekLabel}</h2></div><div class="week-actions"><button type="button" class="today-button" onclick={() => { weekStart = new Date(new Date().setHours(0, 0, 0, 0)); void loadBookings(); }}>{$translate("Hari ini")}</button><button type="button" class="week-button" onclick={() => void moveWeek(3)} aria-label={$translate("3 hari berikutnya")}>→</button></div></div>

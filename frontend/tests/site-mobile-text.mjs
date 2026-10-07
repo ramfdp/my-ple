@@ -32,7 +32,7 @@ Object.assign(fixtures, {
  '/attendance': { records: [attendance], today: attendance, open: null, todayDate: day, officeConfigured: true },
  '/attendance/overview': { date: day, todayDate: day, employees: [{ ...attendance, userId: user.id, name: long, role: user.role, status: 'PRESENT', leaveTypes: '' }] },
  '/leave-requests': { requests: [leave] }, '/leave-requests/approvals': { requests: [leave] },
- '/document-checklists/1': { checklists: [{ id: 1, jobId: 1, title: 'Kelengkapan Dokumen Pekerjaan', version: 1, requireDigitalSignature: true, signers: [], items: [{ id: 1, documentName: 'Lembar Pengesahan', documentPosition: 'Project Engineer', notes: long, signatures: {}, digitalSigned: false, sentDate: day }] }] },
+ '/document-checklists/1': { checklists: [{ id: 1, jobId: 1, title: 'Kelengkapan Dokumen Pekerjaan', version: 1, requireDigitalSignature: true, signers: [{ id: 1, type: 'external', name: long.repeat(5), position: long.repeat(5), archived: false, displayOrder: 0 }], items: [{ id: 1, documentName: long.repeat(5), documentPosition: 'X'.repeat(255), notes: (long + '\n').repeat(20), signatures: {}, digitalSigned: false, sentDate: day }] }] },
  '/billing-documents': { jobs: [job], stages: [{ id: 1, jobId: 1, name: 'Tahap Pertama', periodLabel: 'Oktober', notes: long, updatedAt: now, version: 1, readiness: 'BELUM SIAP', documents: [], milestones: [{ id: 1, name: 'Pemeriksaan Dokumen', notes: long, readiness: 'BELUM SIAP', documents: [{ id: 1, name: 'Lembar Pengesahan', status: 'BELUM ADA', updatedAt: now }] }] }] }
 });
 const page = await browser.newPage({ viewport: { width: 320, height: 850 }, hasTouch: true, reducedMotion: 'reduce' });
@@ -52,6 +52,11 @@ async function check(label, prepare) {
   await page.setViewportSize({ width, height: 850 });
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   await page.waitForTimeout(80);
+  if (label === 'Checklist table') {
+   const fields = page.locator('.checklist table textarea');
+   assert.equal(await fields.count(), 5, 'All checklist text cells remain editable');
+   assert(await fields.evaluateAll(elements => elements.every(field => field.scrollHeight <= field.clientHeight + 1 && field.scrollWidth <= field.clientWidth + 1)), width + 'px: full checklist values visible without internal scrolling');
+  }
   if (prepare) await prepare();
   const broken = await page.evaluate(() => {
    const found = [];

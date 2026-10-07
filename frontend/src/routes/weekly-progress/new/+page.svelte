@@ -5,6 +5,7 @@
 	import JobPicker from '$lib/components/JobPicker.svelte';
 	import ToastNotification from '$lib/components/ToastNotification.svelte';
 	import { api, type Job, type Report, type ReportInput, type ReportingPeriod } from '$lib/api';
+	import { goBack } from '$lib/navigation';
 	import { capitalizeReportDescription } from '$lib/utils/report-table';
 
 	let division=$state('Project Engineer'), selected=$state<Job|null>(null), jobsBusy=$state(true), description=$state(''), error=$state(''), submitting=$state(false);
@@ -38,7 +39,7 @@
 <svelte:head><title>{$translate("Input Laporan | MyHIS")}</title><meta name="description" content={$translate("Input laporan pekerjaan mingguan.")} /></svelte:head>
 <svelte:window onfocus={() => { if (mounted) void checkPeriod(division); }} />
 <main class="weekly-progress-page"><div class="weekly-progress-shell report-shell">
-	<a class="back-link" href="/dashboard">{$translate("← Kembali ke dashboard")}</a>
+	<a class="back-link" href="/dashboard" onclick={goBack}>← {$translate("Kembali")}</a>
 	<header class="weekly-header"><p class="weekly-kicker">{$translate("WEEKLY PROGRESS")}</p><h1>{$translate("Input laporan pekerjaan.")}</h1><p>{$translate("Isi pekerjaan yang sudah dilakukan agar tampil pada daftar progres.")}</p></header>
 	<form class="report-form" onsubmit={saveReport}>
 		{#if checking}<p role="status">{$translate("Memeriksa periode laporan…")}</p>{:else if readOnly}<p role="status">{$translate("Periode ditutup. Input baru dibuka Selasa 00:00 WIB setelah arsip periode sebelumnya aman.")} <a href="/weekly-progress/history">{$translate("Lihat riwayat")}</a></p>{/if}

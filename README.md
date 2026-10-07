@@ -221,22 +221,15 @@ docker compose \
 
 ### Build frontend saja
 
-```sh
-docker compose \
-  --env-file .env.testing \
-  -f compose.yaml \
-  -f compose.testing.yaml \
-  build frontend
-```
-
-Kemudian:
+Untuk memperbarui frontend pada stack testing yang sudah berjalan, build ulang
+dan ganti container frontend dalam satu perintah:
 
 ```sh
 docker compose \
   --env-file .env.testing \
   -f compose.yaml \
   -f compose.testing.yaml \
-  up -d frontend
+  up -d --build --no-deps --force-recreate --wait frontend
 ```
 
 Karena `VITE_API_URL` dimasukkan ke bundle frontend saat proses build, frontend harus
@@ -710,25 +703,43 @@ Rujukan:
 ## Deployment production (VPS)
 
 Simpan konfigurasi production di `.env.production` pada root proyek, lalu selalu
-sertakan file tersebut pada setiap perintah Compose:
+sertakan file tersebut pada setiap perintah Compose. Jalankan dari checkout
+production dengan working tree bersih:
 
 ```sh
-git pull
-docker compose --env-file .env.production build
-docker compose --env-file .env.production up -d --scale backend=3 --wait
+git switch production
+git status --short
+git pull --ff-only origin production
+git log -1 --oneline
+docker compose --env-file .env.production config --quiet
+docker compose --env-file .env.production up -d --build --scale backend=3 --wait
 docker compose --env-file .env.production ps
 ```
+
+`git pull` hanya memperbarui source code. Container frontend menjalankan bundle
+yang dibuat saat build image; `restart` saja tidak memperbarui bundle tersebut.
+Pastikan commit dari `git log` sesuai dengan perubahan yang ingin dideploy.
 
 Jangan menjalankan build production tanpa `--env-file .env.production`.
 `VITE_API_URL` dimasukkan ke bundle frontend saat proses build; jika argumen
 tersebut tidak terbaca, browser akan mencoba mengakses `localhost:3000`.
 
-Setelah mengubah `VITE_API_URL`, paksa rebuild frontend dan recreate hanya
-container frontend tanpa mengganggu backend:
+Untuk perubahan frontend saja (termasuk CSS/layout), setelah `git pull` jalankan
+perintah berikut pada stack production yang sudah berjalan. Backend dan database
+tetap berjalan:
+
+```sh
+docker compose --env-file .env.production up -d --build --no-deps --force-recreate --wait frontend
+docker compose --env-file .env.production ps frontend
+docker compose --env-file .env.production logs --tail=50 frontend
+```
+
+Perubahan `VITE_API_URL` juga memerlukan build ulang. Jika perlu membangun dari
+nol untuk diagnosis, gunakan `--no-cache`; ini tidak diperlukan untuk update normal:
 
 ```sh
 docker compose --env-file .env.production build --no-cache frontend
-docker compose --env-file .env.production up -d --no-deps --force-recreate frontend
+docker compose --env-file .env.production up -d --no-deps --force-recreate --wait frontend
 ```
 
 Verifikasi bundle dan endpoint production:
@@ -740,20 +751,25 @@ curl -I https://myhis.dpdns.org/
 curl -I https://myhis.dpdns.org/api/health
 ```
 
+Setelah deployment, muat ulang halaman di browser. Jika tampilan masih lama,
+periksa file CSS pada tab Network dan pastikan bundle yang dilayani berisi
+perubahan terbaru. Peringatan preload CSS yang belum dipakai tidak dengan
+sendirinya menandakan build gagal.
+
 Nginx menerima trafik backend pada port `3000` dan membaginya secara round-robin.
 Frontend tetap satu container pada port `5173`. Untuk menjalankan tiga backend:
 
 ```sh
-docker compose up -d --build --scale backend=3
+docker compose --env-file .env.production up -d --build --scale backend=3 --wait
 ```
 
 Ubah jumlahnya kapan saja, misalnya menjadi lima atau kembali satu:
 
 ```sh
-docker compose up -d --scale backend=5
-docker compose up -d --scale backend=1
-docker compose ps backend
-docker compose exec nginx nginx -t
+docker compose --env-file .env.production up -d --scale backend=5 --wait
+docker compose --env-file .env.production up -d --scale backend=1 --wait
+docker compose --env-file .env.production ps backend
+docker compose --env-file .env.production exec nginx nginx -t
 ```
 
 Ganti angka sesuai kebutuhan. Tidak perlu mengedit konfigurasi atau reload Nginx:
@@ -772,6 +788,8 @@ memuat ulang data terkait melalui API tanpa reload halaman. Penerima event
 dibatasi sesuai akses fitur; lokasi dan data pribadi tetap diambil melalui API
 yang memeriksa hak akses. Reconnect, tab yang kembali aktif, dan pemeriksaan
 setiap 30 detik memulihkan event yang terlewat. Draf formulir tetap dipertahankan.
+
+## Konfigurasi lokal dan penyimpanan
 
 `backend/.env` opsional untuk pengaturan aplikasi/SMTP. Compose mengganti
 `DATABASE_URL`, port, origin, dan direktori penyimpanan agar sesuai container.

@@ -2,6 +2,7 @@
  import { language, locale, t as translate } from '$lib/i18n';
  import {formatActivity} from '$lib/activity';
  import {api} from '$lib/api';
+ import {goBack} from '$lib/navigation';
  import {untrack} from 'svelte';
  import {page} from '$app/state';
  import {subscribeChanges} from '$lib/realtime';
@@ -48,7 +49,7 @@
 </script>
 <svelte:head><title>{workspace?.name??$translate('Division')} {$translate("Workspace | MyHIS")}</title></svelte:head>
 <main class="workspace-page">
- <a class="back-link" href="/dashboard">{$translate("← Kembali ke Dashboard")}</a>
+ <a class="back-link" href="/dashboard" onclick={goBack}>← {$translate("Kembali")}</a>
  {#if workspace}<header class="ws-row"><div><p class="dashboard-kicker">{$translate("TEAM WORKSPACE")}</p><h1>{workspace.name} {$translate("Workspace")}</h1></div><div class="ws-row"><button aria-pressed={view==='Archive'} onclick={()=>changeView(view==='Archive'?'Table':'Archive')}>{view==='Archive'?$translate('Kembali ke pekerjaan aktif'):$translate('Arsip Pekerjaan')}</button><button class="ws-primary" onclick={create}>{$translate("+ Tambah Pekerjaan")}</button></div></header>
  <nav class="ws-tabs" aria-label={$translate("Tampilan workspace")}>{#each tabs as tab}<button aria-current={view===tab?'page':undefined} onclick={()=>changeView(tab)}>{$translate(tab)}</button>{/each}</nav>
  {#if view!=='Overview'&&view!=='Workload'&&view!=='Notes'}<form class="ws-filters" onsubmit={(e)=>{e.preventDefault();offset=0;void refresh()}}>

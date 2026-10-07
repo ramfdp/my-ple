@@ -3,6 +3,7 @@
 	import { restoreLanguage } from '$lib/i18n';
  import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { goBack } from '$lib/navigation';
 	import { onMount } from 'svelte';
 	import { api, currentUser, setAuthenticated, type User } from '$lib/api';
 	import Sidebar from '$lib/components/Sidebar.svelte';
@@ -62,7 +63,7 @@
 		<Sidebar bind:mobileOpen={mobileNavigationOpen} />
 		<div class="feature-content" bind:this={content} inert={mobileNavigationOpen}>
 			{#if pathname !== '/dashboard' && !hasPageBack}
-				<nav class="page-back"><a class="back-link" href="/dashboard">{$translate('← Kembali ke dashboard')}</a></nav>
+				<nav class="page-back"><a class="back-link" href="/dashboard" onclick={goBack}>← {$translate('Kembali')}</a></nav>
 			{/if}
 			{@render children()}
 		</div>
