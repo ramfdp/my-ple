@@ -14,6 +14,11 @@ export const features = [
  {key:'Checklist Dokumen Pekerjaan',href:'/document-checklists',icon:'file',description:'Pantau dokumen dan kelengkapan tanda tangan setiap pekerjaan.'},
  {key:'Persetujuan Izin & Cuti',href:'/leave/approvals',icon:'clock',description:'Tinjau dan setujui atau tolak pengajuan izin dan cuti.'}
 ] as const;
+export function goBack(event: Event) {
+ if (history.length <= 1) return;
+ event.preventDefault();
+ history.back();
+}
 export function visibleFeatures(role = '') {
  role = role.toLowerCase();
  return features.filter(item => {

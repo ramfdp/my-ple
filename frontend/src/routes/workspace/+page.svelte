@@ -2,6 +2,7 @@
  import { t as translate } from '$lib/i18n';
  import { onMount } from 'svelte';
  import { api } from '$lib/api';
+ import { goBack } from '$lib/navigation';
  import {subscribeChanges} from '$lib/realtime';
  import '$lib/styles/workspace.css';
  let workspaces=$state<{id:number;name:string;memberCount:number;activeTaskCount:number}[]>([]), loading=$state(true), error=$state('');
@@ -10,7 +11,7 @@
 </script>
 <svelte:head><title>{$translate("Team Workspace | MyHIS")}</title></svelte:head>
 <main class="workspace-page">
- <a class="back-link" href="/dashboard">{$translate("← Kembali ke Dashboard")}</a>
+ <a class="back-link" href="/dashboard" onclick={goBack}>← {$translate("Kembali")}</a>
  <header>
   <p class="dashboard-kicker">{$translate("TEAM WORKSPACE")}</p>
   <h1>{$translate("Pilih Workspace Divisi")}</h1>

@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { api, APIError, currentUser, download, session, type Report, type ReportingPeriod, type WeeklyRoleGroup } from '$lib/api';
+	import { goBack } from '$lib/navigation';
 	import {subscribeChanges} from '$lib/realtime';
 	import JobPicker from '$lib/components/JobPicker.svelte';
 	import type { Job } from '$lib/api';
@@ -114,7 +115,7 @@
 
 <main class="weekly-progress-page">
 	<div class="weekly-progress-shell">
-		<a class="back-link" href="/dashboard">{$translate("← Kembali ke dashboard")}</a>
+		<a class="back-link" href="/dashboard" onclick={goBack}>← {$translate("Kembali")}</a>
 		<header class="weekly-header"><p class="weekly-kicker">{$translate("WEEKLY PROGRESS")}</p><h1>{$translate("Progres kerja per divisi.")}</h1><p>{$translate("Pilih divisi terlebih dahulu untuk melihat daftar pekerjaan minggu ini.")}</p></header>
 		<section class="division-selection" aria-labelledby="division-title">
 			<p class="report-period">{$translate("Laporan diarsipkan otomatis setiap Selasa mulai 00:00 WIB. Ekspor manual tidak diperlukan. PDF dapat diunduh dari Riwayat Laporan Mingguan.")}</p>
