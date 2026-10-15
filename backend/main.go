@@ -37,9 +37,21 @@ func newHandler(database *db.Database, corsOrigin string, contexts ...context.Co
 		go notifications.Relay(contexts[0], os.Getenv("DATABASE_URL"))
 	}
 	protected := middleware.RequireAuth(database, changeEvents(protectedHandler(database, authCtrl, notifications), notifications))
+	var aiSnapshot http.Handler
+	if database != nil {
+		aiSnapshot = controller.NewAISnapshotHandler(database)
+	}
 	uploads := http.StripPrefix("/uploads/", http.FileServer(http.Dir(envOr("UPLOAD_DIR", "upload"))))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/internal/ai/") {
+			if aiSnapshot == nil {
+				http.Error(w, "AI snapshot unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			aiSnapshot.ServeHTTP(w, r)
+			return
+		}
 		w.Header().Add("Vary", "Origin")
 		w.Header().Set("Access-Control-Allow-Origin", corsOrigin)
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
@@ -355,11 +367,11 @@ func startCleanup(database *db.Database) func() {
 	ctx, cancel := context.WithCancel(context.Background())
 	workerDone := make(chan struct{})
 	go func() { defer close(workerDone); (&notification.ZoomEmailWorker{DB: database}).Start(ctx) }()
-	
+
 	// Start attendance reminder service
 	attendanceReminder := notification.NewAttendanceReminderService(database)
 	attendanceReminder.Start(ctx)
-	
+
 	go func() {
 		timer := time.NewTimer(time.Until(time.Now().Truncate(time.Minute).Add(time.Minute)))
 		defer timer.Stop()

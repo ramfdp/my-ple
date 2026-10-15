@@ -22,6 +22,7 @@ services:
     environment:
       DATABASE_URL: "host=db port=5432 user=my_ple password=${POSTGRES_PASSWORD:-my_ple_local} dbname=my_ple sslmode=disable"
       PORT: "3000"
+      AI_SNAPSHOT_ENABLED: "false"
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
       UPLOAD_DIR: /app/upload
       WEEKLY_REPORT_STORAGE_DIR: /app/storage/weekly-reports

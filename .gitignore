@@ -8,3 +8,5 @@
 /.env.production
 /.env.testing
 /.dump
+/ai-secrets/
+*.token

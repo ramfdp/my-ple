@@ -1,0 +1,17 @@
+# Apply only to the isolated testing Compose project after creating myple_read_testing.
+services:
+  backend:
+    environment:
+      AI_SNAPSHOT_ENABLED: "true"
+      AI_SERVICE_TOKEN_FILE: /run/secrets/ai_service_token
+      AI_ALLOWED_WORKSPACE_IDS: ${AI_ALLOWED_WORKSPACE_IDS:?set testing workspace grants}
+    volumes:
+      - ${AI_BACKEND_TOKEN_FILE:?set private backend token path}:/run/secrets/ai_service_token:ro
+    networks:
+      default:
+      myple_read_testing:
+        aliases: [myple-testing-backend]
+networks:
+  myple_read_testing:
+    external: true
+    name: myple_read_testing
