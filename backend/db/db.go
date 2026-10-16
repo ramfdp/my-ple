@@ -56,6 +56,9 @@ var attendanceSQL string
 //go:embed billing_documents.sql
 var billingDocumentsSQL string
 
+//go:embed ai_plans.sql
+var aiPlansSQL string
+
 type Database struct {
 	Conn *sql.DB
 	Now  func() time.Time
@@ -83,7 +86,7 @@ func (db *Database) Migrate(ctx context.Context) error {
 	if _, err = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(71260402)`); err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, schemaSQL+weeklyArchiveSQL+jobsSQL+reportNumberingSQL+jobPICsSQL+workspaceSQL+leaveSQL+emailDeliverySQL+collaborationSQL+qaValidationSQL+documentChecklistsSQL+attendanceSQL+billingDocumentsSQL); err != nil {
+	if _, err = tx.ExecContext(ctx, schemaSQL+weeklyArchiveSQL+jobsSQL+reportNumberingSQL+jobPICsSQL+workspaceSQL+leaveSQL+emailDeliverySQL+collaborationSQL+qaValidationSQL+documentChecklistsSQL+attendanceSQL+billingDocumentsSQL+aiPlansSQL); err != nil {
 		return err
 	}
 	var unmatched int

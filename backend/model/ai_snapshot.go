@@ -14,7 +14,7 @@ type AISnapshot struct {
 type AITask struct {
 	ID            string   `json:"id"`
 	WorkspaceID   int      `json:"workspaceId"`
-	JobID         *int     `json:"jobId,omitempty"`
+	JobID         *int     `json:"jobId"`
 	JobName       string   `json:"jobName"`
 	Title         string   `json:"title"`
 	Description   string   `json:"description"`
