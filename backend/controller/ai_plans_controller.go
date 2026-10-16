@@ -160,6 +160,8 @@ func (h *AIImportHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		aiError(w, 409)
 	case errors.Is(e, db.ErrAIPlanInvalid):
 		aiError(w, 400)
+	case errors.Is(e, sql.ErrNoRows):
+		aiError(w, 404)
 	case e != nil:
 		aiError(w, 503)
 	default:
