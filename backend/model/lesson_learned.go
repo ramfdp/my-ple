@@ -20,6 +20,10 @@ func CanUseLessonsLearned(role string) bool {
 type LessonLearned struct {
 	ID             int    `json:"id"`
 	JobID          int    `json:"jobId"`
+	SourceGroup    string `json:"sourceGroup"`
+	SourceProject  string `json:"sourceProject"`
+	SourceRow      int    `json:"sourceRow"`
+	SourceNumber   string `json:"sourceNumber"`
 	Kind           string `json:"kind"`
 	FoundOn        string `json:"foundOn"`
 	Title          string `json:"title"`
@@ -35,8 +39,7 @@ type LessonLearned struct {
 }
 
 func (l *LessonLearned) Validate() error {
-	l.Title = strings.TrimSpace(l.Title)
-	if l.JobID <= 0 || (l.Kind != "failure" && l.Kind != "success") || l.Title == "" || len([]rune(l.Title)) > 2000 || l.Version < 0 {
+	if (l.JobID <= 0 && l.SourceRow <= 0) || (l.Kind != "failure" && l.Kind != "success") || strings.TrimSpace(l.Title) == "" || len([]rune(l.Title)) > 2000 || l.Version < 0 {
 		return ErrInvalidLesson
 	}
 	if l.Status != "open" && l.Status != "in_progress" && l.Status != "resolved" {

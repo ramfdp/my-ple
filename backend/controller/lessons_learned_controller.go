@@ -55,13 +55,18 @@ func (c *LessonsLearnedController) ServeHTTP(w http.ResponseWriter, r *http.Requ
 				fail(err)
 				return
 			}
-			WriteJSON(w, 200, map[string]any{"jobs": eligible, "lessons": lessons})
+			sections, err := db.RekapLayout()
+			if err != nil {
+				fail(err)
+				return
+			}
+			WriteJSON(w, 200, map[string]any{"jobs": eligible, "lessons": lessons, "sections": sections})
 		case "POST":
 			var in model.LessonLearned
 			if !DecodeStrictJSON(w, r, &in) {
 				return
 			}
-			if in.ID != 0 || in.Version != 0 {
+			if in.ID != 0 || in.Version != 0 || in.SourceRow != 0 || in.SourceGroup != "" || in.SourceProject != "" || in.SourceNumber != "" {
 				WriteJSON(w, 400, map[string]string{"error": model.ErrInvalidLesson.Error()})
 				return
 			}
@@ -95,7 +100,7 @@ func (c *LessonsLearnedController) ServeHTTP(w http.ResponseWriter, r *http.Requ
 			WriteJSON(w, 400, map[string]string{"error": model.ErrInvalidLesson.Error()})
 			return
 		}
-		if !c.projectEngineerJob(w, r, in.JobID) {
+		if in.SourceRow == 0 && !c.projectEngineerJob(w, r, in.JobID) {
 			return
 		}
 		saved, err := c.DB.SaveLessonLearned(r.Context(), id, in)

@@ -17,4 +17,10 @@ CREATE TABLE IF NOT EXISTS lessons_learned (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   deleted_at TIMESTAMPTZ
 );
+ALTER TABLE lessons_learned ALTER COLUMN job_id DROP NOT NULL;
+ALTER TABLE lessons_learned ADD COLUMN IF NOT EXISTS source_group TEXT NOT NULL DEFAULT '';
+ALTER TABLE lessons_learned ADD COLUMN IF NOT EXISTS source_project TEXT NOT NULL DEFAULT '';
+ALTER TABLE lessons_learned ADD COLUMN IF NOT EXISTS source_row INTEGER;
+ALTER TABLE lessons_learned ADD COLUMN IF NOT EXISTS source_number TEXT NOT NULL DEFAULT '';
+CREATE UNIQUE INDEX IF NOT EXISTS lessons_learned_source ON lessons_learned(source_row,kind);
 CREATE INDEX IF NOT EXISTS lessons_learned_job ON lessons_learned(job_id,kind,id) WHERE deleted_at IS NULL;

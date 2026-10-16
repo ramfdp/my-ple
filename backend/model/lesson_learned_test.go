@@ -3,9 +3,16 @@ package model
 import "testing"
 
 func TestLessonLearnedValidate(t *testing.T) {
+	if !CanUseLessonsLearned("Project Engineer") || !CanUseLessonsLearned("Admin") || CanUseLessonsLearned("Finance") {
+		t.Fatal("role gate")
+	}
 	valid := LessonLearned{JobID: 1, Kind: "failure", Title: "  Temuan  ", Status: "resolved", ResolvedOn: "2026-10-16"}
-	if err := valid.Validate(); err != nil || valid.Title != "Temuan" {
+	if err := valid.Validate(); err != nil || valid.Title != "  Temuan  " {
 		t.Fatalf("valid lesson: %v, title %q", err, valid.Title)
+	}
+	imported := LessonLearned{SourceRow: 101, SourceGroup: "NONPENGAWASAN", SourceProject: "Studi Daya Beli Gas Bumi PGN", Kind: "failure", Title: "  Temuan  ", Status: "open"}
+	if err := imported.Validate(); err != nil {
+		t.Fatalf("imported lesson: %v", err)
 	}
 	for name, change := range map[string]func(*LessonLearned){
 		"empty title":             func(l *LessonLearned) { l.Title = " " },

@@ -62,6 +62,9 @@ var aiPlansSQL string
 //go:embed lessons_learned.sql
 var lessonsLearnedSQL string
 
+//go:embed rekap_seed.json
+var rekapSeedJSON string
+
 type Database struct {
 	Conn *sql.DB
 	Now  func() time.Time
@@ -90,6 +93,9 @@ func (db *Database) Migrate(ctx context.Context) error {
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, schemaSQL+weeklyArchiveSQL+jobsSQL+reportNumberingSQL+jobPICsSQL+workspaceSQL+leaveSQL+emailDeliverySQL+collaborationSQL+qaValidationSQL+documentChecklistsSQL+attendanceSQL+billingDocumentsSQL+aiPlansSQL+lessonsLearnedSQL); err != nil {
+		return err
+	}
+	if err = seedRekap(ctx, tx); err != nil {
 		return err
 	}
 	var unmatched int

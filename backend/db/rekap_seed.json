@@ -1,0 +1,697 @@
+{
+  "title": "LESSON LEARNED - PROJECT ENGINEER",
+  "sections": [
+    {
+      "group": "PENGAWASAN",
+      "project": "MK Merapi-Banjarsari",
+      "headingRow": 4,
+      "rows": [
+        {
+          "row": 8,
+          "group": "PENGAWASAN",
+          "project": "MK Merapi-Banjarsari",
+          "failure": {
+            "number": "1",
+            "title": "Realisasi Pekerjaan di lapangan dalam Project ini tidak berjalan sesuai rencana pada Kurva S Kontrak Awal",
+            "internalFactor": "Dari Internal MK sebenarnya selalu memberikan instruksi dan monitoring pekerjaan di lapangan serta TL MK yang selalu memberikan pemahaman untuk utamakan komitmen dan bekerja selalu mengacu pada KAK dan Kontrak serta DED, BoQ dan Spektek",
+            "externalFactor": "dari sisi teknis pekerjaan di lapangan pihak KAPM terutama PM dan SM yang di awal project (yang belum diganti) tidak memahami dan berkomitmen sesuai acuan KAK dan Kontrak, DED, BoQ dan Spektek serta selalu mencari kesalahan dari sisi eksternal KAPM nya yang bisa menjadikan justifikasi apabila adanya adendum waktu maupun biaya",
+            "impact": "Pekerjaan di lapangan banyak yang tidak sesuai rencana yang sudah dijadwalkan sesuai Kurva S Kontrak Awal, Banyak pekerjaan yang seharusnya bisa dikerjakan sesuai rencana dan sesuai gambar rencana (DED) tinggal mengajukan SD dan Metode Kerja namun tidak dilakukan karena meminta arahan kepada MK ataupun pihak KAI agar melempar tanggungjawab dan tidak disalahkan, serta selalu berlindung kepada permasalahan lahan pekerjaan yang belum clear dalam realisasi pekerjaan yang terlambat",
+            "action": "Dari sisi PM dan SM Kontraktor KAPM seharusnya bisa mengetahui dan memahami isi dari KAK, Kontrak, DED,BoQ dan Spektek karena itulah yang menjadi pedoman/acuan utama dalam melaksanakan pekerjaan di lapangan. Serta apabila memang dari sisi eksternal yang menjadi penyebab dari internal kita MK tetap selalu memberikan instruksi dan penjelasan kepada pihak Kontraktor dengan tetap sesuai Kontrak dan KAK MK maupun dicek kembali kewajiban Kontraktor sesuai Kontrak dan KAK nya",
+            "notes": ""
+          },
+          "success": {
+            "number": "1",
+            "title": "Monitoring Persiapan UCO",
+            "internalFactor": "Selalu berkoordinasi (minimal 2 hari sekali) secara via PC langsung dengan TL maupun tim MK untuk update dari persiapan UCO. dan selalu mengingatkan juga apabila ada yang terlewat untuk update nya",
+            "externalFactor": "dari TL sudah memahami mengenai timeline dari UCO apa saja pekerjaan yang harus dilakukan dan diselesaikan serta mampu memberikan penjelasan dengan cukup baik",
+            "impact": "Cukup baik dalam memberikan update mengenai realisasi dan rencana pekerjaan sebelum UCO sesuai timeline yang disepakati",
+            "action": "Selalu berkoordinasi baik ke TL dan sesekali langsung ke tim MK lainnya untuk update pekerjaan di lapangan dan pemahamannya",
+            "notes": ""
+          }
+        },
+        {
+          "row": 9,
+          "group": "PENGAWASAN",
+          "project": "MK Merapi-Banjarsari",
+          "failure": {
+            "number": "2",
+            "title": "Administratif dan Sinkronisasi baik sisi administratif dan teknis lapangan tidak berjalan dengan lancar pada awal pekerjaan berjalan",
+            "internalFactor": "Secara internal MK sudah selalu berkomitmen dan berkoordinasi dengan baik serta terbuka dengan antar stakeholder baik utamanya KAPM dan pihak IPS KAI",
+            "externalFactor": "Dari pihak PM dan SM KAPM yang awal tidak memahami positioning untuk koordinasi dengan MK sebelum kepada IPS, serta tidak memahami seluruh dokumen teknis lapangan yang dibuat oleh KAPM itu harus selalu di submit kepada pihak MK sebelum diberikan kepada pihak KAI dikarenakan stakeholder terkait dalam project ini adalah satu kesatuan TIM Project",
+            "impact": "Komunikasi dan koordinasi di lapangan saat project awal dengan PM dan SM KAPM yang awal tidak berjalan baik sesuai dengan alur komunikasi yang telah ditetapkan karena dari KAPM malah selalu melempar tanggungjawab kepada pihak MK ataupun KAI, administratif dokumen lapangan yang seharusnya diberikan kepada MK untuk dicek tidak diberikan utamanya dokumen dalam bentuk file asli seperti CAD yang akhirnya administratif tidak sepenuhnya dipenuhi oleh pihak KAPM",
+            "action": "PM dan SM KAPM yang awal seharusnya tetap harus bisa memahami positioning kontraktor, MK dan pihak user KAI itu seperti apa sesuai dengan KAK ataupun Kontrak dan harus selalu bekerjasama serta dijalankannya koordinasi yang baik antar seluruh stakeholder dalam project ini karena seluruh stakeholder ini adalam TIM Project",
+            "notes": ""
+          },
+          "success": {
+            "number": "2",
+            "title": "Checklist Monitoring ",
+            "internalFactor": "Memberikan penjelasan dan pemahaman untuk selalu dibuatkan checklist monitoring baik itu pekerjaan fisik di lapangan dan administrasi lapangan",
+            "externalFactor": "Tim sudah mengetahui timeline dan checklist monitoring apa saja yang harus dibuat",
+            "impact": "Tim selalu update dengan bukti dokumentasi dalam bentuk dokumen yang relevan dan cukup kuat apabila ada yang dipertanyakan",
+            "action": "Membuat alur dan format checklist monitoring yang relevan dan mudah dipahami",
+            "notes": ""
+          }
+        },
+        {
+          "row": 10,
+          "group": "PENGAWASAN",
+          "project": "MK Merapi-Banjarsari",
+          "success": {
+            "number": "3",
+            "title": "Pelaksanaan UCO Berjalan dengan lancar dan aman",
+            "internalFactor": "Koordinasi antara stakeholder (tim IPS KAI, MK dan KAPM) bisa berjalan dengan baik dengan memperhatikan sisi teknis dan non teknis telah terpenuhi",
+            "externalFactor": "Komitmen dari KAPM untuk memenuhi syarat teknis dan non teknis terpenuhi sebelum dilakukan UCO",
+            "impact": "Dalam Pelaksanaan UCO bisa dilakukan dengan lancar serta masih adanya temuan namun hanya minor dan bisa segera untuk ditindaklanjuti",
+            "action": "Kerjasama dan Koordinasi antara stakeholder (IPS KAI, MK dan KAPM) harus selalu dimonitoring agar bisa berjalan dengan baik",
+            "notes": ""
+          }
+        },
+        {
+          "row": 11,
+          "group": "PENGAWASAN",
+          "project": "MK Merapi-Banjarsari",
+          "success": {
+            "number": "4",
+            "title": "Pelaksanaan UCO berjalan tepat waktu sesuai Window Time yang diberikan",
+            "internalFactor": "Koordinasi antara stakeholder (tim IPS KAI, MK dan KAPM) bisa berjalan dengan baik dengan memperhatikan sisi teknis dan non teknis telah terpenuhi",
+            "externalFactor": "Pemenuhan dalam jumlah tenaga kerja, alat, material dan metode kerja bisa dipenuhi oleh KAPM sesuai komitmen",
+            "impact": "Pelaksanaan UCO bisa tepat waktu sesuai Window Time yang diberikan dikarenakan jumlah tenaga kerja yang banyak, alat dan material sudah standby dengan jumlah yang sesuai dan metode kerja yang dilakukan sudah sesuai SOP",
+            "action": "TL harus bisa memberikan pemahaman mengenai pelaksanaan UCO, dengan utamanya dari PM Kontraktor bisa diajak untuk diskusi dan berkoordinasi dengan baik sesuai alur kerja yang telah ditetapkan pada KAK maupun SOP KAI",
+            "notes": ""
+          }
+        }
+      ]
+    },
+    {
+      "group": "PENGAWASAN",
+      "project": "KAI - PMO IBP",
+      "headingRow": 13,
+      "rows": [
+        {
+          "row": 17,
+          "group": "PENGAWASAN",
+          "project": "KAI - PMO IBP",
+          "failure": {
+            "number": "1",
+            "title": "Personil kurang dapat menjelaskan tugas dan kewajiban dari setiap personil sesuai KAK",
+            "internalFactor": "> Belum semua personil paham bagaimana penerapan poin-poin KAK dalam pelaksanaan pekerjaan\n> Belum ada enforcement / reminder rutin untuk pion-poin tugas personil berdasarkan KAK",
+            "externalFactor": "> Beberapa kondisi lapangan yang kadang mengharuskan personil bertindak diluar lingkup tugasnya sesuai KAK demi kelancaran data proyek",
+            "impact": "Personil kurang dapat mempresentasikan tugas dan kewajibannya sesuai KAK sehingga dinilai kurang baik",
+            "action": "a. Personil harus mempelajari kembali tugas dan kewajibannya sesuai KAK\nb. Personil harus mulai mengkurasi hasil kerjanya berdasarkan tugasnya berdasarkan KAK\nc. Apabila ditemukan adanya bias/poin dalam KAK yang kurang dimengerti, disampaikan dalam forum internal untuk selanjutnya didiskusikan bersama\nd. Perlu ada reminder rutin terkait ruang lingkup dan tugas personil berdasarkan KAK",
+            "notes": ""
+          },
+          "success": {
+            "number": "1",
+            "title": "Paparan saat Rapat Evaluasi tim PMO untuk Wilayah Palembang & Muara Enim",
+            "internalFactor": "Dilakukan Briefing, pemahaman dan penjelasan kepada seluruh tim PMO mengenai apa saja yang perlu disiapkan saat nanti paparan dilakukan",
+            "externalFactor": "TL PMO selalu memonitoring pekerjaan dari setiap personel PMO dibantu TA WBS setiap masing-masing wilayah",
+            "impact": "Saat dilakukan evaluasi tim PMO, dari setiap Personel PMO mampu memberikan penjelasan dan paparan dengan cukup baik dan mudah dipahami serta dimengerti oleh unit IPS KAI",
+            "action": "Secara rapat evaluasi PMO bisa berjalan dengan baik dan di apresiasi juga, namun untuk strategi kedepannya memang perlu diperbaiki untuk cara penyampaian atau paparan dari setiap personel PMO yang overall sudah cukup baik namun ada beberapa personel PMO yang memang perlu dilatih kembali dalam paparannya",
+            "notes": ""
+          }
+        },
+        {
+          "row": 18,
+          "group": "PENGAWASAN",
+          "project": "KAI - PMO IBP",
+          "success": {
+            "number": "2",
+            "title": "Peningkatan kesiapan personel PMO dalam rapat evaluasi melalui standarisasi format checklist, dokumen, dan paparan mingguan",
+            "internalFactor": "Memberikan format checklist yang sama dan konsisten untuk kelengkapan dokumen dan format paparan setiap minggunya yang disusun oleh Tim PMO agar dapat dipahami oleh seluruh stakeholder yang melihatnya",
+            "externalFactor": "Setiap personel PMO cukup bisa menyampaikan permasalahan yang dihadapi dan banyak bertanya saat adanya rapat internal mingguan tim PMO",
+            "impact": "Diberikan apresiasi yang cukup baik mengenai kehadiran personel PMO seluruhnya bisa hadir dalam acara rapat evaluasi PMO dan tepat waktu sesuai jadwalnya serta mengenai kesiapan setiap personel PMO yang bisa memberikan penjelasan dan paparan yang cukup baik",
+            "action": "Harus selalu ada untuk meeting internal PMO setiap minggunya dan perlu adanya juga meeting internal khusus apabila ada rapat/ pembahasan dengan tim User KAI agar tim selalu siap",
+            "notes": ""
+          }
+        },
+        {
+          "row": 19,
+          "group": "PENGAWASAN",
+          "project": "KAI - PMO IBP",
+          "success": {
+            "number": "3",
+            "title": "Peningkatan koordinasi dan evaluasi internal tim PMO secara rutin",
+            "internalFactor": "Selalu berdiskusi dan melakukan evaluasi internal tim PMO setiap minggunya agar tim PE /Internal Manajemen mengetahui permasalahan dan kemampuan dari setiap personel PMO ",
+            "externalFactor": "Setiap Personel PMO cukup sudah mengetahui tugas dan tanggung jawab dari masing-masin personel ",
+            "impact": "Permasalahan dan kendala pekerjaan dapat diketahui lebih awal, sehingga koordinasi antar personel menjadi lebih baik dan pelaksanaan pekerjaan lebih efektif.",
+            "action": "Perlu adanya koordinasi dan sesi khusus untuk ngobrol langsung tatap muka dengan tim PMO minimal 1 bulan sekali antara TL dengan personel PMO lainnya , serta tim internal manajemen dengan tim PMO, dikarenakan ada beberapa personel PMO yang lebih enak dan pede untuk ngobrol langsung  ",
+            "notes": ""
+          }
+        },
+        {
+          "row": 20,
+          "group": "PENGAWASAN",
+          "project": "KAI - PMO IBP",
+          "success": {
+            "number": "4",
+            "title": "Hasil Review Teknis dari setiap TA yang cukup baik dan bisa diterima pihak User (IPS,IPC)",
+            "internalFactor": "Selalu dilakukan diskusi baik itu via zoom ataupun WA antara TA PMO dengan tim PE mengenai hasil review yang telah dibuat sebelum dikirimkan kepada pihak User (IPS,IPC) mengenai analisa teknis maupun kerapihan dalam format laporan yang telah dibuat  ",
+            "externalFactor": "TA selalu mengirimkan terlebih dahulu hasil review dalam bentuk laporan ke grup internal agar bisa dibaca, dipahami maupun dicek kesesuaian antara hasil analisa yang dibuat maupun format laporan yang dibuat oleh tim PE maupun TL dan TA yang lainnya",
+            "impact": "Hasil review yang disampaikan kepada User memiliki kualitas yang baik, meminimalkan revisi, serta meningkatkan kepercayaan User terhadap hasil pekerjaan tim PMO. Proses koordinasi internal juga menjadi lebih efektif karena adanya mekanisme pengecekan berlapis.",
+            "action": "Mempertahankan proses diskusi dan quality control internal sebelum pengiriman dokumen kepada User. Selain itu, perlu dibuat standar atau checklist review teknis dan format laporan agar kualitas hasil review tetap konsisten pada setiap pekerjaan yang dilaksanakan.",
+            "notes": ""
+          }
+        },
+        {
+          "row": 21,
+          "group": "PENGAWASAN",
+          "project": "KAI - PMO IBP",
+          "success": {
+            "number": "4",
+            "title": "Persyaratan dalam Lingkup KAK & Kontrak mengenai deliverables penyerahan laporan bulanan",
+            "internalFactor": "Tim PE melakukan pengecekan dan memahami mengenai isi dari pasal-pasal (ketentuan) dalam Kontrak maupun ketentuan dalam KAK mengenai syarat yang harus dipenuhi untuk menyerahkan laporan pendahuluan,bulanan maupun akhir sebagai bukti penyerahan dan lampiran untuk dilakukannya penagihan kepada pihak User",
+            "externalFactor": "Dari setiap personel tim harus selalu melakukan pengecekan mengenai lingkup yang ada pada KAK maupun Kontrak terutama untuk lingkup ataupun deliverables dari kita sebagai konsultan",
+            "impact": "Saat adanya diskusi ataupun argumentasi dari pihak user mengenai adanya kekurangan ataupun kesalahan dalam penyerahan deliverables kita yaitu pelaporan baik laporan pendahuluan,bulanan maupun akhir. dalam hal ini kita bisa memberikan pendapat dan argumen yang relevan dan diterima oleh pihak user dikarenakan sesuai yang tertuang pada pasal atau ketentuan dalam Kontrak maupun KAK",
+            "action": "Selalu ditekankan mengenai pengecekan dan pemahaman isi lingkup maupun deliverables serta yang lainnya untuk ketentuan dan pedoman dalam melaksanakan pekerjaan baik itu administratif maupun teknis di lapangan. serta utamakan selalu dilakukan briefing dan penekanan saat apabila adanya diskusi atau argumentasi dengan pihak User mengenai lingkup pekerjaan harus selalu mengutamakan ketentuan yang ada pada Kontrak maupun KAK agar relevan dan diterima dengan baik oleh pihak User",
+            "notes": ""
+          }
+        }
+      ]
+    },
+    {
+      "group": "PENGAWASAN",
+      "project": "SPV Jember",
+      "headingRow": 23,
+      "rows": [
+        {
+          "row": 27,
+          "group": "PENGAWASAN",
+          "project": "SPV Jember",
+          "failure": {
+            "number": "1",
+            "title": "Pada saat Weekly Meeting, Admin tidak mencantumkan seluruh hasil pembahasan ke dalam Minutes of Meeting (MoM).",
+            "internalFactor": "Personil Admin Kurang ketelitian dalam pencatatan hasil rapat.",
+            "externalFactor": "",
+            "impact": "Berpotensi menyebabkan informasi, keputusan, dan tindak lanjut rapat tidak terdokumentasi secara lengkap sehingga dapat menimbulkan perbedaan pemahaman antar pihak",
+            "action": "Melakukan revisi dan pembaruan MoM berdasarkan hasil pembahasan rapat, dan Membuat Panduan untuk Admin",
+            "notes": ""
+          },
+          "success": {
+            "number": "1",
+            "title": "Koordinasi antara tim lapangan, PT KAPM, dan Bangdis semakin membaik.",
+            "internalFactor": "Komunikasi dan koordinasi internal tim semakin baik dalam menyampaikan informasi dan menindaklanjuti kendala pekerjaan.",
+            "externalFactor": "Dukungan dan komunikasi dari PT KAPM dan Bangdis dalam pembahasan teknis, penyelesaian kendala lapangan, dan tindak lanjut pekerjaan.",
+            "impact": "Penyelesaian kendala lapangan menjadi lebih terarah, penyampaian informasi lebih efektif, serta tindak lanjut pekerjaan dapat dilakukan dengan lebih cepat.",
+            "action": "Mempertahankan koordinasi rutin, meningkatkan komunikasi, serta memastikan setiap kendala dan hasil pembahasan ditindaklanjuti oleh pihak terkait.",
+            "notes": "Koordinasi antara tim lapangan, PT KAPM, dan Bangdis menunjukkan perkembangan yang semakin baik."
+          }
+        },
+        {
+          "row": 28,
+          "group": "PENGAWASAN",
+          "project": "SPV Jember",
+          "failure": {
+            "number": "2",
+            "title": "Pengajuan pengunduran diri (resign) Inspector Arsitektur serta terdapat beberapa pekerjaan yang belum terkoordinasi dengan baik di lapangan",
+            "internalFactor": "Monitoring dan penyampaian informasi terkait pelaksanaan pekerjaan belum berjalan optimal",
+            "externalFactor": "",
+            "impact": "Berpotensi mempengaruhi efektivitas pengawasan pekerjaan, kelengkapan dokumentasi, serta koordinasi pelaksanaan pekerjaan di lapangan",
+            "action": "Sudah dilakukan Evaluasi kepada personil oleh Tim Manajemen Pada Tanggal 18 Juli 2026, dan sudah dilakukan Peringatan secara Lisan",
+            "notes": ""
+          }
+        }
+      ]
+    },
+    {
+      "group": "PENGAWASAN",
+      "project": "Pengawas - JAKG",
+      "headingRow": 30,
+      "rows": [
+        {
+          "row": 34,
+          "group": "PENGAWASAN",
+          "project": "Pengawas - JAKG",
+          "failure": {
+            "number": "1",
+            "title": "Terjadi miskomunikasi dari pak OIFI terkait persentase progress rencana dan persentase waktu pelaksanaan",
+            "internalFactor": "- TL menambahkan persentase waktu pelaksanaan pada paparan\n- QA menganggap penambahan persentase pada waktu pelaksanaan wajar dan berdampak minor",
+            "externalFactor": "Pak OIFI kurang familiar dengan konsep kurva S pada perencanaan progress konstruksi, dimana persentase progress dan persentase waktu pelaksanaan tidak linear dan berbeda",
+            "impact": "Fokus saat weekly meeting sempat bergeser dikarenakan adanya perbedaan persentase ini (pak OIFI menganggap persentase rencana progress [32%] dan waktu pelaksanaan [41%] harusnya sama)",
+            "action": "Paparan pada presentasi selanjutnya tidak perlu mencantumkan persentase waktu pelaksanaan, persentase terbatas pada penjelasan deviasi",
+            "notes": ""
+          },
+          "success": {
+            "number": "1",
+            "title": "Kelengkapan dokumen pengajuan material cukup baik",
+            "internalFactor": "Team leader tanggap dalam review dan accept pengajuan material",
+            "externalFactor": "> Admin cukup tanggap dalam melengkapi kelengkapan material\n> User cukup tanggap dalam proses acceptance pengajuan material\n> PL IPJ senantiasa hadir rutin mingguan di lokasi pekerjaan",
+            "impact": "Sebagian besar dokumen material approval dapat diproses dengan baik, meski beberapa masih terkendala untuk tandatangan User (OIFI)",
+            "action": "a. Mengakomodir tanda tangan digital sebagai subtitusi sementara sembari menunggu user ke site\nb. Terus berkomunikasi dengan stakeholder (IPJ & OIFI) untuk dokumen yang belum ditandatangani\nc. Senantiasa mengingatkan kontraktor untuk mempertahankan ritme pengajuan material serta segera mengajukan material yang belum ada approvalnya",
+            "notes": ""
+          }
+        },
+        {
+          "row": 35,
+          "group": "PENGAWASAN",
+          "project": "Pengawas - JAKG",
+          "success": {
+            "number": "2",
+            "title": "Pemahaman dalam Lingkup Pekerjaan sesuai KAK dan Kontrak",
+            "internalFactor": "Diberikan ruang dalam diskusi setiap minggunya baik itu via zoom maupun via WA antara tim Manajemen (PE) dengan tim internal lapangan baik itu TL, Inspektor maupun Admin",
+            "externalFactor": "- TL dapat memahami lingkup pekerjaan dalam KAK dan selalu berdiskusi apabila ada hal-hal yang kurang dipahami dalam KAK dan TL selalu bisa menjadi Leader dan menuntun tim Admin maupun Inspektor untuk tugas dan tanggungjawabnya",
+            "impact": "- Mampu menjelaskan dan berdiskusi serta memberikan pendapat dengan baik kepada pihak Kontraktor maupun pihak User (OIF dan IPJ) mengenai hal-hal teknis di lapangan                                                                     - Bisa menjadi Leader yang menuntun tim internal maupun tim eksternal (Kontraktor) dalam memberikan pemahaman terkait lingkup pekerjaan setiap tim tersebut dan menuntun agar bisa menjalankan pekerjaan tersebut dengan baik ",
+            "action": "Mempertahankan forum koordinasi mingguan sebagai media diskusi dan evaluasi pekerjaan. Melakukan review berkala terhadap KAK, kontrak, dan progres pekerjaan agar seluruh tim memiliki pemahaman yang sama terhadap ruang lingkup, tanggung jawab, serta batasan pekerjaan.",
+            "notes": ""
+          }
+        }
+      ]
+    },
+    {
+      "group": "PENGAWASAN",
+      "project": "Fire Hydrant - SGU & DAOP 8",
+      "headingRow": 38,
+      "rows": [
+        {
+          "row": 42,
+          "group": "PENGAWASAN",
+          "project": "Fire Hydrant - SGU & DAOP 8",
+          "failure": {
+            "number": "1",
+            "title": "Permintaan native file gambar CAD dan file RAB disampaikan oleh pihak di luar pemberi kerja. Dokumen tersebut telah terlanjur diberikan sebelum dilakukan konfirmasi terkait kewenangan permintaan dokumen dan alur distribusi dokumen proyek.",
+            "internalFactor": "- Sosialisasi alur distribusi dokumen belum tersampaikan secara menyeluruh\n- Ketentuan distribusi dokumen masih disampaikan secara lisan/mulut ke mulut",
+            "externalFactor": "Permintaan dokumen disampaikan langsung oleh pihak di luar pemberi kerja",
+            "impact": "- Berpotensi terjadi perbedaan versi dokumen apabila terdapat perubahan dari pemberi kerja\n- Berisiko menimbulkan ketidaksesuaian data dan permasalahan administrasi di kemudian hari ",
+            "action": "- Penegasan kembali alur pemberian native file dokumen proyek\n- Dilakukan pembahasan internal terkait distribusi dokumen proyek\n- Seluruh permintaan dokumen melalui konfirmasi pemberi kerja terlebih dahulu",
+            "notes": "Dokumen telah terlanjur diberikan, sehingga diperlukan pengaturan dan sosialisasi alur distribusi dokumen agar kejadian serupa tidak terulang.\n\nRencana Perbaikan:\n- Membuat SOP distribusi dokumen proyek secara tertulis dan terstruktur\n- Melakukan sosialisasi SOP kepada seluruh personil\n- Memastikan seluruh permintaan dokumen mendapat persetujuan pemberi kerja."
+          }
+        }
+      ]
+    },
+    {
+      "group": "PENGAWASAN",
+      "project": "Supervisi Rumjab DU Brawijaya",
+      "headingRow": 46,
+      "rows": [
+        {
+          "row": 50,
+          "group": "PENGAWASAN",
+          "project": "Supervisi Rumjab DU Brawijaya",
+          "failure": {
+            "number": "1",
+            "title": "Terjadi perbedaan volume yang besar pada MC-100 dengan yang disampaikan kontraktor kepada SPI untuk pekerjaan pemasangan kisi kisi WPC area entrance",
+            "internalFactor": "Perhitungan volume tidak dilengkapi dengan mapping",
+            "externalFactor": "Perhitingan MC-100 dilaksanakan setelah MPPL konsultan selesai",
+            "impact": "Terjadi dispute terkait pengakuan volume.\nPihak KAPM menghitung seluruh 4 sisi kisi kisi sehingga volumenya",
+            "action": "Perrhitungan yang diakui tetap yang metode hasil MC-100 (bidang pemasangan)",
+            "notes": "Pengecekan oleh PIC/QA harus lebih intensif terkait kelengkapan backup volume (mapping perhitungan) sehingga metode perhitungan yang digunakan diketahui oleh PIC/QA sendiri"
+          }
+        },
+        {
+          "row": 51,
+          "group": "PENGAWASAN",
+          "project": "Supervisi Rumjab DU Brawijaya",
+          "failure": {
+            "number": "2",
+            "title": "Personil PIC tidak dapat menjawab dengan cepat terkait pertanyaan tinggi pengecatan yang dilaksanakan bergantung dengan TA Arsitektur",
+            "internalFactor": "Komunikasi terkendala dengan TA Arsitektur karena keterbatasan sinyal selana di dalam area proyek\n\nPersonil kurang tanggap dalam akses folder dokumentasi proyek, disaat bersama bertanggung jawab dokumentasi kegiatan audit untuk pelaporan internal",
+            "externalFactor": "",
+            "impact": "Terjadi penurunan volume pengakuan antara SPI dengan acuan MC-100",
+            "action": "Pengakuan volume oleh SPI tetap mengacu pada pehitungan auditor",
+            "notes": "Jangka pendek: PIC harus mengetahui timeline proyek secara umum (lihat seluruh dokumentasi secara cepat), lokasi penyimpanan dokumentasi dan CIHPK pada folder proyek\n\nJangka panjang: Pengarsipan dan penamaan dokumentasi harus mencantumkan nama pekerjaannya beserta lokasinya, namun tetap memperhatikan panjang karakter"
+          }
+        }
+      ]
+    },
+    {
+      "group": "PENGAWASAN",
+      "project": "Hydrant Manggarai",
+      "headingRow": 53,
+      "rows": [
+        {
+          "row": 57,
+          "group": "PENGAWASAN",
+          "project": "Hydrant Manggarai",
+          "failure": {
+            "number": "1",
+            "title": "Laporan bulanan disubmit dalam kondisi belum sesuai standar dan kesalahan yang sama terulang kembali pada periode laporan berikutnya.",
+            "internalFactor": "- Tim mengirimkan laporan pada hari submit laporan sehingga tidak ada waktu untuk pengecekan dan terpaksa disubmit digital seadanya.\n- Tidak semua tim ter-copy ketika ada perbaikan yang dilakukan secara internal, sehingga tim lapangan tetap menggunakan file lama yang salah.",
+            "externalFactor": "",
+            "impact": "- Pengecekan dan perbaikan perihal yang sama harus dilakukan dua kali.\n- Tim lapangan tidak tahu versi terbaru dokumen sehingga terjadi pengulangan kesalahan fatal karena menggunakan dasar file yang belum direvisi.\n",
+            "action": "- Mengalihkan pengerjaan dokumen ke sistem OneDrive agar revisi dan komentar dapat dilakukan secara terintegrasi dan real-time.\n- Review & revisi real-time pada satu file aktif untuk memastikan konsistensi versi dokumen bersama.\n- Mengingatkan secara berkala dan disimpan pada folder yang mudah dicari agar setiap anggota tim ter-copy terkait laporan terbaru",
+            "notes": ""
+          },
+          "success": {
+            "number": "1",
+            "title": "Kelengkapan dokumen pengajuan material cukup baik",
+            "internalFactor": "Team leader tanggap dalam review dan accept pengajuan material",
+            "externalFactor": "> Admin cukup tanggap dalam melengkapi kelengkapan material\n> User cukup tanggap dalam proses acceptance pengajuan material\n> PL IPJ senantiasa hadir rutin mingguan di lokasi pekerjaan",
+            "impact": "Proses pengajuan dan persetujuan material menjadi lebih lancar, potensi keterlambatan pengadaan material dapat diminimalkan, serta pelaksanaan pekerjaan dapat berjalan sesuai kebutuhan di lapangan.",
+            "action": "Mempertahankan koordinasi rutin antara Team Leader, Admin, User, dan PL IPJ. Melakukan pengecekan kelengkapan dokumen sebelum pengajuan material. Membuat daftar monitoring status pengajuan material agar proses review, revisi, dan approval dapat terpantau dengan baik.",
+            "notes": "Perlu dipertahankan dan ditingkatkan, khususnya dalam hal dokumentasi evidence approval dan monitoring tindak lanjut pengajuan material."
+          }
+        }
+      ]
+    },
+    {
+      "group": "NONPENGAWASAN",
+      "project": "MPS - PIT/STR",
+      "headingRow": 61,
+      "rows": [
+        {
+          "row": 65,
+          "group": "NONPENGAWASAN",
+          "project": "MPS - PIT/STR",
+          "failure": {
+            "number": "1",
+            "title": "Terjadi miss komunikasi antara PE, HR, dan Tim Keuangan terkait ketentuan reimbursement perjalanan dinas pada pekerjaan MPS STR. Tim Keuangan belum mengetahui bahwa nota yang dapat direimbursement hanya perjalanan dari Bandung ke lokasi pekerjaan dan dari lokasi pekerjaan ke Bandung, sehingga terdapat nota di luar ketentuan yang diajukan untuk klaim reimbursement.",
+            "internalFactor": "- Kurangnya koordinasi dan penyampaian informasi antar divisi terkait ketentuan reimbursement perjalanan dinas.\n- Belum adanya sosialisasi ketentuan reimbursement secara menyeluruh kepada pihak terkait.",
+            "externalFactor": "Adanya perbedaan pemahaman terkait ketentuan perjalanan yang dapat diajukan untuk reimbursement.",
+            "impact": "- Potensi pengajuan reimbursement yang tidak sesuai ketentuan.\n- Risiko keterlambatan proses verifikasi dan pencairan reimbursement.\n- Menimbulkan miskomunikasi antar tim terkait administrasi perjalanan dinas.",
+            "action": "- Melakukan klarifikasi dan koordinasi antara PE, HR, dan Tim Keuangan terkait ketentuan reimbursement.\n- Menegaskan kembali bahwa reimbursement hanya berlaku untuk perjalanan Bandung–lokasi pekerjaan dan lokasi pekerjaan–Bandung.\n- Melakukan pengecekan ulang terhadap nota reimbursement yang diajukan.",
+            "notes": "Diperlukan penyamaan pemahaman terkait ketentuan reimbursement perjalanan dinas antar pihak terkait agar tidak terjadi kesalahan pengajuan klaim.\n\nRencana Perbaikan:\n- Membuat ketentuan reimbursement perjalanan dinas secara tertulis dan terstruktur.\n- Melakukan sosialisasi kepada seluruh personel terkait alur dan batasan reimbursement.\n- Memastikan proses verifikasi dilakukan sebelum pengajuan reimbursement diproses lebih lanjut."
+          }
+        },
+        {
+          "row": 66,
+          "group": "NONPENGAWASAN",
+          "project": "MPS - PIT/STR",
+          "failure": {
+            "number": "2",
+            "title": "Daftar hadir bulan April belum ditandatangani karena direncanakan ditandatangani bersamaan dengan lembar pengesahan laporan. Namun, tanda sign here pada daftar hadir hilang saat proses penjilidan sehingga terlewat pada saat penandatanganan.",
+            "internalFactor": "- Tidak dilakukan pengecekan ulang dokumen setelah proses penjilidan.\n- Tidak terdapat daftar verifikasi dokumen yang memerlukan tanda tangan.",
+            "externalFactor": "- Perubahan tampilan dokumen akibat proses penjilidan menyebabkan tanda sign here tidak terlihat.",
+            "impact": "- Dokumen administrasi menjadi tidak lengkap.\n- Berpotensi memerlukan proses revisi dan penandatanganan ulang.\n- Dapat menghambat proses administrasi laporan.",
+            "action": "- Melakukan penandatanganan pada daftar hadir yang belum ditandatangani.\n- Melakukan pengecekan ulang seluruh dokumen pendukung laporan yang memerlukan tanda tangan.",
+            "notes": "Diperlukan pemeriksaan kelengkapan dokumen setelah proses penjilidan sebelum diajukan untuk penandatanganan."
+          }
+        },
+        {
+          "row": 67,
+          "group": "NONPENGAWASAN",
+          "project": "MPS - PIT/STR",
+          "failure": {
+            "number": "3",
+            "title": "Pada daftar hadir bulan Mei MPS STR terdapat keterangan cuti sakit, padahal telah disepakati bahwa izin maupun cuti tetap dicatat sebagai hadir pada daftar hadir dan ketidakhadiran dilaporkan secara terpisah kepada KAI. Ketidaksesuaian baru diketahui setelah dokumen ditandatangani.",
+            "internalFactor": "- Kurangnya pengingat dan sosialisasi terkait ketentuan pengisian daftar hadir.\n- Ketentuan yang sudah lama tidak diterapkan tidak menjadi perhatian saat pengisian dokumen.",
+            "externalFactor": "- Perlu adanya koordinasi ketentuan administrasi tidak hanya dengan pihak KAI tetapi juga dengan konsultan.",
+            "impact": "- Terjadi ketidaksesuaian administrasi pada daftar hadir.\n- Berpotensi memerlukan revisi dokumen yang telah ditandatangani.\n- Menimbulkan ketidaksesuaian data kehadiran personel.",
+            "action": "- Melakukan koreksi daftar hadir sesuai ketentuan yang berlaku.\n- Menginformasikan kembali mekanisme pengisian daftar hadir kepada seluruh personel terkait.",
+            "notes": "Ketentuan pengisian daftar hadir perlu dipahami dan diterapkan secara konsisten oleh seluruh pihak terkait."
+          }
+        },
+        {
+          "row": 68,
+          "group": "NONPENGAWASAN",
+          "project": "MPS - PIT/STR",
+          "failure": {
+            "number": "4",
+            "title": "Surat permohonan penggantian personel TA Lingkungan atas nama Bu D belum dikirim karena beberapa kali terjadi perubahan kronologi yang memerlukan penyesuaian isi surat.",
+            "internalFactor": "- Belum tersedia sistem monitoring dokumen proyek secara menyeluruh.\n- Tidak adanya checklist dokumen wajib yang harus diterbitkan selama pelaksanaan proyek.",
+            "externalFactor": "- Adanya perubahan informasi/kronologi yang memerlukan penyesuaian isi dokumen sebelum diterbitkan.",
+            "impact": "- Terjadi keterlambatan penerbitan dan pengiriman surat.\n- Berpotensi menghambat proses administrasi penggantian personel.\n- Berisiko menimbulkan ketidaksesuaian administrasi proyek.",
+            "action": "- Melakukan finalisasi kronologi dan isi surat.\n- Segera mengirimkan surat permohonan penggantian personel setelah dokumen disetujui.",
+            "notes": "Diperlukan monitoring dokumen proyek secara berkala agar dokumen yang dipersyaratkan tidak terlewat."
+          }
+        },
+        {
+          "row": 69,
+          "group": "NONPENGAWASAN",
+          "project": "MPS - PIT/STR",
+          "failure": {
+            "number": "5",
+            "title": "Terjadi miss komunikasi antara PE, HR, dan Tim Keuangan terkait status penyelesaian Daily Worksheet personel. Informasi bahwa Daily Worksheet masih dalam proses revisi belum tersampaikan kepada HR dan Tim Keuangan, sehingga proses pembayaran salary tetap dilakukan sebelum dokumen administrasi pekerjaan dinyatakan lengkap.",
+            "internalFactor": "- Belum terdapat mekanisme penyampaian status penyelesaian Daily Worksheet secara terstruktur kepada HR dan Tim Keuangan.\n- Koordinasi antar divisi belum dilakukan sebelum proses pembayaran salary.\n- Belum terdapat daftar monitoring administrasi sebagai dasar persetujuan pembayaran",
+            "externalFactor": "Proses pembayaran salary telah berjalan sebelum informasi mengenai status Daily Worksheet diterima oleh seluruh pihak terkait.",
+            "impact": "- Pembayaran salary dilakukan sebelum persyaratan administrasi pekerjaan terpenuhi.\n\n- Menimbulkan miskomunikasi antara PE, HR, dan Tim Keuangan.\n\n- Berpotensi menyebabkan ketidaksesuaian proses administrasi pembayaran personel.",
+            "action": "- Melakukan klarifikasi kepada HR dan Tim Keuangan mengenai status penyelesaian Daily Worksheet.\n\n- Menyelesaikan revisi Daily Worksheet dan memastikan dokumen telah lengkap.\n\n- Menetapkan mekanisme konfirmasi dari PE sebelum proses pembayaran salary dilakukan.",
+            "notes": "Diperlukan mekanisme koordinasi dan validasi administrasi yang melibatkan PE, HR, dan Tim Keuangan sebelum pembayaran salary diproses."
+          }
+        }
+      ]
+    },
+    {
+      "group": "NONPENGAWASAN",
+      "project": "PMPP",
+      "headingRow": 71,
+      "rows": [
+        {
+          "row": 75,
+          "group": "NONPENGAWASAN",
+          "project": "PMPP",
+          "failure": {
+            "number": "1",
+            "title": "Revisi dari pemberi tugas telah disampaikan beserta arahan perbaikan, namun belum ditindaklanjuti secara optimal oleh tim terkait sehingga memerlukan penyesuaian lebih lanjut.",
+            "internalFactor": "- Kurang tegas pada tim\n- Tidak memiliki batasan beban kerja",
+            "externalFactor": "Tim tidak memperbaiki PPT secepatnya",
+            "impact": "- Penyelesaian PPT memerlukan waktu yang cukup lama",
+            "action": "- Diperbaiki oleh internal\n- Mengadakan zoom untuk validasi data",
+            "notes": "Beberapa bagian dokumen tidak ditindaklanjuti secara optimal oleh tim terkait"
+          },
+          "success": {
+            "number": "1",
+            "title": "Pelaksanaan survei di berbagai wilayah yang berjauhan berhasil dilakukan melalui koordinasi dengan pihak lokal, didukung oleh sistem dan aplikasi yang efektif.",
+            "internalFactor": "- Pengecekan timeline secara berkala\n- Pengarahan penggunaan absensi enumerator\n",
+            "externalFactor": "-Sistem dan alur kerja yang terstruktur\n-Penggunaan aplikasi pendukung\n-Koordinasi tim yang baik",
+            "impact": "- Proses survei berjalan efektif meskipun lokasi tersebar\n- Data dapat terkumpul secara optimal\n- Efisiensi waktu dan sumber daya",
+            "action": "- Pemanfaatan pihak lokal untuk pelaksanaan survei\n- Penggunaan aplikasi untuk monitoring dan pelaporan\n- Penerapan alur kerja yang terkoordinasi",
+            "notes": "Pelaksanaan survei telah berjalan efektif, namun masih memerlukan pengawasan lanjutan baik dari sisi sistem maupun sumber daya manusia."
+          }
+        }
+      ]
+    },
+    {
+      "group": "NONPENGAWASAN",
+      "project": "SOP Tata Kelola",
+      "headingRow": 78,
+      "rows": [
+        {
+          "row": 82,
+          "group": "NONPENGAWASAN",
+          "project": "SOP Tata Kelola",
+          "failure": {
+            "number": "1",
+            "title": "Ketidaksesuaian hasil akhir dokumen dengan ekspektasi pengambil keputusan utama. Pada tahap akhir pekerjaan, dokumen SOP Tata Kelola yang telah melalui beberapa kali asistensi perlu dirombak secara menyeluruh setelah dilakukan pembahasan dengan VP..",
+            "internalFactor": "Validasi awal melalui kick-off meeting telah dilaksanakan, namun belum cukup untuk mengidentifikasi kesesuaian pemahaman mengenai bentuk dan kedalaman output yang diharapkan.",
+            "externalFactor": "Ekspektasi VP terhadap bentuk dan kedalaman dokumen berbeda dari pemahaman yang terbentuk selama asistensi dengan user sebelumnya.",
+            "impact": "Dokumen perlu direvisi secara menyeluruh pada tahap akhir sehingga waktu penyelesaian bertambah dan pelaksanaan pekerjaan tidak sesuai dengan MPPL.",
+            "action": "Melakukan penyelarasan dan konfirmasi kembali mengenai struktur, ruang lingkup, dan kedalaman output bersama pihak yang berwenang sebelum revisi menyeluruh dilaksanakan.Menggunakan contoh atau prototipe dokumen untuk mengonfirmasi ekspektasi sejak tahap awal.",
+            "notes": ""
+          },
+          "success": {
+            "number": "1",
+            "title": "Dokumen SOP Tata Kelola dan Panduan Penyusunan Roadmap mendapatkan apresiasi dari unit lain dalam pertemuan rapat maupun pada saat FGD setelah dokumen difinalkan.",
+            "internalFactor": "Tim konsultan telah menyusun dokumen dengan pembahasan yang komprehensif serta mengakomodasi berbagai aspek dan masukan yang relevan selama proses penyusunan.",
+            "externalFactor": "Adanya keterlibatan Tim ISP melalui peninjauan dokumen dan penyampaian masukan",
+            "impact": "Dokumen memperoleh apresiasi atas kelengkapan substansinya dan dinilai telah mengakomodasi sejumlah kebutuhan serta masukan dari unit lain/pengusul.",
+            "action": "Mempertahankan penyusunan dokumen yang komprehensif, melakukan peninjauan substansi secara berkala, serta mengidentifikasi dan mengakomodasi masukan stakeholder yang relevan untuk meningkatkan kualitas hasil pekerjaan.",
+            "notes": ""
+          }
+        },
+        {
+          "row": 83,
+          "group": "NONPENGAWASAN",
+          "project": "SOP Tata Kelola",
+          "failure": {
+            "number": "2",
+            "title": "Proses asistensi dan pengambilan keputusan berlangsung berulang tanpa kepastian keputusan akhir. Konsep yang telah disepakati dalam suatu pertemuan dapat kembali diubah pada pertemuan berikutnya ketika pembahasan dilakukan dengan user yang berbeda.",
+            "internalFactor": "Mekanisme eskalasi ketika terdapat perbedaan arahan belum berjalan secara optimal.",
+            "externalFactor": "Perbedaan pandangan dan ekspektasi antaruser menyebabkan konsep yang sebelumnya disetujui perlu dibahas dan disesuaikan kembali.",
+            "impact": "Revisi berulang, bertambahnya beban kerja, serta tertundanya penyelesaian dokumen dan tahapan pekerjaan berikutnya.",
+            "action": "Melakukan rekapitulasi keputusan yang telah disepakati dan mengonfirmasi perbedaan arahan kepada pihak terkait sebelum perubahan diterapkan pada dokumen",
+            "notes": ""
+          },
+          "success": {
+            "number": "2",
+            "title": "Penggunaan tabel Excel Analisis Biaya Manfaat yang terstruktur dan sesuai dengan kebutuhan analisis yang akan mempermudah tim pengusul dalam melakukan analisis biaya dan manfaat.",
+            "internalFactor": "Penyusunan tabel Excel dilakukan secara rapi dan sistematis, dengan pengelompokan komponen analisis yang memudahkan pengisian, penelusuran, dan pengolahan data.",
+            "externalFactor": "Dukungan Tim ISP bagian Tim Financial dalam mengidentifikasi kebutuhan komponen yang perlu dianalisis serta mengakomodasi pengelompokan aspek analisis sesuai kebutuhan tim pengusul",
+            "impact": "Mempermudah tim pengusul dalam menggunakan tabel, mengidentifikasi komponen biaya dan manfaat, serta melakukan analisis sesuai dengan kebutuhan yang telah ditetapkan.",
+            "action": "Mempertahankan penggunaan format Excel yang terstruktur dan melakukan penyempurnaan berdasarkan kebutuhan analisis serta masukan dari Tim ISP dan tim pengusul agar penggunaannya tetap konsisten dan efektif.",
+            "notes": ""
+          }
+        },
+        {
+          "row": 84,
+          "group": "NONPENGAWASAN",
+          "project": "SOP Tata Kelola",
+          "failure": {
+            "number": "3",
+            "title": "Penyusunan dokumen dibagi kepada beberapa kelompok berdasarkan bidang masing-masing, tetapi integrasi hasil pekerjaan antarkelompok belum berjalan secara memadai. Terdapat bagian dokumen yang tumpang tindih atau memiliki pembahasan yang kurang relevan satu sama lain.",
+            "internalFactor": "Koordinasi lintas kelompok dan peran Team Leader dalam menyelaraskan serta meninjau keseluruhan dokumen belum terlaksana secara efektif",
+            "externalFactor": "-",
+            "impact": "Dokumen menjadi kurang konsisten secara substansi dan struktur sehingga memerlukan penyelarasan serta penyuntingan ulang.",
+            "action": "Melakukan peninjauan menyeluruh terhadap dokumen, menyelaraskan bagian yang tumpang tindih, dan memperbaiki pembahasan yang tidak relevan dengan ruang lingkup pekerjaan.",
+            "notes": ""
+          },
+          "success": {
+            "number": "3",
+            "title": "Beberapa kelompok tim Sigap menunjukkan respons yang baik dalam menindaklanjuti masukan perbaikan selama proses penyusunan dokumen.",
+            "internalFactor": "Adanya inisiatif dan respons dari kelompok tim untuk memahami serta menindaklanjuti masukan perbaikan yang diberikan.",
+            "externalFactor": "Adanya masukan dan arahan dari pihak terkait sebagai bahan evaluasi dan penyempurnaan hasil pekerjaan.",
+            "impact": "Masukan perbaikan dapat ditindaklanjuti dengan lebih baik sehingga mendukung peningkatan kualitas hasil pekerjaan.",
+            "action": "Mempertahankan responsivitas tim terhadap masukan, memperjelas pembagian tanggung jawab tindak lanjut, serta melakukan pemantauan untuk memastikan setiap masukan telah diselesaikan sesuai arahan",
+            "notes": ""
+          }
+        },
+        {
+          "row": 85,
+          "group": "NONPENGAWASAN",
+          "project": "SOP Tata Kelola",
+          "failure": {
+            "number": "4",
+            "title": "Dokumen notulensi rapat (Minutes of Meeting/MoM) hilang dalam proses sirkulasi tanda tangan. Dokumen yang dititipkan kepada salah satu anggota tim user untuk ditandatangani VP tidak ditemukan kembali ketika dilakukan penagihan.",
+            "internalFactor": "-",
+            "externalFactor": "Pengelolaan dan pemantauan dokumen selama proses sirkulasi tanda tangan di pihak user belum memastikan dokumen dapat ditelusuri kembali",
+            "impact": "MoM harus dibuat kembali dan proses sirkulasi tanda tangan diulang sehingga menambah pekerjaan administratif dan waktu penyelesaian.",
+            "action": "Membuat kembali dokumen MoM yang hilang dan melakukan sirkulasi tanda tangan ulang hingga dokumen lengkap diterima.",
+            "notes": ""
+          }
+        },
+        {
+          "row": 86,
+          "group": "NONPENGAWASAN",
+          "project": "SOP Tata Kelola",
+          "failure": {
+            "number": "5",
+            "title": "Tingginya intensitas revisi dan perubahan arahan menyebabkan banyaknya masukan yang perlu ditelusuri kembali, sementara efektivitas kerja tim menurun pada tahap akhir pekerjaan",
+            "internalFactor": "Pencatatan, pelacakan status, pembagian tanggung jawab, dan verifikasi penyelesaian seluruh masukan revisi belum berjalan secara optimal.",
+            "externalFactor": "Banyaknya masukan dan perubahan dari berbagai user meningkatkan kompleksitas serta beban revisi.",
+            "impact": "Sebagian masukan berisiko tidak tertindaklanjuti, kualitas pemeriksaan akhir menurun, dan pekerjaan berpotensi memerlukan revisi tambahan",
+            "action": "Memeriksa kembali seluruh masukan yang telah disampaikan, memastikan tindak lanjutnya pada dokumen, serta melakukan pemeriksaan akhir sebelum penyerahan.",
+            "notes": ""
+          }
+        }
+      ]
+    },
+    {
+      "group": "NONPENGAWASAN",
+      "project": "MPS SGR",
+      "headingRow": 88,
+      "rows": []
+    },
+    {
+      "group": "NONPENGAWASAN",
+      "project": "Studi Daya Beli Gas Bumi PGN",
+      "headingRow": 95,
+      "rows": [
+        {
+          "row": 99,
+          "group": "NONPENGAWASAN",
+          "project": "Studi Daya Beli Gas Bumi PGN",
+          "failure": {
+            "number": "1",
+            "title": "Penyelesaian Laporan Akhir dan Executive Summary memerlukan beberapa tahap revisi.",
+            "internalFactor": "Penyusunan, penyelarasan substansi, dan pemeriksaan kualitas dokumen memerlukan koordinasi antartim.",
+            "externalFactor": "Terdapat kebutuhan penyelarasan Executive Summary dengan tujuan dan keluaran dalam KAK",
+            "impact": "Waktu penyelesaian dokumen perlu disesuaikan dengan kebutuhan revisi dan pemeriksaan ulang",
+            "action": "Menyusun daftar tindak lanjut revisi, menyelaraskan substansi dengan KAK, dan melakukan pemeriksaan QA secara bertahap",
+            "notes": ""
+          },
+          "success": {
+            "number": "1",
+            "title": "Target jumlah responden survei kuantitatif tercapai",
+            "internalFactor": "Pengumpulan data menggunakan aplikasi survei yang dapat disesuaikan dengan kebutuhan kuesioner. Kemudian pemantauan secara real time menggunakan website",
+            "externalFactor": "Dukungan pelaksanaan survei pada wilayah dan segmen pelanggan yang menjadi sasaran pekerjaan berupa master data",
+            "impact": "Jumlah responden yang terkumpul melampaui target yang ditetapkan sehingga mendukung ketersediaan data untuk analisis",
+            "action": "Menggunakan dashboard pemantauan secara real time dan koordinasi melalui grup WA terkait kendala dan ajuan kebutuhan master data tambahan",
+            "notes": "Survei dilaksanakan pada 29 Juli–4 September 2026 dengan 1.425 responden dari target 1.400 responden."
+          }
+        },
+        {
+          "row": 100,
+          "group": "NONPENGAWASAN",
+          "project": "Studi Daya Beli Gas Bumi PGN",
+          "failure": {
+            "number": "2",
+            "title": "Respons tim dalam grup koordinasi terkait pemenuhan kebutuhan output pekerjaan masih kurang optimal.",
+            "internalFactor": "Respons dan tindak lanjut dari anggota tim terhadap permintaan output pekerjaan belum konsisten dan tepat waktu.",
+            "externalFactor": "",
+            "impact": "Koordinasi dan pemantauan progres pemenuhan output pekerjaan menjadi kurang efektif serta berpotensi menghambat penyelesaian pekerjaan sesuai target.",
+            "action": "Menetapkan batas waktu respons dan penyelesaian setiap permintaan output, memperjelas PIC masing-masing pekerjaan, serta melakukan pemantauan dan pengingat secara berkala melalui grup koordinasi.",
+            "notes": ""
+          },
+          "success": {
+            "number": "2",
+            "title": "Penggunaan website/aplikasi SIGAP dalam pengumpulan dan pengelolaan data survei",
+            "internalFactor": "Pemanfaatan sistem SIGAP untuk pencatatan hasil survei serta pengelolaan soft copy data responden secara terstruktur",
+            "externalFactor": "Dukungan pada saat asistensi dalam penyusunan instrumen formulir kuisioner",
+            "impact": "Penggunaan SIGAP mempermudah proses pengumpulan data survei dan pencatatan hasil responden. Hasilnya mempermudah rekapitulasi, pemeriksaan, dan pengarsipan dokumen sehingga data lebih tertata serta mudah ditelusuri untuk kebutuhan pengolahan data dan penyusunan laporan.",
+            "action": "menerapkan pengelolaan dan pengarsipan soft copy secara terstruktur agar proses rekapitulasi dan pemeriksaan data lebih efektif.",
+            "notes": "Sistem digunakan untuk mendukung pelaksanaan survei dengan target 1.400 responden pada 21 kota/kabupaten."
+          }
+        },
+        {
+          "row": 101,
+          "group": "NONPENGAWASAN",
+          "project": "Studi Daya Beli Gas Bumi PGN",
+          "failure": {
+            "number": "",
+            "title": "Penyesuaian jumlah populasi pelanggan Jargas menyebabkan perlunya submit ulang dokumen Laporan Pendahuluan dan Laporan Interim I yang sebelumnya telah disubmit secara fisik.",
+            "internalFactor": "Perubahan jumlah populasi dari hasil perhitungan belum didokumentasikan dalam MoM asistensi sehingga dasar penyesuaian belum tercatat secara formal.",
+            "externalFactor": "PGN menyampaikan data populasi pelanggan pada 27 Juli yang menghasilkan jumlah 147.679 pelanggan, berbeda dari populasi 148.520 pelanggan yang tercantum dalam KAK.",
+            "impact": "Terdapat ketidaksesuaian dasar perhitungan populasi dalam dokumen laporan yang baru teridentifikasi saat pemeriksaan Laporan Interim II dan Laporan Akhir, sehingga diperlukan penyesuaian dokumen yang telah disubmit.",
+            "action": "Menyusun MoM Asistensi 1A sebagai dokumentasi kesepakatan perubahan jumlah populasi pelanggan Jargas berdasarkan data terbaru yang diperbarui pada Juni 2026, kemudian melakukan penyesuaian dan submit ulang dokumen terkait.",
+            "notes": ""
+          }
+        },
+        {
+          "row": 102,
+          "group": "NONPENGAWASAN",
+          "project": "Studi Daya Beli Gas Bumi PGN",
+          "failure": {
+            "number": "",
+            "title": "Pelaksanaan survei kualitatif tidak sesuai dengan timeline yang direncanakan.",
+            "internalFactor": "Perencanaan jadwal dan pemantauan progres survei belum sepenuhnya mengantisipasi kendala koordinasi dan proses perizinan di wilayah survei.",
+            "externalFactor": "Proses birokrasi dan perizinan di wilayah survei memerlukan waktu lebih lama sehingga pelaksanaan wawancara dengan responden mengalami keterlambatan",
+            "impact": "Target awal sebanyak 42 responden dari 21 Dinas Sosial dan 21 TPID tidak tercapai sesuai jadwal yang direncanakan, sehingga diperlukan penyesuaian target survei.",
+            "action": "Menyepakati penyesuaian target responden dari 42 menjadi 21 responden, dengan cakupan Dinas Sosial dan TPID pada setiap wilayah sesuai kesepakatan. Penyesuaian dilakukan dengan tetap mengacu pada KAK serta memastikan data yang diperoleh dapat dipertanggungjawabkan dan memadai untuk mendukung kesimpulan kajian.",
+            "notes": ""
+          }
+        }
+      ]
+    },
+    {
+      "group": "NONPENGAWASAN",
+      "project": "Waipirit",
+      "headingRow": 104,
+      "rows": [
+        {
+          "row": 108,
+          "group": "NONPENGAWASAN",
+          "project": "Waipirit",
+          "failure": {
+            "number": "1",
+            "title": "Penyusunan Laporan Antara mengalami keterlambatan karena menunggu finalisasi Preliminary Development Layout.",
+            "internalFactor": "Fiksasi kesepakatan desain sebagai dasar penyusunan Laporan Antara belum dilakukan secara tegas sejak awal.",
+            "externalFactor": "ASDP membutuhkan asistensi berulang untuk pembahasan dan perbaikan Preliminary Development Layout selama periode 7 September–6 Oktober 2026.",
+            "impact": "Penyusunan dan finalisasi Laporan Antara tertunda karena layout sebagai acuan perencanaan belum ditetapkan secara final.",
+            "action": "Memastikan kesepakatan desain difiksasi melalui konfirmasi tertulis pada setiap asistensi, menetapkan batas waktu pengambilan keputusan, dan menyelaraskan jadwal penyusunan laporan dengan target finalisasi desain.",
+            "notes": ""
+          },
+          "success": {
+            "number": "1",
+            "title": "Respons tim yang cepat dalam proses penyusunan dan perbaikan dokumen pekerjaan",
+            "internalFactor": "Tim responsif dalam proses penyusunan dokumen, menyampaikan paparan dengan jelas, serta menindaklanjuti dan menyelesaikan perbaikan dengan cepat.",
+            "externalFactor": "Komunikasi dengan pihak ASDP berjalan baik, termasuk dalam menginisiasi diskusi dan menjadwalkan pertemuan untuk membahas kebutuhan pekerjaan.",
+            "impact": "Proses koordinasi, pembahasan, dan tindak lanjut perbaikan dapat berjalan dengan lebih efektif.",
+            "action": "Mempertahankan responsivitas tim, menyampaikan materi paparan secara terstruktur dan jelas, serta menjaga komunikasi aktif dengan pihak ASDP untuk mempercepat penyelesaian pekerjaan.",
+            "notes": ""
+          }
+        },
+        {
+          "row": 109,
+          "group": "NONPENGAWASAN",
+          "project": "Waipirit",
+          "failure": {
+            "number": "2",
+            "title": "Pelaksanaan soil test mengalami keterlambatan dan tidak sesuai dengan timeline yang direncanakan.",
+            "internalFactor": "Penggunaan tim lapangan yang berada dekat lokasi pekerjaan belum sepenuhnya mengantisipasi kendala cuaca dan akses transportasi kapal, sehingga mobilisasi tim menuju lokasi mengalami keterlambatan.",
+            "externalFactor": "",
+            "impact": "Pelaksanaan investigasi tanah mengalami keterlambatan sehingga berpotensi memengaruhi ketersediaan data teknis untuk penyusunan laporan dan perencanaan DED.",
+            "action": "Mempertimbangkan faktor cuaca dan akses transportasi dalam penyusunan jadwal, menyiapkan alternatif mobilisasi tim dan peralatan, serta memantau progres pekerjaan lapangan secara berkala.",
+            "notes": ""
+          },
+          "success": {
+            "number": "2",
+            "title": "Laporan Pendahuluan berhasil disubmit sesuai jadwal yang ditetapkan.",
+            "internalFactor": "Penyusunan laporan dilakukan secara terstruktur, dimulai dari perencanaan kerangka, pelaksanaan asistensi, hingga penyusunan dan pemeriksaan substansi isi laporan",
+            "externalFactor": "Komunikasi dan penyampaian informasi dari pihak ASDP mendukung kelancaran koordinasi selama proses penyusunan laporan.",
+            "impact": "Laporan Pendahuluan dapat diselesaikan dan disubmit sesuai jadwal yang direncanakan.",
+            "action": "Menerapkan tahapan penyusunan laporan secara sistematis, melakukan asistensi sesuai kebutuhan, serta menjaga koordinasi dan pertukaran informasi dengan pihak terkait.",
+            "notes": "Secara umum, laporan dinilai cukup baik karena telah memuat konsep desain serta menyajikan alternatif tambahan"
+          }
+        }
+      ]
+    }
+  ]
+}

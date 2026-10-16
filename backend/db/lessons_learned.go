@@ -6,16 +6,16 @@ import (
 	"my-ple-backend/model"
 )
 
-const lessonColumns = `id,job_id,kind,COALESCE(to_char(found_on,'YYYY-MM-DD'),''),title,location,internal_factor,external_factor,impact,action,status,notes,COALESCE(to_char(resolved_on,'YYYY-MM-DD'),''),version`
+const lessonColumns = `id,COALESCE(job_id,0),source_group,source_project,COALESCE(source_row,0),source_number,kind,COALESCE(to_char(found_on,'YYYY-MM-DD'),''),title,location,internal_factor,external_factor,impact,action,status,notes,COALESCE(to_char(resolved_on,'YYYY-MM-DD'),''),version`
 
 func scanLesson(row interface{ Scan(...any) error }) (model.LessonLearned, error) {
 	var l model.LessonLearned
-	err := row.Scan(&l.ID, &l.JobID, &l.Kind, &l.FoundOn, &l.Title, &l.Location, &l.InternalFactor, &l.ExternalFactor, &l.Impact, &l.Action, &l.Status, &l.Notes, &l.ResolvedOn, &l.Version)
+	err := row.Scan(&l.ID, &l.JobID, &l.SourceGroup, &l.SourceProject, &l.SourceRow, &l.SourceNumber, &l.Kind, &l.FoundOn, &l.Title, &l.Location, &l.InternalFactor, &l.ExternalFactor, &l.Impact, &l.Action, &l.Status, &l.Notes, &l.ResolvedOn, &l.Version)
 	return l, err
 }
 
 func (db *Database) LessonsLearned(ctx context.Context) ([]model.LessonLearned, error) {
-	rows, err := db.Conn.QueryContext(ctx, `SELECT `+lessonColumns+` FROM lessons_learned WHERE deleted_at IS NULL ORDER BY job_id,kind,id`)
+	rows, err := db.Conn.QueryContext(ctx, `SELECT `+lessonColumns+` FROM lessons_learned WHERE deleted_at IS NULL ORDER BY source_row NULLS LAST,job_id,kind,id`)
 	if err != nil {
 		return nil, err
 	}
@@ -41,9 +41,9 @@ func (db *Database) SaveLessonLearned(ctx context.Context, id int, l model.Lesso
    VALUES($1,$2,NULLIF($3,'')::date,$4,$5,$6,$7,$8,$9,$10,$11,NULLIF($12,'')::date) RETURNING `+lessonColumns,
 			l.JobID, l.Kind, l.FoundOn, l.Title, l.Location, l.InternalFactor, l.ExternalFactor, l.Impact, l.Action, l.Status, l.Notes, l.ResolvedOn)
 	} else {
-		row = db.Conn.QueryRowContext(ctx, `UPDATE lessons_learned SET job_id=$2,kind=$3,found_on=NULLIF($4,'')::date,title=$5,location=$6,internal_factor=$7,external_factor=$8,impact=$9,action=$10,status=$11,notes=$12,resolved_on=NULLIF($13,'')::date,version=version+1,updated_at=NOW()
-   WHERE id=$1 AND version=$14 AND deleted_at IS NULL RETURNING `+lessonColumns,
-			id, l.JobID, l.Kind, l.FoundOn, l.Title, l.Location, l.InternalFactor, l.ExternalFactor, l.Impact, l.Action, l.Status, l.Notes, l.ResolvedOn, l.Version)
+		row = db.Conn.QueryRowContext(ctx, `UPDATE lessons_learned SET job_id=CASE WHEN source_row IS NULL THEN NULLIF($2,0) ELSE job_id END,kind=$3,found_on=NULLIF($4,'')::date,title=$5,location=$6,internal_factor=$7,external_factor=$8,impact=$9,action=$10,status=$11,notes=$12,resolved_on=NULLIF($13,'')::date,version=version+1,updated_at=NOW()
+   WHERE id=$1 AND version=$14 AND deleted_at IS NULL AND ((source_row IS NULL AND $15=0) OR (source_row=$15 AND kind=$3)) RETURNING `+lessonColumns,
+			id, l.JobID, l.Kind, l.FoundOn, l.Title, l.Location, l.InternalFactor, l.ExternalFactor, l.Impact, l.Action, l.Status, l.Notes, l.ResolvedOn, l.Version, l.SourceRow)
 	}
 	saved, err := scanLesson(row)
 	if err == sql.ErrNoRows && id != 0 {
