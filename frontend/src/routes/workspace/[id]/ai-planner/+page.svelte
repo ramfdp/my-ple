@@ -2,13 +2,14 @@
  import {page} from '$app/state';
  import {goto,afterNavigate} from '$app/navigation';
  import {api,APIError} from '$lib/api';
+ import {planPath,saveReviewAndRefresh} from '$lib/ai-planner';
  type Review={decision:string;note:string;reviewerName:string;reviewedAt:string;version:number};
  type Source={id:string;jobName:string;title:string;description:string;status:string;priority:string;dueDate:string;version:number};
  type Recommendation={id:string;title:string;description:string;priority:string;recommendationType:string;suggestedDueDate:string;reason:string;sourceTaskIds:string[];sourceEvidence:Source[];review:Review;history:Review[]};
  type Plan={draft:{id:string;workspaceId:number;planDate:string;status:string;modelMode:string;modelProfile:string;generatedAt:string;selection:{actionable:number;selected:number;deferred:number}};recommendations:Recommendation[];stale:boolean;reviewed:number};
  type Summary={id:string;planDate:string;generatedAt:string;modelMode:string;stale:boolean};
  let workspaces=$state<{id:number;name:string;canManage:boolean}[]>([]),history=$state<Summary[]>([]),plan=$state<Plan|null>(null);
- let loading=$state(true),saving=$state(''),error=$state(''),notice=$state(''),forbidden=$state(false),date=$state(''),offset=$state(0);
+ let loading=$state(true),saving=$state(''),error=$state(''),notice=$state(''),forbidden=$state(false),date=$state(''),offset=$state(0),retryDraftId=$state('');
  let decisions=$state<Record<string,string>>({}),notes=$state<Record<string,string>>({});
  const wid=$derived(Number(page.params.id));
  const labels:Record<string,string>={PENDING:'Belum Ditinjau',SUITABLE:'Sesuai',NEEDS_REVISION:'Perlu Penyesuaian',REJECTED:'Tidak Direkomendasikan'};
@@ -16,12 +17,12 @@
  const priorities:Record<string,string>={LOW:'Rendah',MEDIUM:'Sedang',HIGH:'Tinggi',URGENT:'Mendesak'};
  const workspace=$derived(workspaces.find(w=>w.id===wid));
  function message(e:unknown){return e instanceof APIError&&e.status===403?'Anda tidak berwenang membuka perencana ini.':e instanceof Error?e.message:'Gagal memuat perencana.'}
- async function load(id?:string){loading=true;error='';notice='';try{const response=await api<{plan:Plan|null}>(`/ai-plans/workspaces/${wid}${id?'/'+id:''}`);plan=response.plan;decisions={};notes={}}catch(e){forbidden=e instanceof APIError&&e.status===403;error=message(e);plan=null}finally{loading=false}}
+ async function load(id?:string,selectedDate?:string):Promise<boolean>{loading=true;error='';notice='';try{const response=await api<{plan:Plan|null}>(planPath(wid,id,selectedDate));plan=response.plan;forbidden=false;retryDraftId='';decisions={};notes={};return true}catch(e){forbidden=e instanceof APIError&&e.status===403;error=message(e);plan=null;return false}finally{loading=false}}
  async function loadHistory(){try{history=(await api<{drafts:Summary[]}>(`/ai-plans/workspaces/${wid}/history?offset=${offset}`)).drafts}catch(e){error=message(e)}}
  afterNavigate(()=>{forbidden=false;date='';offset=0;history=[];plan=null;loading=true;void (async()=>{try{workspaces=(await api<{workspaces:typeof workspaces}>('/workspaces')).workspaces.filter(w=>w.canManage);if(!workspaces.some(w=>w.id===wid)){forbidden=true;error='Anda tidak berwenang membuka perencana ini.';loading=false;return}await Promise.all([load(),loadHistory()])}catch(e){error=message(e);loading=false}})()});
- async function save(r:Recommendation){if(!plan||plan.stale)return;saving=r.id;error='';notice='';try{await api(`/ai-plans/workspaces/${wid}/${plan.draft.id}/recommendations/${r.id}/review`,{method:'PATCH',body:JSON.stringify({decision:decisions[r.id]??r.review.decision,note:notes[r.id]??r.review.note,version:r.review.version})});notice='Tinjauan tersimpan.';await load(plan.draft.id);notice='Tinjauan tersimpan.'}catch(e){error=e instanceof APIError&&e.status===409?'Tinjauan berubah atau rencana sudah usang. Muat ulang untuk melihat data terbaru.':message(e)}finally{saving=''}}
+ async function save(r:Recommendation){if(!plan||plan.stale)return;const draftId=plan.draft.id;saving=r.id;error='';notice='';try{const result=await saveReviewAndRefresh(()=>api(`/ai-plans/workspaces/${wid}/${draftId}/recommendations/${r.id}/review`,{method:'PATCH',body:JSON.stringify({decision:decisions[r.id]??r.review.decision,note:notes[r.id]??r.review.note,version:r.review.version})}),()=>load(draftId));if(result==='saved')notice='Tinjauan tersimpan.';else{retryDraftId=draftId;error='Tinjauan tersimpan, tetapi gagal memuat data terbaru. Muat ulang sebelum meninjau lagi.'}}catch(e){error=e instanceof APIError&&e.status===409?'Tinjauan berubah atau rencana sudah usang. Muat ulang untuk melihat data terbaru.':message(e)}finally{saving=''}}
  function selectWorkspace(e:Event){const id=(e.currentTarget as HTMLSelectElement).value;void goto(`/workspace/${id}/ai-planner`)}
- function chooseDate(e:Event){date=(e.currentTarget as HTMLInputElement).value;const item=history.find(h=>h.planDate===date);if(item)void load(item.id);else plan=null}
+ function chooseDate(e:Event){date=(e.currentTarget as HTMLInputElement).value;void load(undefined,date||undefined)}
 </script>
 <svelte:head><title>AI Daily Job Planner | My-PLE</title></svelte:head>
 <main class="planner">
@@ -29,7 +30,7 @@
  <header><div><h1>AI Daily Job Planner</h1><p>Rekomendasi pekerjaan harian berdasarkan data Job Tracker.</p><p>Usulan kegiatan untuk evaluasi manusia. Bukan penugasan atau persetujuan akhir.</p></div></header>
  {#if workspaces.length}<div class="controls"><label>Workspace<select value={wid} onchange={selectWorkspace}>{#each workspaces as w}<option value={w.id}>{w.name}</option>{/each}</select></label><label>Tanggal rencana<input type="date" value={date||plan?.draft.planDate||''} onchange={chooseDate}/></label><button onclick={()=>{date='';void load()}}>Rencana terbaru</button></div>{/if}
  {#if loading}<p role="status">Memuat rencana…</p>{/if}
- {#if error}<div role="alert" class="alert"><p>{error}</p>{#if !forbidden}<button onclick={()=>void load(plan?.draft.id)}>Muat ulang</button>{/if}</div>{/if}
+ {#if error}<div role="alert" class="alert"><p>{error}</p>{#if !forbidden}<button onclick={()=>void load(retryDraftId||plan?.draft.id,date||undefined)}>Muat ulang</button>{/if}</div>{/if}
  {#if notice}<p role="status" class="notice">{notice}</p>{/if}
  {#if !loading&&!forbidden}
   {#if plan}

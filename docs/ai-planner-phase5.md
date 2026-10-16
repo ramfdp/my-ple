@@ -6,16 +6,21 @@ The testing backend accepts an existing Worker `daily-v3` draft through `POST /i
 
 Startup migration under existing PostgreSQL advisory locks adds `ai_plan_drafts`, `ai_plan_recommendations`, and append-only application review events in `ai_plan_reviews`. Draft ID is the Worker SHA-256 identity. Draft JSON and original source evidence remain intact. A unique draft ID makes a repeated identical import idempotent; a conflicting payload returns 409. Indexes cover workspace/date history and recommendation review history. No AI route writes `work_items`.
 
+The idempotent upgrade adds `reviewer_identity` and `reviewer_name` snapshots to current reviews and audit events. It backfills existing reviewers, makes `ai_plan_reviews.reviewer_id` nullable, and changes both reviewer foreign keys to `ON DELETE SET NULL`. Deleting a reviewer still leaves every AI review, its historical name and identity, and its timestamp. Run this upgrade while reviewer accounts still exist so old rows can be backfilled. Existing employee deletion rules for non-AI records still apply.
+
 Import requires `AI_IMPORT_ENABLED=true`, a 32-byte hex token file at `AI_IMPORT_TOKEN_FILE`, and `AI_IMPORT_ALLOWED_WORKSPACE_IDS`. The token must differ from `AI_SERVICE_TOKEN_FILE`. Backend validates schema `1.0`, prompt `daily-v3`, dates, IDs, selection counts, source references, deterministic identity, and current testing snapshot hash. Changed source returns 409. A later source change marks the stored plan stale; original evidence and review history remain visible. Stale drafts cannot receive another review through the UI.
 
 Human routes require the existing `my_ple_session` cookie, a current database `workspace_access.can_manage` grant, and the Management or Admin role. Machine tokens grant no human access. Routes:
 
 - `GET /ai-plans/workspaces/{id}`: latest published plan or `plan: null`.
+- `GET /ai-plans/workspaces/{id}?date=YYYY-MM-DD`: newest published plan for that workspace/date, independent of the 20-item history page; `plan: null` only if no matching draft exists.
 - `GET /ai-plans/workspaces/{id}/{draftId}`: stored plan, evidence, reviews, stale flag.
 - `GET /ai-plans/workspaces/{id}/history?offset=0`: 20 drafts per page.
 - `PATCH /ai-plans/workspaces/{id}/{draftId}/recommendations/{recommendationId}/review`: `{ "decision": "SUITABLE", "note": "...", "version": 0 }`. Version mismatch returns 409. Decisions: `PENDING`, `SUITABLE`, `NEEDS_REVISION`, `REJECTED`. Every saved change appends an audit event. No decision approves or assigns a task.
 
 In Workspace, Management/Admin with `can_manage` use **AI Daily Job Planner**. Select workspace, date, or history entry; inspect source evidence and the original task link. The task link uses `/workspace/{id}?task={taskId}`. Mock drafts carry a visible simulation label. Opening the page never generates a draft.
+
+Import and review hold PostgreSQL `SHARE` table locks on `jobs` and `work_items` from snapshot validation until commit. Review also locks the recommendation row, checks its version, and checks the reviewer role and grant in the same transaction. An earlier source edit commits first and makes the review return 409; a later edit waits for the review to commit. This guarantees that source data represented by the snapshot hash was current at review commit. These short locks cover all workspaces on the testing database and may briefly delay Job Tracker writes. A source change immediately after commit can still make a plan stale; the next read detects it. Only fields projected into the bounded AI snapshot participate in the hash. Review decisions remain non-operative classifications, never Job Tracker approval.
 
 ## Controlled testing deployment
 
@@ -25,6 +30,6 @@ Validate `docker compose -f compose.yaml -f compose.testing.yaml -f compose.ai-t
 
 ## Tests, rollback, limits
 
-Run `go test ./...`, `go test -race ./...`, and `go vet ./...` in `backend`; `npm run check` and `npm run build` in `frontend`. PostgreSQL integration tests require a separate local test database. Roll back application containers to prior images and set `AI_IMPORT_ENABLED=false`. Keep AI tables for audit and preserve all volumes; restore the testing database backup only if migration failure requires it. Do not drop existing tables or clear draft state.
+Run `go test ./...`, `go test -race ./...`, and `go vet ./...` in `backend`; `node --test tests/ai-planner.test.mjs`, `npm run check`, and `npm run build` in `frontend`. PostgreSQL integration tests require `AI_PLAN_TEST_DATABASE_URL` pointing only to an isolated local database with `ai_plan_test` in its name. The integration test exercises migration and account deletion with synthetic data; use a fresh database for each run. Roll back application containers to prior images and set `AI_IMPORT_ENABLED=false`. Keep AI tables for audit and preserve all volumes; restoring the prior application image does not undo the additive AI migration. Restore the testing database backup only if migration failure requires it. Do not drop existing tables or clear draft state.
 
 Phase 6 must define final approval, source-version revalidation at synchronization, assignment authorization, idempotent Job Tracker writes, and notification semantics. Phase 5 has no final approval, task creation, scheduler, document RAG, corporate cloud-model authorization, or production deployment.

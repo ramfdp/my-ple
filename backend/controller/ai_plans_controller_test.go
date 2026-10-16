@@ -103,6 +103,25 @@ func TestAIImportValidationAndAuthentication(t *testing.T) {
 	if w.Code != 400 {
 		t.Fatalf("malformed identity: %d", w.Code)
 	}
+	d = validTestDraft()
+	d.WorkspaceID = 2
+	id := sha256.Sum256([]byte("2|2026-10-16|" + d.InputSnapshotHash + "|daily-v3|" + d.PromptHash + "|mock|mock-v1|1.0"))
+	d.ID = hex.EncodeToString(id[:])
+	body, _ = json.Marshal(d)
+	w = httptest.NewRecorder()
+	req = httptest.NewRequest("POST", "/internal/ai/v1/drafts/import", strings.NewReader(string(body)))
+	req.Header.Set("Authorization", "Bearer "+strings.Repeat("c", 64))
+	h.ServeHTTP(w, req)
+	if w.Code != 403 {
+		t.Fatalf("workspace token grant: %d", w.Code)
+	}
+	w = httptest.NewRecorder()
+	req = httptest.NewRequest("POST", "/internal/ai/v1/drafts/import", strings.NewReader(`{"schemaVersion":"1.0","role":"Admin"}`))
+	req.Header.Set("Authorization", "Bearer "+strings.Repeat("c", 64))
+	h.ServeHTTP(w, req)
+	if w.Code != 400 {
+		t.Fatalf("unknown role field: %d", w.Code)
+	}
 }
 func TestPublicGatewayBlocksAIImport(t *testing.T) {
 	for _, name := range []string{"../../nginx.conf", "../../nginx.testing.conf"} {

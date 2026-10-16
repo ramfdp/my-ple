@@ -223,6 +223,28 @@ func (c *AIPlansController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(path) == 3 && r.Method == "GET" {
+		if dates, selected := r.URL.Query()["date"]; selected {
+			if len(dates) != 1 || !aiValidDate(dates[0]) {
+				aiError(w, 400)
+				return
+			}
+			id, lookupErr := c.DB.AIPlanIDByDate(r.Context(), workspace, dates[0])
+			if errors.Is(lookupErr, sql.ErrNoRows) {
+				WriteJSON(w, 200, map[string]any{"plan": nil})
+				return
+			}
+			if lookupErr != nil {
+				aiError(w, 503)
+				return
+			}
+			plan, detailErr := c.DB.AIPlanDetail(r.Context(), workspace, id)
+			if detailErr != nil {
+				aiError(w, 503)
+				return
+			}
+			WriteJSON(w, 200, map[string]any{"plan": plan})
+			return
+		}
 		items, e := c.DB.AIPlanHistory(r.Context(), workspace, 1, 0)
 		if e != nil {
 			aiError(w, 503)
@@ -274,23 +296,12 @@ func (c *AIPlansController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			aiError(w, 400)
 			return
 		}
-		plan, e := c.DB.AIPlanDetail(r.Context(), workspace, path[3])
-		if e != nil {
-			if errors.Is(e, sql.ErrNoRows) {
-				aiError(w, 404)
-			} else {
-				aiError(w, 503)
-			}
-			return
-		}
-		if plan.Stale {
-			aiError(w, 409)
-			return
-		}
 		review, e := c.DB.ReviewAIPlan(r.Context(), workspace, path[3], path[5], claims.ID, input.Decision, input.Note, *input.Version)
 		if e != nil {
-			if errors.Is(e, db.ErrAIPlanConflict) {
+			if errors.Is(e, db.ErrAIPlanConflict) || errors.Is(e, db.ErrAIPlanStale) {
 				aiError(w, 409)
+			} else if errors.Is(e, db.ErrWorkspaceForbidden) {
+				aiError(w, 403)
 			} else if errors.Is(e, sql.ErrNoRows) {
 				aiError(w, 404)
 			} else {
@@ -298,7 +309,6 @@ func (c *AIPlansController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
-		review.ReviewerName = claims.Name
 		WriteJSON(w, 200, map[string]any{"review": review})
 		return
 	}

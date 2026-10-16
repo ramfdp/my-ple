@@ -14,12 +14,25 @@ var ErrAISnapshotTooLarge = errors.New("AI snapshot exceeds 200 actionable tasks
 
 // AISnapshot uses one read-only repeatable-read view; 201 rows detect overflow.
 func (db *Database) AISnapshot(ctx context.Context, workspaceID int) (model.AISnapshot, error) {
-	s := model.AISnapshot{SchemaVersion: "1.0", WorkspaceID: workspaceID, Tasks: []model.AITask{}, AllowedAssigneeIDs: []string{}}
 	tx, err := db.Conn.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
+	if err != nil {
+		return model.AISnapshot{}, err
+	}
+	defer tx.Rollback()
+	s, err := aiSnapshotTx(ctx, tx, workspaceID)
 	if err != nil {
 		return s, err
 	}
-	defer tx.Rollback()
+	if err = tx.Commit(); err != nil {
+		return s, err
+	}
+	return s, nil
+}
+
+// aiSnapshotTx also serves imports and reviews after their transaction locks source tables.
+func aiSnapshotTx(ctx context.Context, tx *sql.Tx, workspaceID int) (model.AISnapshot, error) {
+	s := model.AISnapshot{SchemaVersion: "1.0", WorkspaceID: workspaceID, Tasks: []model.AITask{}, AllowedAssigneeIDs: []string{}}
+	var err error
 	var exists bool
 	if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM divisions WHERE id=$1)`, workspaceID).Scan(&exists); err != nil {
 		return s, err
@@ -73,9 +86,6 @@ func (db *Database) AISnapshot(ctx context.Context, workspaceID int) (model.AISn
 	}
 	if len(data) > 64*1024 {
 		return s, ErrAISnapshotTooLarge
-	}
-	if err = tx.Commit(); err != nil {
-		return s, err
 	}
 	s.SnapshotAt = s.SnapshotAt.UTC().Truncate(time.Microsecond)
 	return s, nil

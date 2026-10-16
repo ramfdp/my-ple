@@ -97,8 +97,22 @@ func AISnapshotHash(s model.AISnapshot) (string, error) {
 	return hex.EncodeToString(sum[:]), nil
 }
 
+// SHARE locks cover existing rows and inserts, including writes outside Workspace handlers.
+func lockAISources(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, `LOCK TABLE jobs, work_items IN SHARE MODE`)
+	return err
+}
+
 func (db *Database) ImportAIPlan(ctx context.Context, d AIDraft) error {
-	snap, err := db.AISnapshot(ctx, d.WorkspaceID)
+	tx, err := db.Conn.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err = lockAISources(ctx, tx); err != nil {
+		return err
+	}
+	snap, err := aiSnapshotTx(ctx, tx, d.WorkspaceID)
 	if err != nil {
 		return err
 	}
@@ -168,11 +182,6 @@ func (db *Database) ImportAIPlan(ctx context.Context, d AIDraft) error {
 	if err != nil {
 		return err
 	}
-	tx, err := db.Conn.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
 	var identical bool
 	err = tx.QueryRowContext(ctx, `SELECT draft=$2::jsonb FROM ai_plan_drafts WHERE id=$1 FOR UPDATE`, d.ID, raw).Scan(&identical)
 	if err == nil {
@@ -249,6 +258,12 @@ func (db *Database) AIPlanHistory(ctx context.Context, workspaceID int, limit, o
 	return result, nil
 }
 
+func (db *Database) AIPlanIDByDate(ctx context.Context, workspaceID int, date string) (string, error) {
+	var id string
+	err := db.Conn.QueryRowContext(ctx, `SELECT id FROM ai_plan_drafts WHERE workspace_id=$1 AND plan_date=$2 ORDER BY imported_at DESC,id DESC LIMIT 1`, workspaceID, date).Scan(&id)
+	return id, err
+}
+
 func (db *Database) AIPlanDetail(ctx context.Context, workspaceID int, id string) (AIPlan, error) {
 	var p AIPlan
 	var raw []byte
@@ -272,7 +287,7 @@ func (db *Database) AIPlanDetail(ctx context.Context, workspaceID int, id string
 		}
 	}
 	p.Stale = current != hash
-	rows, err := db.Conn.QueryContext(ctx, `SELECT r.data,r.source_evidence,r.decision,r.note,COALESCE(r.reviewer_id::text,''),COALESCE(u.name,''),r.reviewed_at,r.version FROM ai_plan_recommendations r LEFT JOIN users u ON u.id=r.reviewer_id WHERE r.draft_id=$1 ORDER BY r.id`, id)
+	rows, err := db.Conn.QueryContext(ctx, `SELECT r.data,r.source_evidence,r.decision,r.note,COALESCE(NULLIF(r.reviewer_identity,''),r.reviewer_id::text,''),CASE WHEN r.version=0 THEN '' ELSE COALESCE(NULLIF(r.reviewer_name,''),u.name,'Pengguna dihapus') END,r.reviewed_at,r.version FROM ai_plan_recommendations r LEFT JOIN users u ON u.id=r.reviewer_id WHERE r.draft_id=$1 ORDER BY r.id`, id)
 	if err != nil {
 		return p, err
 	}
@@ -304,7 +319,7 @@ func (db *Database) AIPlanDetail(ctx context.Context, workspaceID int, id string
 		return p, err
 	}
 	for i := range p.Recommendations {
-		history, err := db.Conn.QueryContext(ctx, `SELECT h.decision,h.note,h.reviewer_id::text,COALESCE(u.name,''),h.reviewed_at,h.version FROM ai_plan_reviews h LEFT JOIN users u ON u.id=h.reviewer_id WHERE h.draft_id=$1 AND h.recommendation_id=$2 ORDER BY h.version DESC`, id, p.Recommendations[i].ID)
+		history, err := db.Conn.QueryContext(ctx, `SELECT h.decision,h.note,COALESCE(NULLIF(h.reviewer_identity,''),h.reviewer_id::text,''),COALESCE(NULLIF(h.reviewer_name,''),u.name,'Pengguna dihapus'),h.reviewed_at,h.version FROM ai_plan_reviews h LEFT JOIN users u ON u.id=h.reviewer_id WHERE h.draft_id=$1 AND h.recommendation_id=$2 ORDER BY h.version DESC`, id, p.Recommendations[i].ID)
 		if err != nil {
 			return p, err
 		}
@@ -333,18 +348,43 @@ func (db *Database) ReviewAIPlan(ctx context.Context, workspaceID int, draftID, 
 	}
 	defer tx.Rollback()
 	var current int
-	err = tx.QueryRowContext(ctx, `SELECT r.version FROM ai_plan_recommendations r JOIN ai_plan_drafts d ON d.id=r.draft_id WHERE d.workspace_id=$1 AND r.draft_id=$2 AND r.id=$3 FOR UPDATE OF r`, workspaceID, draftID, recID).Scan(&current)
+	err = tx.QueryRowContext(ctx, `SELECT u.name FROM users u JOIN roles role ON role.id=u.role_id WHERE u.id=$1 AND u.is_active AND role.name IN ('Admin','Management') AND EXISTS(SELECT 1 FROM workspace_access a WHERE a.user_id=u.id AND a.division_id=$2 AND a.can_manage) FOR SHARE OF u,role`, userID, workspaceID).Scan(&review.ReviewerName)
+	if errors.Is(err, sql.ErrNoRows) {
+		return review, ErrWorkspaceForbidden
+	}
+	if err != nil {
+		return review, err
+	}
+	var storedHash string
+	err = tx.QueryRowContext(ctx, `SELECT r.version,d.snapshot_hash FROM ai_plan_recommendations r JOIN ai_plan_drafts d ON d.id=r.draft_id WHERE d.workspace_id=$1 AND r.draft_id=$2 AND r.id=$3 FOR UPDATE OF r`, workspaceID, draftID, recID).Scan(&current, &storedHash)
 	if err != nil {
 		return review, err
 	}
 	if current != version {
 		return review, ErrAIPlanConflict
 	}
-	err = tx.QueryRowContext(ctx, `UPDATE ai_plan_recommendations SET decision=$4,note=$5,reviewer_id=$6,reviewed_at=now(),version=version+1 WHERE draft_id=$1 AND id=$2 AND version=$3 RETURNING reviewed_at,version`, draftID, recID, version, decision, note, userID).Scan(&review.ReviewedAt, &review.Version)
+	if err = lockAISources(ctx, tx); err != nil {
+		return review, err
+	}
+	snap, err := aiSnapshotTx(ctx, tx, workspaceID)
+	if errors.Is(err, ErrAISnapshotTooLarge) {
+		return review, ErrAIPlanStale
+	}
 	if err != nil {
 		return review, err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO ai_plan_reviews(draft_id,recommendation_id,version,decision,note,reviewer_id,reviewed_at) VALUES($1,$2,$3,$4,$5,$6,$7)`, draftID, recID, review.Version, decision, note, userID, review.ReviewedAt)
+	hash, err := AISnapshotHash(snap)
+	if err != nil {
+		return review, err
+	}
+	if hash != storedHash {
+		return review, ErrAIPlanStale
+	}
+	err = tx.QueryRowContext(ctx, `UPDATE ai_plan_recommendations SET decision=$4,note=$5,reviewer_id=$6::uuid,reviewer_identity=$6::text,reviewer_name=$7,reviewed_at=now(),version=version+1 WHERE draft_id=$1 AND id=$2 AND version=$3 RETURNING reviewed_at,version`, draftID, recID, version, decision, note, userID, review.ReviewerName).Scan(&review.ReviewedAt, &review.Version)
+	if err != nil {
+		return review, err
+	}
+	_, err = tx.ExecContext(ctx, `INSERT INTO ai_plan_reviews(draft_id,recommendation_id,version,decision,note,reviewer_id,reviewer_identity,reviewer_name,reviewed_at) VALUES($1,$2,$3,$4,$5,$6::uuid,$6::text,$7,$8)`, draftID, recID, review.Version, decision, note, userID, review.ReviewerName, review.ReviewedAt)
 	if err != nil {
 		return review, err
 	}
