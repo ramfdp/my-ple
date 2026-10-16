@@ -56,6 +56,8 @@ func (s *Service) deliverChange(ctx context.Context, c Change) {
 		args = append(args, c.EntityID)
 	case "document-checklists.changed", "billing-documents.changed":
 		query += ` AND lower(r.name) IN ('project engineer','finance','admin','management')`
+	case "lessons-learned.changed":
+		query += ` AND lower(r.name) IN ('project engineer','admin','management')`
 	case "reports.changed", "zoom.changed", "jobs.changed": // Same authenticated scope as the existing read endpoints.
 	default:
 		return

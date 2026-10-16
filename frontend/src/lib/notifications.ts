@@ -68,7 +68,7 @@ export function startNotifications() {
    if (stopped) return;
 			try {
 				const message = JSON.parse(data) as { event: string; notification: Notification; workspaceId?:number };
-				if(['workspace.changed','leave.changed','reports.changed','zoom.changed','jobs.changed','users.changed','attendance.changed','document-checklists.changed','billing-documents.changed','notifications.changed'].includes(message.event))window.dispatchEvent(new CustomEvent(message.event,{detail:message}));
+				if(['workspace.changed','leave.changed','reports.changed','zoom.changed','jobs.changed','users.changed','attendance.changed','document-checklists.changed','lessons-learned.changed','billing-documents.changed','notifications.changed'].includes(message.event))window.dispatchEvent(new CustomEvent(message.event,{detail:message}));
     if (message.event === 'notification.created' && message.notification?.id && message.notification.actor?.id && message.notification.actor.id !== current.user.id) {
      const item = message.notification;
      if (!seen.has(item.id)) { seen.add(item.id); addNotification(item); if (!item.readAt) sound.play(); }

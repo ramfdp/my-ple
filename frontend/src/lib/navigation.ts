@@ -12,6 +12,7 @@ export const features = [
  {key:'Employees',href:'/employees',icon:'users',description:'Kelola data karyawan.'},
  {key:'Absensi Karyawan',href:'/attendance/overview',icon:'calendar',description:'Ringkasan kehadiran'},
  {key:'Checklist Dokumen Pekerjaan',href:'/document-checklists',icon:'file',description:'Pantau dokumen dan kelengkapan tanda tangan setiap pekerjaan.'},
+ {key:'Evaluasi & Lesson Learned',href:'/lessons-learned',icon:'file',description:'Catat temuan dan pembelajaran setiap pekerjaan.'},
  {key:'Persetujuan Izin & Cuti',href:'/leave/approvals',icon:'clock',description:'Tinjau dan setujui atau tolak pengajuan izin dan cuti.'}
 ] as const;
 export function goBack(event: Event) {
@@ -24,6 +25,7 @@ export function visibleFeatures(role = '') {
  return features.filter(item => {
   if(['/employees','/attendance/overview'].includes(item.href))return ['admin','management','hr'].includes(role);
   if(item.href==='/document-checklists')return canUseDocumentChecklist(role);
+  if(item.href==='/lessons-learned')return ['project engineer','admin','management'].includes(role);
   if(item.href==='/billing-documents')return canUseBilling(role);
   if(item.href==='/leave/approvals')return ['admin','management'].includes(role);
   return !!role;

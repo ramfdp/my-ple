@@ -1,0 +1,22 @@
+export interface LessonLearned {
+ id:number; jobId:number; kind:'failure'|'success'; foundOn:string; title:string; location:string;
+ internalFactor:string; externalFactor:string; impact:string; action:string;
+ status:'open'|'in_progress'|'resolved'; notes:string; resolvedOn:string; version:number;
+}
+
+// Condensed from the source workbook's Report tab; these are references, not project records.
+export const referenceLessons = [
+ {kind:'success',title:'Koordinasi rutin meningkatkan kesiapan tim',summary:'Briefing dan komunikasi dengan user, MK, kontraktor, dan tim internal membantu pelaksanaan pekerjaan serta UCO yang aman dan sesuai waktu.',source:'MK Merapi–Banjarsari; KAI - PMO IBP; Pengawas - JAKG; Supervisi Rumjab DU Brawijaya',action:'Pertahankan koordinasi sebelum pekerjaan dan kegiatan kritis. Samakan pemahaman semua pihak.'},
+ {kind:'success',title:'Checklist monitoring membantu pengendalian',summary:'Checklist memudahkan pemantauan pekerjaan fisik, administrasi, dokumen, dan progres untuk user.',source:'MK Merapi–Banjarsari; KAI - PMO IBP',action:'Gunakan checklist standar setiap proyek dan perbarui sebagai bahan monitoring mingguan.'},
+ {kind:'success',title:'Pemahaman KAK dan kontrak memperkuat diskusi',summary:'Tim yang memahami lingkup, kontrak, dan deliverables dapat menjelaskan kewajiban secara teknis dan administratif.',source:'KAI - PMO IBP; Pengawas - JAKG',action:'Tinjau KAK dan kontrak di awal pekerjaan dan saat muncul isu penting.'},
+ {kind:'success',title:'QC internal meningkatkan kualitas output',summary:'Pemeriksaan sebelum laporan atau hasil review dikirim mengurangi revisi dan meningkatkan kepercayaan user.',source:'KAI - PMO IBP',action:'Periksa substansi, format, data pendukung, dan kesesuaian arahan user sebelum pengiriman.'},
+ {kind:'success',title:'Dokumen material lengkap memperlancar persetujuan',summary:'Respons TL, admin, user, dan pihak terkait membantu kelengkapan dan tindak lanjut pengajuan material.',source:'Pengawas - JAKG; Hydrant Manggarai',action:'Gunakan daftar kontrol kelengkapan sebelum material diajukan.'},
+ {kind:'success',title:'Format paparan standar memperjelas progres',summary:'Paparan dan checklist konsisten memudahkan stakeholder memahami progres, kendala, dan tindak lanjut.',source:'KAI - PMO IBP; Hydrant MGI',action:'Gunakan format mingguan berisi progres, kendala, tindak lanjut, PIC, dan target.'},
+ {kind:'failure',title:'Pemahaman tugas sesuai KAK perlu diperkuat',summary:'Sebagian personel belum siap menjelaskan peran dan kewajibannya sesuai KAK.',source:'KAI - PMO IBP',action:'Adakan briefing dan diskusi internal berkala tentang peran, tanggung jawab, dan lingkup.'},
+ {kind:'failure',title:'Data progres perlu disajikan sederhana',summary:'Persentase progres rencana dan waktu pelaksanaan memicu salah tafsir.',source:'Pengawas - JAKG',action:'Tampilkan indikator yang relevan dan jelaskan konsep yang berpotensi membingungkan.'},
+ {kind:'failure',title:'Revisi dokumen perlu ditindaklanjuti terstruktur',summary:'Revisi pemberi tugas belum ditindaklanjuti optimal sehingga penyelesaian melambat.',source:'PPMP',action:'Catat setiap revisi, target waktu, status, dan validasi akhir.'},
+ {kind:'failure',title:'Distribusi native file memerlukan persetujuan',summary:'CAD dan RAB pernah diberikan di luar pemberi kerja sehingga berisiko menimbulkan perbedaan versi dan masalah administrasi.',source:'Fire Hydrant',action:'Konfirmasi permintaan file penting kepada pemberi kerja atau PIC berwenang.'},
+ {kind:'failure',title:'Backup teknis harus siap sebelum pemeriksaan',summary:'Klarifikasi volume terkendala oleh backup, mapping, dan dokumentasi yang belum lengkap atau mudah diakses.',source:'Supervisi Rumjab DU Brawijaya',action:'Lengkapi backup volume, mapping, foto, dan dokumen pendukung sejak awal.'},
+ {kind:'failure',title:'Administrasi perlu pemeriksaan akhir',summary:'Daftar hadir, absensi, surat personel, dan dokumen lain ditemukan belum sesuai.',source:'MPS - PIT/STR',action:'Gunakan checklist dan final QC sebelum dokumen dikirim atau dijilid.'},
+ {kind:'failure',title:'Alur koordinasi lintas divisi perlu jelas',summary:'Perbedaan pemahaman antar tim dan stakeholder mengganggu administrasi, dokumen, serta mekanisme pekerjaan.',source:'MPS - PIT/STR; Supervisi Rumjab DU Brawijaya',action:'Tetapkan peran dan alur komunikasi sejak awal. Dokumentasikan keputusan dalam notulen atau kanal resmi.'}
+] as const;
