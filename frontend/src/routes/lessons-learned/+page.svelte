@@ -1,5 +1,6 @@
 <script lang="ts">
  import { onMount } from 'svelte';
+ import { tick } from 'svelte';
  import { api, currentUser, type Job } from '$lib/api';
  import { subscribeChanges } from '$lib/realtime';
  import type { LessonLearned, RekapSectionLayout } from '$lib/lessons-learned';
@@ -31,7 +32,7 @@
   error = '';
   try {
    const result = await api<{jobs:Job[];lessons:LessonLearned[];sections:RekapSectionLayout[]}>('/lessons-learned');
-   if (request === generation) { jobs = result.jobs; lessons = result.lessons; sections = result.sections; }
+   if (request === generation) { jobs = result.jobs; lessons = result.lessons; sections = result.sections; await tick(); if(location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView({block:'center'}); }
   } catch (e) { if (request === generation) error = (e as Error).message; }
   finally { if (request === generation) loading = false; }
  }
@@ -71,7 +72,7 @@
 {#snippet findingCells(item:LessonLearned|undefined,kind:'failure'|'success',row:number)}
  {#if item}
   <td class="number">{item.sourceNumber}</td>
-  <td>{item.title}</td><td>{item.internalFactor}</td><td>{item.externalFactor}</td>
+  <td id={'lesson-'+item.id}>{item.title}</td><td>{item.internalFactor}</td><td>{item.externalFactor}</td>
   <td>{item.impact}</td><td>{item.action}</td><td>{item.notes}</td>
   <td class="edit-cell"><button aria-label={'Edit '+(kind === 'failure' ? 'kegagalan' : 'keberhasilan')+' baris '+row} onclick={() => open(item)}>Edit</button></td>
  {:else}
@@ -126,7 +127,7 @@
    <div class="section-heading"><div><h2 id="app-title">Temuan MyHIS</h2><p>Catatan yang dibuat langsung di aplikasi. Data lama tetap tersimpan.</p></div><button class="primary" onclick={() => open()} disabled={!jobs.length}>+ Tambah temuan</button></div>
    <label class="job-filter">Pekerjaan<select bind:value={jobFilter}><option value={0}>Semua pekerjaan</option>{#each jobs as job}<option value={job.id}>{job.name}</option>{/each}</select></label>
    {#if !appLessons.length}<p class="message">Belum ada temuan MyHIS untuk pilihan ini.</p>
-   {:else}<div class="app-list">{#each appLessons as item (item.id)}<article class="ws-panel"><div class="app-head"><strong>{item.kind === 'failure' ? 'Kegagalan / isu' : 'Keberhasilan'}</strong><span>{jobName(item.jobId)}</span></div><h3>{item.title}</h3>{#if item.foundOn}<p><b>Tanggal:</b> {item.foundOn}</p>{/if}{#if item.location}<p><b>Lokasi:</b> {item.location}</p>{/if}{#if item.internalFactor}<p><b>Internal:</b> {item.internalFactor}</p>{/if}{#if item.externalFactor}<p><b>Eksternal:</b> {item.externalFactor}</p>{/if}{#if item.impact}<p><b>Dampak:</b> {item.impact}</p>{/if}{#if item.action}<p><b>Tindak lanjut / strategi:</b> {item.action}</p>{/if}{#if item.notes}<p><b>Keterangan:</b> {item.notes}</p>{/if}{#if item.kind === 'failure'}<p><b>Status:</b> {item.status === 'open' ? 'Terbuka' : item.status === 'in_progress' ? 'Dalam proses' : `Selesai ${item.resolvedOn}`}</p>{/if}<div class="app-actions"><button onclick={() => open(item)}>Edit</button><button disabled={busy} onclick={() => remove(item)}>Hapus</button></div></article>{/each}</div>{/if}
+   {:else}<div class="app-list">{#each appLessons as item (item.id)}<article class="ws-panel" id={'lesson-'+item.id}><div class="app-head"><strong>{item.kind === 'failure' ? 'Kegagalan / isu' : 'Keberhasilan'}</strong><span>{jobName(item.jobId)}</span></div><h3>{item.title}</h3>{#if item.foundOn}<p><b>Tanggal:</b> {item.foundOn}</p>{/if}{#if item.location}<p><b>Lokasi:</b> {item.location}</p>{/if}{#if item.internalFactor}<p><b>Internal:</b> {item.internalFactor}</p>{/if}{#if item.externalFactor}<p><b>Eksternal:</b> {item.externalFactor}</p>{/if}{#if item.impact}<p><b>Dampak:</b> {item.impact}</p>{/if}{#if item.action}<p><b>Tindak lanjut / strategi:</b> {item.action}</p>{/if}{#if item.notes}<p><b>Keterangan:</b> {item.notes}</p>{/if}{#if item.kind === 'failure'}<p><b>Status:</b> {item.status === 'open' ? 'Terbuka' : item.status === 'in_progress' ? 'Dalam proses' : `Selesai ${item.resolvedOn}`}</p>{/if}<div class="app-actions"><button onclick={() => open(item)}>Edit</button><button disabled={busy} onclick={() => remove(item)}>Hapus</button></div></article>{/each}</div>{/if}
   </section>
  {/if}
 </main>

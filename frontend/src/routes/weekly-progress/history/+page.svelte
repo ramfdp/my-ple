@@ -1,6 +1,7 @@
 <script lang="ts">
  import { locale, t as translate } from '$lib/i18n';
 	import { onMount } from 'svelte';
+	import { tick } from 'svelte';
 	import {subscribeChanges} from '$lib/realtime';
 	import { api, currentUser, download, type WeeklyArchive, type WeeklyRoleGroup } from '$lib/api';
 	import { goBack } from '$lib/navigation';
@@ -27,7 +28,7 @@
 	}
 	async function openDetail(id: string) {
 		error = ''; detail = null;
-		try { const result = await api<{ archive: WeeklyArchive; groups: WeeklyRoleGroup[] }>(`/reports/history/${id}`); detail = result.archive; groups = result.groups; }
+		try { const result = await api<{ archive: WeeklyArchive; groups: WeeklyRoleGroup[] }>(`/reports/history/${id}`); detail = result.archive; groups = result.groups; await tick(); if(location.hash)document.getElementById(location.hash.slice(1))?.scrollIntoView({block:'center'}); }
 		catch (e) { error = e instanceof Error ? e.message : 'Arsip tidak dapat dimuat.'; }
 	}
 	async function savePDF(id: string) {
@@ -37,7 +38,7 @@
 		} catch (e) { error = e instanceof Error ? e.message : 'PDF tidak dapat diunduh.'; }
 		finally { downloading = ''; }
 	}
-	onMount(() => { void load();const stop=subscribeChanges(['reports.changed'],()=>load(page,true));return()=>{generation++;stop()}; });
+	onMount(() => { const requested=new URLSearchParams(location.search).get('archive');if(requested)void openDetail(requested);else void load();const stop=subscribeChanges(['reports.changed'],()=>load(page,true));return()=>{generation++;stop()}; });
 </script>
 
 <svelte:head><title>{$translate("Weekly Report History | MyHIS")}</title></svelte:head>
@@ -72,7 +73,7 @@
 					{#if row.role}<td rowspan={row.roleRowSpan} class="task-role">{$translate(row.role)}</td>{/if}
 					{#if row.category}<td rowspan={row.categoryRowSpan} class="task-category">{row.category}</td>{/if}
 					<td colspan="2" class="task-work-title"><div class="job-heading"><span>{row.work}</span>{#if row.pics?.length}<small>{$translate("PIC:")} {row.pics.map(pic=>pic.name+(pic.isActive?'':' (Nonaktif)')).join(', ')}</small>{/if}</div></td>
-				</tr>{:else}<tr><td class="task-number">{row.displayNumber}</td><td class="task-description">{row.report.description}</td></tr>{/if}
+				</tr>{:else}<tr id={'report-'+row.report.id}><td class="task-number">{row.displayNumber}</td><td class="task-description">{row.report.description}</td></tr>{/if}
 			{/each}
 		</tbody></table></div>
 	</section>{/if}

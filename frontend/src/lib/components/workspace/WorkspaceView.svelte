@@ -40,7 +40,7 @@
   const stop=subscribeChanges(['workspace.changed','jobs.changed'],async change=>{if(change.workspaceId!==undefined&&change.workspaceId!==Number(current))return;if(change.event==='jobs.changed'){const result=await api<{jobs:WorkspaceJob[]}>('/workspaces/'+current+'/jobs');if(active)jobs=result.jobs}if(view!=='Notes')await refresh(true)});
   return()=>{active=false;generation++;opening++;stop()};
  });
- async function open(task:Pick<Task,'id'>){const sequence=++opening,wid=workspace?.id;try{const response=await api<{task:Task}>('/work-items/'+encodeURIComponent(task.id)+(view==='Archive'?'?archived=true':''));if(sequence!==opening||workspace?.id!==wid)return;if(response.task.workspaceId!==wid)throw new Error('Pekerjaan tidak berada dalam Workspace ini.');selected=response.task;detail=true}catch(e){if(sequence===opening)error=(e as Error).message}}
+ async function open(task:Pick<Task,'id'>){const sequence=++opening,wid=workspace?.id;try{const archived=view==='Archive'||page.url.searchParams.get('archived')==='1';const response=await api<{task:Task}>('/work-items/'+encodeURIComponent(task.id)+(archived?'?archived=true':''));if(sequence!==opening||workspace?.id!==wid)return;if(response.task.workspaceId!==wid)throw new Error('Pekerjaan tidak berada dalam Workspace ini.');selected=response.task;detail=true}catch(e){if(sequence===opening)error=(e as Error).message}}
  $effect(()=>{const taskId=page.url.searchParams.get('task');if(workspace&&taskId)untrack(()=>void open({id:taskId}))});
  function create(){opening++;selected=null;detail=true}
  function closeDetail(){opening++;detail=false}

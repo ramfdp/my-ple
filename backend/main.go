@@ -113,6 +113,7 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 	jobCtrl := &controller.JobController{DB: database}
 	checklistCtrl := &controller.DocumentChecklistController{DB: database}
 	lessonsCtrl := &controller.LessonsLearnedController{DB: database}
+	hermesChat := controller.NewHermesChatController(database)
 	billingCtrl := &controller.BillingDocumentsController{DB: database}
 	zoomCtrl := &controller.ZoomBookingController{DB: database, Notifications: notificationService}
 	zoomResourceCtrl := &controller.ZoomResourceController{DB: database}
@@ -130,6 +131,10 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 		}
 		if r.URL.Path == "/feedback" {
 			feedback.ServeHTTP(w, r)
+			return
+		}
+		if r.URL.Path == "/hermes/chat" {
+			hermesChat.ServeHTTP(w, r)
 			return
 		}
 		if strings.HasPrefix(r.URL.Path, "/ai-plans/") {
