@@ -77,6 +77,71 @@ func TestAIPlansPostgres(t *testing.T) {
 	if e = database.ImportAIPlan(ctx, d); e != nil {
 		t.Fatal("duplicate import:", e)
 	}
+	selectedTasks, _ := selectedAITasks(snap, d.PlanDate)
+	analysis := AIAnalysisBatch{WorkspaceID: workspace, PlanDate: d.PlanDate, SnapshotHash: hash, PromptHash: strings.Repeat("b", 64), ModelMode: "mock", ModelProfile: "mock-v1", GeneratedAt: time.Now().UTC(), Items: []AIAnalysisItem{}}
+	for _, candidate := range selectedTasks[:min(20, len(selectedTasks))] {
+		item := AIAnalysisItem{TaskID: candidate.ID, DocumentHash: strings.Repeat("0", 64), Decision: "UNAVAILABLE"}
+		if candidate.ID == task {
+			item.Summary = "Periksa angka laporan"
+			item.NextSteps = []string{"Bandingkan angka dengan dokumen"}
+			item.DocumentHash = strings.Repeat("c", 64)
+			item.Decision = "PENDING"
+		}
+		analysis.Items = append(analysis.Items, item)
+	}
+	analysis.ID = AnalysisBatchID(analysis)
+	if e = database.ImportAIAnalysis(ctx, analysis); e != nil {
+		t.Fatal("analysis import:", e)
+	}
+	loaded, e := database.AIAnalysis(ctx, workspace, analysis.ID)
+	if e != nil || len(loaded.Items) != len(analysis.Items) || loaded.Items[0].Title == "" {
+		t.Fatal("analysis not readable:", e)
+	}
+	ready, e := database.ReadyAIAnalyses(ctx, workspace)
+	if e != nil || len(ready) != 0 {
+		t.Fatal("unreviewed analysis became ready:", e)
+	}
+	if _, e = conn.ExecContext(ctx, `UPDATE work_items SET version=version+1 WHERE id=$1`, task); e != nil {
+		t.Fatal(e)
+	}
+	if e = database.ReviewAIAnalysis(ctx, workspace, analysis.ID, task, user, "APPROVED", 0); !errors.Is(e, ErrAIPlanStale) {
+		t.Fatal("stale analysis review accepted:", e)
+	}
+	if _, e = conn.ExecContext(ctx, `UPDATE work_items SET version=version-1 WHERE id=$1`, task); e != nil {
+		t.Fatal(e)
+	}
+	if e = database.ReviewAIAnalysis(ctx, workspace, analysis.ID, task, user, "APPROVED", 0); e != nil {
+		t.Fatal("analysis approval:", e)
+	}
+	if e = database.ReviewAIAnalysis(ctx, workspace, analysis.ID, task, user, "REJECTED", 0); !errors.Is(e, ErrAIPlanConflict) {
+		t.Fatal("duplicate analysis review:", e)
+	}
+	ready, e = database.ReadyAIAnalyses(ctx, workspace)
+	if e != nil || len(ready) != 1 || ready[0].ID != analysis.ID {
+		t.Fatal("reviewed analysis not ready:", e)
+	}
+	v4 := d
+	v4.PromptVersion = "daily-v4"
+	v4.AnalysisBatchID = analysis.ID
+	v4.PromptHash = analysis.PromptHash
+	v4.Recommendations = append([]AIRecommendation(nil), d.Recommendations...)
+	v4.Recommendations[0].Description = "Periksa angka laporan"
+	v4.Recommendations[0].NextSteps = []string{"Bandingkan angka dengan dokumen"}
+	v4ID := sha256.Sum256([]byte(strings.Join([]string{strconv.Itoa(workspace), v4.PlanDate, hash, v4.PromptVersion, v4.PromptHash, v4.ModelMode, v4.ModelProfile, v4.AnalysisBatchID, "1.0"}, "|")))
+	v4.ID = hex.EncodeToString(v4ID[:])
+	v4RecID := sha256.Sum256([]byte(v4.ID + "|" + task + "|ADDRESS_OVERDUE"))
+	v4.Recommendations[0].ID = hex.EncodeToString(v4RecID[:])
+	if e = database.ImportAIPlan(ctx, v4); e != nil {
+		t.Fatal("approved draft import:", e)
+	}
+	plan, e := database.AIPlanDetail(ctx, workspace, v4.ID)
+	if e != nil || len(plan.Recommendations) != 1 || plan.Recommendations[0].Description != v4.Recommendations[0].Description || len(plan.Recommendations[0].NextSteps) != 1 {
+		t.Fatal("approved description or steps missing:", e)
+	}
+	loaded, e = database.AIAnalysis(ctx, workspace, analysis.ID)
+	if e != nil || !loaded.Finalized || !loaded.PlanCreated {
+		t.Fatal("finalized analysis not linked to draft:", e)
+	}
 	bad := d
 	bad.ModelProfile = "changed"
 	if e = database.ImportAIPlan(ctx, bad); !errors.Is(e, ErrAIPlanConflict) {

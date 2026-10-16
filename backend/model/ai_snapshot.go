@@ -18,6 +18,7 @@ type AITask struct {
 	JobName       string   `json:"jobName"`
 	Title         string   `json:"title"`
 	Description   string   `json:"description"`
+	RelatedURL    string   `json:"relatedUrl,omitempty"`
 	StartDate     string   `json:"startDate"`
 	DueDate       string   `json:"dueDate"`
 	Status        string   `json:"status"`

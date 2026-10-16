@@ -7,6 +7,33 @@ CREATE TABLE IF NOT EXISTS ai_plan_drafts (
  imported_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS ai_plan_drafts_workspace_date ON ai_plan_drafts(workspace_id,plan_date DESC,imported_at DESC);
+CREATE TABLE IF NOT EXISTS ai_analysis_batches (
+ id char(64) PRIMARY KEY,
+ workspace_id integer NOT NULL REFERENCES divisions(id),
+ plan_date date NOT NULL,
+ snapshot_hash char(64) NOT NULL,
+ prompt_hash char(64) NOT NULL,
+ model_mode text NOT NULL,
+ model_profile text NOT NULL,
+ generated_at timestamptz NOT NULL,
+ finalized_at timestamptz,
+ created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ai_analysis_batches_workspace_date ON ai_analysis_batches(workspace_id,plan_date DESC,created_at DESC);
+CREATE TABLE IF NOT EXISTS ai_task_analyses (
+ batch_id char(64) NOT NULL REFERENCES ai_analysis_batches(id),
+ task_id uuid NOT NULL,
+ summary text NOT NULL,
+ next_steps jsonb NOT NULL,
+ document_hash char(64) NOT NULL,
+ decision text NOT NULL CHECK (decision IN ('PENDING','UNAVAILABLE','APPROVED','REJECTED')),
+ reviewer_id uuid REFERENCES users(id) ON DELETE SET NULL,
+ reviewer_identity text NOT NULL DEFAULT '',
+ reviewer_name text NOT NULL DEFAULT '',
+ reviewed_at timestamptz,
+ version integer NOT NULL DEFAULT 0,
+ PRIMARY KEY(batch_id,task_id)
+);
 CREATE TABLE IF NOT EXISTS ai_plan_recommendations (
  draft_id char(64) NOT NULL REFERENCES ai_plan_drafts(id),
  id char(64) NOT NULL,

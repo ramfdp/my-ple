@@ -46,7 +46,7 @@ func aiError(w http.ResponseWriter, status int) {
 }
 
 func validateAIDraft(d db.AIDraft) bool {
-	if d.SchemaVersion != "1.0" || d.PromptVersion != "daily-v3" || d.WorkspaceID <= 0 || !aiValidDate(d.PlanDate) || d.Status != "PENDING_REVIEW" || !aiOneOf(d.EvidenceStatus, "SUFFICIENT", "INSUFFICIENT") || d.GeneratedAt.IsZero() || !aiDigest.MatchString(d.ID) || !aiDigest.MatchString(d.InputSnapshotHash) || !aiDigest.MatchString(d.PromptHash) || !aiOneOf(d.ModelMode, "mock", "hermes") || !aiProfile.MatchString(d.ModelProfile) || d.Selection == nil || d.Recommendations == nil || len(d.Recommendations) > 20 {
+	if d.SchemaVersion != "1.0" || !aiOneOf(d.PromptVersion, "daily-v3", "daily-v4") || d.WorkspaceID <= 0 || !aiValidDate(d.PlanDate) || d.Status != "PENDING_REVIEW" || !aiOneOf(d.EvidenceStatus, "SUFFICIENT", "INSUFFICIENT") || d.GeneratedAt.IsZero() || !aiDigest.MatchString(d.ID) || !aiDigest.MatchString(d.InputSnapshotHash) || !aiDigest.MatchString(d.PromptHash) || !aiOneOf(d.ModelMode, "mock", "hermes") || !aiProfile.MatchString(d.ModelProfile) || d.Selection == nil || d.Recommendations == nil || len(d.Recommendations) > 20 {
 		return false
 	}
 	if d.Selection.Actionable < 0 || d.Selection.Selected != min(d.Selection.Actionable, 20) || d.Selection.Deferred != d.Selection.Actionable-d.Selection.Selected || len(d.Recommendations) > d.Selection.Selected {
@@ -55,12 +55,33 @@ func validateAIDraft(d db.AIDraft) bool {
 	if (len(d.Recommendations) == 0) != (d.EvidenceStatus == "INSUFFICIENT") {
 		return false
 	}
-	id := sha256.Sum256([]byte(fmt.Sprintf("%d|%s|%s|daily-v3|%s|%s|%s|1.0", d.WorkspaceID, d.PlanDate, d.InputSnapshotHash, d.PromptHash, d.ModelMode, d.ModelProfile)))
+	identity := fmt.Sprintf("%d|%s|%s|%s|%s|%s|%s|1.0", d.WorkspaceID, d.PlanDate, d.InputSnapshotHash, d.PromptVersion, d.PromptHash, d.ModelMode, d.ModelProfile)
+	if d.PromptVersion == "daily-v4" {
+		if !aiDigest.MatchString(d.AnalysisBatchID) {
+			return false
+		}
+		identity = fmt.Sprintf("%d|%s|%s|%s|%s|%s|%s|%s|1.0", d.WorkspaceID, d.PlanDate, d.InputSnapshotHash, d.PromptVersion, d.PromptHash, d.ModelMode, d.ModelProfile, d.AnalysisBatchID)
+	} else if d.AnalysisBatchID != "" {
+		return false
+	}
+	id := sha256.Sum256([]byte(identity))
 	if d.ID != hex.EncodeToString(id[:]) {
 		return false
 	}
 	seen := map[string]bool{}
 	for _, r := range d.Recommendations {
+		if d.PromptVersion == "daily-v4" {
+			if len(r.NextSteps) == 0 || len(r.NextSteps) > 8 {
+				return false
+			}
+			for _, step := range r.NextSteps {
+				if strings.TrimSpace(step) == "" || len([]rune(step)) > 250 {
+					return false
+				}
+			}
+		} else if len(r.NextSteps) > 0 {
+			return false
+		}
 		if !aiDigest.MatchString(r.ID) || seen[r.ID] || strings.TrimSpace(r.Title) == "" || len([]rune(r.Title)) > 160 || strings.TrimSpace(r.Description) == "" || len([]rune(r.Description)) > 1000 || strings.TrimSpace(r.Reason) == "" || len([]rune(r.Reason)) > 500 || !aiOneOf(r.Priority, "LOW", "MEDIUM", "HIGH", "URGENT") || !aiOneOf(r.RecommendationType, "CONTINUE_EXISTING", "REVIEW_EXISTING", "ADDRESS_OVERDUE", "QA_OR_REVISION") || !aiValidDate(r.SuggestedDueDate) || len(r.SourceTaskIDs) != 1 || len(r.AssigneeIDs) > 10 {
 			return false
 		}
@@ -115,7 +136,8 @@ func NewAIImportHandler(database *db.Database) *AIImportHandler {
 	return h
 }
 func (h *AIImportHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
+	analysisRoute := strings.HasPrefix(r.URL.Path, "/internal/ai/v1/analyses/")
+	if r.Method != http.MethodPost && !(analysisRoute && r.Method == http.MethodGet) {
 		w.Header().Set("Allow", "POST")
 		aiError(w, 405)
 		return
@@ -136,6 +158,10 @@ func (h *AIImportHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	token, e := hex.DecodeString(parts[1])
 	if e != nil || len(token) != 32 || subtle.ConstantTimeCompare(token, h.token) != 1 {
 		aiError(w, 401)
+		return
+	}
+	if analysisRoute {
+		h.serveAnalysis(w, r)
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 256*1024)

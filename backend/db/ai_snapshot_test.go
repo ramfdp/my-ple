@@ -40,6 +40,7 @@ func TestAISnapshotPostgres(t *testing.T) {
 		('550e8400-e29b-41d4-a716-446655440002',1,10,'Done','','2026-10-14',NULL,'DONE','LOW',0,false,'',NULL,1),
 		('550e8400-e29b-41d4-a716-446655440003',1,10,'Archived','','2026-10-14',NULL,'TODO','LOW',0,false,'',now(),1),
 		('550e8400-e29b-41d4-a716-446655440004',2,NULL,'Other','','2026-10-14',NULL,'TODO','LOW',0,false,'',NULL,1)`,
+		`ALTER TABLE work_items ADD COLUMN related_url text NOT NULL DEFAULT ''`,
 	} {
 		if _, err = conn.ExecContext(ctx, ddl); err != nil {
 			t.Fatal(err)

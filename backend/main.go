@@ -47,7 +47,7 @@ func newHandler(database *db.Database, corsOrigin string, contexts ...context.Co
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/internal/ai/") {
-			if r.URL.Path == "/internal/ai/v1/drafts/import" {
+			if r.URL.Path == "/internal/ai/v1/drafts/import" || strings.HasPrefix(r.URL.Path, "/internal/ai/v1/analyses/") {
 				if aiImport == nil {
 					http.Error(w, "AI import unavailable", http.StatusServiceUnavailable)
 					return
@@ -120,6 +120,7 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 	attendanceCtrl := controller.NewAttendanceController(database)
 	workspaceCtrl := &controller.WorkspaceController{DB: database, Notifications: notificationService}
 	aiPlans := &controller.AIPlansController{DB: database}
+	aiAnalyses := &controller.AIAnalysesController{DB: database}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		current, ok := middleware.GetClaims(r.Context())
 		if !ok {
@@ -132,6 +133,10 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 		}
 		if strings.HasPrefix(r.URL.Path, "/ai-plans/") {
 			aiPlans.ServeHTTP(w, r)
+			return
+		}
+		if strings.HasPrefix(r.URL.Path, "/ai-analyses/") {
+			aiAnalyses.ServeHTTP(w, r)
 			return
 		}
 		if r.URL.Path == "/attendance" || strings.HasPrefix(r.URL.Path, "/attendance/") {

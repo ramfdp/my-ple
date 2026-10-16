@@ -1,5 +1,11 @@
 # AI Daily Job Planner: Phase 5
 
+## Current Hermes analysis flow
+
+The testing backend also accepts Hermes task analyses at `POST /internal/ai/v1/analyses/import` using the existing import token and workspace grants. It stores summaries, next steps, document hashes, and per-task decisions in `ai_analysis_batches` and `ai_task_analyses`. `GET /internal/ai/v1/analyses/ready?workspaceId={id}` lets the Worker collect batches after every task is reviewed and at least one is approved. The Worker then imports a `daily-v4` draft through the existing draft endpoint. Rejected and unreadable tasks do not appear in that draft; no approvals produce no draft. Existing `daily-v3` drafts remain readable.
+
+Any authenticated workspace member can open `/workspace/{id}/ai-analysis` to read each summary and next step, open a supported HTTPS OneDrive or SharePoint source link, and approve or reject pending analyses. The public routes are `GET /ai-analyses/workspaces/{id}` and `PATCH /ai-analyses/workspaces/{id}/{batchId}/tasks/{taskId}/review` with `{ "decision": "APPROVED", "version": 0 }` or `REJECTED`. The GET result includes a `stale` flag; changed task data disables review. Management/Admin with `can_manage` continue to use `/workspace/{id}/ai-planner` for the resulting daily draft, including approved descriptions and next steps. Neither page creates Job Tracker work items.
+
 The testing backend accepts an existing Worker `daily-v3` draft through `POST /internal/ai/v1/drafts/import`. This route is disabled by default and blocked at both public Nginx gateways, including `/api/internal/ai/`. Only the Worker uses the private `myple_read_testing` network. Its import token differs from the read-only snapshot token; neither token reaches the browser. Hermes stays on `myple_ai` and cannot reach PostgreSQL. The Worker keeps its existing named state volume.
 
 ## Storage and authorization

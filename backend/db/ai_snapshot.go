@@ -45,7 +45,7 @@ func aiSnapshotTx(ctx context.Context, tx *sql.Tx, workspaceID int) (model.AISna
 	}
 	rows, err := tx.QueryContext(ctx, `SELECT jsonb_build_object(
 	'id',t.id,'workspaceId',t.division_id,'jobId',t.job_id,'jobName',left(COALESCE(j.name,''),160),
-	'title',left(t.title,160),'description',left(t.description,1000),
+		'title',left(t.title,160),'description',left(t.description,1000),'relatedUrl',left(t.related_url,2000),
 	'startDate',COALESCE(t.start_date::text,''),'dueDate',COALESCE(t.due_date::text,''),
 	'status',t.status,'priority',t.priority,'assigneeIds','[]'::jsonb,
 	'revisionCount',COALESCE(t.revision_count,0),'requiresQa',t.requires_qa,'qaStage',COALESCE(t.qa_stage,''),

@@ -26,6 +26,7 @@ type AIRecommendation struct {
 	ID                 string   `json:"id"`
 	Title              string   `json:"title"`
 	Description        string   `json:"description"`
+	NextSteps          []string `json:"nextSteps,omitempty"`
 	Priority           string   `json:"priority"`
 	SourceTaskIDs      []string `json:"sourceTaskIds"`
 	RecommendationType string   `json:"recommendationType"`
@@ -43,6 +44,7 @@ type AIDraft struct {
 	GeneratedAt       time.Time          `json:"generatedAt"`
 	InputSnapshotHash string             `json:"inputSnapshotHash"`
 	PromptVersion     string             `json:"promptVersion"`
+	AnalysisBatchID   string             `json:"analysisBatchId,omitempty"`
 	PromptHash        string             `json:"promptHash"`
 	ModelMode         string             `json:"modelMode"`
 	ModelProfile      string             `json:"modelProfile"`
@@ -103,40 +105,18 @@ func lockAISources(ctx context.Context, tx *sql.Tx) error {
 	return err
 }
 
-func (db *Database) ImportAIPlan(ctx context.Context, d AIDraft) error {
-	tx, err := db.Conn.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	if err = lockAISources(ctx, tx); err != nil {
-		return err
-	}
-	snap, err := aiSnapshotTx(ctx, tx, d.WorkspaceID)
-	if err != nil {
-		return err
-	}
-	hash, err := AISnapshotHash(snap)
-	if err != nil {
-		return err
-	}
-	if hash != d.InputSnapshotHash {
-		return ErrAIPlanStale
-	}
+func selectedAITasks(snap model.AISnapshot, date string) ([]model.AITask, map[string]bool) {
 	actionable := []model.AITask{}
 	for _, t := range snap.Tasks {
-		if t.StartDate == "" || t.StartDate <= d.PlanDate {
+		if t.StartDate == "" || t.StartDate <= date {
 			actionable = append(actionable, t)
 		}
 	}
-	if d.Selection == nil || d.Selection.Actionable != len(actionable) || d.Selection.Selected != min(20, len(actionable)) || d.Selection.Deferred != len(actionable)-d.Selection.Selected {
-		return ErrAIPlanInvalid
-	}
-	approaching, _ := time.Parse("2006-01-02", d.PlanDate)
+	approaching, _ := time.Parse("2006-01-02", date)
 	near := approaching.AddDate(0, 0, 3).Format("2006-01-02")
 	score := func(t model.AITask) int {
 		n := map[string]int{"URGENT": 80, "HIGH": 40, "MEDIUM": 15}[t.Priority]
-		if t.DueDate != "" && t.DueDate < d.PlanDate {
+		if t.DueDate != "" && t.DueDate < date {
 			n += 100
 		} else if t.DueDate != "" && t.DueDate <= near {
 			n += 30
@@ -159,9 +139,89 @@ func (db *Database) ImportAIPlan(ctx context.Context, d AIDraft) error {
 		}
 		return a.ID < b.ID
 	})
-	candidates := map[string]bool{}
+	selected := map[string]bool{}
 	for i := 0; i < min(20, len(actionable)); i++ {
-		candidates[actionable[i].ID] = true
+		selected[actionable[i].ID] = true
+	}
+	return actionable, selected
+}
+
+func (db *Database) ImportAIPlan(ctx context.Context, d AIDraft) error {
+	tx, err := db.Conn.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err = lockAISources(ctx, tx); err != nil {
+		return err
+	}
+	snap, err := aiSnapshotTx(ctx, tx, d.WorkspaceID)
+	if err != nil {
+		return err
+	}
+	hash, err := AISnapshotHash(snap)
+	if err != nil {
+		return err
+	}
+	if hash != d.InputSnapshotHash {
+		return ErrAIPlanStale
+	}
+	approved := map[string]AIAnalysisItem{}
+	if d.PromptVersion == "daily-v4" {
+		var batch AIAnalysisBatch
+		var finalized sql.NullTime
+		err = tx.QueryRowContext(ctx, `SELECT id,workspace_id,plan_date::text,snapshot_hash,prompt_hash,model_mode,model_profile,finalized_at FROM ai_analysis_batches WHERE id=$1 AND workspace_id=$2 FOR UPDATE`, d.AnalysisBatchID, d.WorkspaceID).Scan(&batch.ID, &batch.WorkspaceID, &batch.PlanDate, &batch.SnapshotHash, &batch.PromptHash, &batch.ModelMode, &batch.ModelProfile, &finalized)
+		if err != nil {
+			return ErrAIPlanInvalid
+		}
+		if finalized.Valid {
+			var exists bool
+			if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM ai_plan_drafts WHERE id=$1)`, d.ID).Scan(&exists); err != nil {
+				return err
+			}
+			if !exists {
+				return ErrAIPlanConflict
+			}
+		}
+		if batch.PlanDate != d.PlanDate || batch.SnapshotHash != hash || batch.PromptHash != d.PromptHash || batch.ModelMode != d.ModelMode || batch.ModelProfile != d.ModelProfile {
+			return ErrAIPlanInvalid
+		}
+		rows, e := tx.QueryContext(ctx, `SELECT task_id::text,summary,next_steps,document_hash,decision FROM ai_task_analyses WHERE batch_id=$1`, batch.ID)
+		if e != nil {
+			return e
+		}
+		for rows.Next() {
+			var item AIAnalysisItem
+			var steps []byte
+			if e = rows.Scan(&item.TaskID, &item.Summary, &steps, &item.DocumentHash, &item.Decision); e != nil {
+				break
+			}
+			if e = json.Unmarshal(steps, &item.NextSteps); e != nil {
+				break
+			}
+			if item.Decision == "PENDING" {
+				e = ErrAIPlanInvalid
+				break
+			}
+			batch.Items = append(batch.Items, item)
+			if item.Decision == "APPROVED" {
+				approved[item.TaskID] = item
+			}
+		}
+		if e == nil {
+			e = rows.Err()
+		}
+		rows.Close()
+		if e != nil {
+			return e
+		}
+		if batch.ID != AnalysisBatchID(batch) {
+			return ErrAIPlanInvalid
+		}
+	}
+	actionable, candidates := selectedAITasks(snap, d.PlanDate)
+	if d.Selection == nil || d.Selection.Actionable != len(actionable) || d.Selection.Selected != min(20, len(actionable)) || d.Selection.Deferred != len(actionable)-d.Selection.Selected {
+		return ErrAIPlanInvalid
 	}
 	evidence := map[string]model.AITask{}
 	for _, t := range snap.Tasks {
@@ -174,9 +234,23 @@ func (db *Database) ImportAIPlan(ctx context.Context, d AIDraft) error {
 		}
 		signatures[r.RecommendationType+"|"+r.SourceTaskIDs[0]] = true
 		t := evidence[r.SourceTaskIDs[0]]
+		if d.PromptVersion == "daily-v4" {
+			item, ok := approved[r.SourceTaskIDs[0]]
+			if !ok || r.Description != item.Summary || len(r.NextSteps) != len(item.NextSteps) {
+				return ErrAIPlanInvalid
+			}
+			for i := range r.NextSteps {
+				if r.NextSteps[i] != item.NextSteps[i] {
+					return ErrAIPlanInvalid
+				}
+			}
+		}
 		if r.Priority != t.Priority || r.RecommendationType == "ADDRESS_OVERDUE" && (t.DueDate == "" || t.DueDate >= d.PlanDate) || r.RecommendationType == "QA_OR_REVISION" && !(t.RequiresQA || t.Status == "NEED_REVISION" || t.Status == "REVISION") || len(r.AssigneeIDs) > 0 {
 			return ErrAIPlanInvalid
 		}
+	}
+	if d.PromptVersion == "daily-v4" && (len(approved) == 0 || len(d.Recommendations) == 0) {
+		return ErrAIPlanInvalid
 	}
 	raw, err := json.Marshal(d)
 	if err != nil {
@@ -187,6 +261,11 @@ func (db *Database) ImportAIPlan(ctx context.Context, d AIDraft) error {
 	if err == nil {
 		if !identical {
 			return ErrAIPlanConflict
+		}
+		if d.PromptVersion == "daily-v4" {
+			if _, err = tx.ExecContext(ctx, `UPDATE ai_analysis_batches SET finalized_at=COALESCE(finalized_at,now()) WHERE id=$1`, d.AnalysisBatchID); err != nil {
+				return err
+			}
 		}
 		return tx.Commit()
 	}
@@ -212,6 +291,11 @@ func (db *Database) ImportAIPlan(ctx context.Context, d AIDraft) error {
 		item, _ := json.Marshal(r)
 		source, _ := json.Marshal(refs)
 		if _, err = tx.ExecContext(ctx, `INSERT INTO ai_plan_recommendations(draft_id,id,data,source_evidence) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING`, d.ID, r.ID, item, source); err != nil {
+			return err
+		}
+	}
+	if d.PromptVersion == "daily-v4" {
+		if _, err = tx.ExecContext(ctx, `UPDATE ai_analysis_batches SET finalized_at=COALESCE(finalized_at,now()) WHERE id=$1`, d.AnalysisBatchID); err != nil {
 			return err
 		}
 	}
