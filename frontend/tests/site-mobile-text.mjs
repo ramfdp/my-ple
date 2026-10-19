@@ -39,12 +39,23 @@ const page = await browser.newPage({ viewport: { width: 320, height: 850 }, hasT
 user.language = process.env.TEST_LANGUAGE || 'id';
 await page.addInitScript(language => localStorage.setItem('language', language), user.language);
 const errors = [], failures = [];
+const chatRequests = [], feedbackRequests = [];
+let feedbackStatus = 204;
 page.on('pageerror', error => errors.push(error.message));
 await page.routeWebSocket(/ws\/notifications/, () => {});
 await page.route('**/*', async route => {
  const url = new URL(route.request().url());
  if (/fonts\.(googleapis|gstatic)\.com/.test(url.hostname)) return route.fulfill({ body: '' });
  if (url.port !== '3000') return route.continue();
+ if (url.pathname === '/hermes/chat') {
+  chatRequests.push(route.request().postDataJSON());
+  return route.fulfill({ status: 200, json: { answer: 'Periksa sambungan.', sources: [{ id: 'task:t1', kind: 'task', title: 'Sambungan', excerpt: 'Periksa kabel.', url: '/workspace/1?task=t1' }] }, headers: { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true' } });
+ }
+ if (url.pathname === '/feedback') {
+  feedbackRequests.push(route.request().postDataJSON());
+  const headers = { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true' };
+  return feedbackStatus === 204 ? route.fulfill({ status: 204, headers }) : route.fulfill({ status: 503, json: { error: 'Layanan email belum tersedia. Silakan coba nanti.' }, headers });
+ }
  return route.fulfill({ status: url.pathname === '/auth/me' && !fixtures[url.pathname].user ? 401 : 200, json: fixtures[url.pathname] || {}, headers: { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true' } });
 });
 async function check(label, prepare) {
@@ -56,6 +67,14 @@ async function check(label, prepare) {
    const fields = page.locator('.checklist table textarea');
    assert.equal(await fields.count(), 5, 'All checklist text cells remain editable');
    assert(await fields.evaluateAll(elements => elements.every(field => field.scrollHeight <= field.clientHeight + 1 && field.scrollWidth <= field.clientWidth + 1)), width + 'px: full checklist values visible without internal scrolling');
+  }
+  if (label === 'Hermes panel' || label === 'Feedback tab') {
+   const positions = await page.evaluate(() => {
+    const panel = document.querySelector('.hermes-panel').getBoundingClientRect();
+    const launcher = document.querySelector('.hermes-launcher').getBoundingClientRect();
+    return { left: panel.left, right: panel.right, top: panel.top, bottom: panel.bottom, launcherTop: launcher.top, viewport: innerWidth };
+   });
+   assert(positions.left >= 0 && positions.right <= positions.viewport + 1 && positions.top >= 0 && positions.bottom < positions.launcherTop, `${width}px: panel fits above launcher`);
   }
   if (prepare) await prepare();
   const broken = await page.evaluate(() => {
@@ -94,11 +113,80 @@ try {
   await page.waitForTimeout(250);
   await check(path);
   if (path === '/dashboard') {
+   const chatLabel = user.language === 'en' ? 'Hermes chat' : 'Chat Hermes';
+   const feedbackLabel = user.language === 'en' ? 'Send to Gmail' : 'Kirim ke Gmail';
+   const emailError = user.language === 'en' ? 'Email service is unavailable. Please try later.' : 'Layanan email belum tersedia. Silakan coba nanti.';
+   const successMessage = user.language === 'en' ? 'Feedback sent successfully.' : 'Kritik dan saran berhasil dikirim.';
    await check('Notifications', () => page.locator('.notification-button').click());
    await page.keyboard.press('Escape');
-   await page.locator('.feedback-button').click();
-   await check('Feedback dialog');
+   assert.equal(await page.locator('.hermes-launcher').count(), 1);
+   assert.equal(await page.locator('.feedback-button').count(), 0);
+   await page.locator('.hermes-launcher').click();
+   assert.equal(await page.locator('.hermes-panel').evaluate(el => el.getAnimations().some(animation => animation.effect.getTiming().duration > 0)), false, 'Reduced motion disables morph');
+   await check('Hermes panel');
+   assert.equal(await page.getByRole('tab', { name: chatLabel }).getAttribute('aria-selected'), 'true');
+   await page.locator('#hermes-question').fill('Sambungan gagal');
+   await page.getByRole('tab', { name: feedbackLabel }).click();
+   await check('Feedback tab');
+   await page.locator('#feedback-message').fill('Masukan tersimpan');
+   await page.getByRole('tab', { name: chatLabel }).click();
+   assert.equal(await page.locator('#hermes-question').inputValue(), 'Sambungan gagal');
+   await page.locator('.chat-form button[type="submit"]').click();
+   await page.getByText('Periksa sambungan.').waitFor();
+   assert.equal(chatRequests.at(-1).question, 'Sambungan gagal');
+   assert.equal(await page.getByRole('link', { name: 'Sambungan' }).getAttribute('href'), '/workspace/1?task=t1');
+   await page.getByRole('tab', { name: chatLabel }).press('ArrowRight');
+   assert.equal(await page.locator('#feedback-message').inputValue(), 'Masukan tersimpan');
+   feedbackStatus = 503;
+   await page.locator('.feedback-content button[type="submit"]').click();
+   await page.getByRole('alert').getByText(emailError).waitFor();
+   assert.equal(await page.locator('#feedback-message').inputValue(), 'Masukan tersimpan');
+   feedbackStatus = 204;
+   await page.locator('.feedback-content button[type="submit"]').click();
+   await page.getByText(successMessage).waitFor();
+   await page.waitForFunction(() => document.querySelector('.hermes-launcher') === document.activeElement);
+   assert.equal(feedbackRequests.at(-1).message, 'Masukan tersimpan');
+   assert.equal(await page.locator('.hermes-panel').count(), 0);
+   await page.locator('.hermes-launcher').click();
+   await page.getByRole('tab', { name: feedbackLabel }).click();
+   assert.equal(await page.locator('#feedback-message').inputValue(), '');
    await page.keyboard.press('Escape');
+   assert.equal(await page.locator('.hermes-launcher').evaluate(el => el === document.activeElement), true);
+   await page.locator('.hermes-panel').waitFor({ state: 'detached' });
+   await page.emulateMedia({ reducedMotion: 'no-preference' });
+   for (const width of [320, 390, 430, 768, 1440]) {
+    await page.setViewportSize({ width, height: 850 });
+    await page.locator('.hermes-launcher').click();
+    const panel = page.locator('.hermes-panel');
+    await panel.waitFor();
+    assert.equal(await panel.evaluate(el => el.getAnimations()[0].effect.getTiming().duration), 600, 'Morph runs at 0.75x speed');
+    assert.equal(await page.locator('.hermes-launcher').evaluate(el => el === document.activeElement), true, 'Focus waits for morph');
+    await page.waitForTimeout(100);
+    assert.notEqual(await panel.evaluate(el => getComputedStyle(el).clipPath), 'none', 'Morph clips a shape without scaling text');
+    await page.locator('.hermes-launcher').click();
+    assert.equal(await panel.evaluate(el => el.inert), true, 'Closing panel is inert');
+    await page.waitForTimeout(40);
+    await page.locator('.hermes-launcher').click();
+    await page.waitForFunction(() => document.querySelector('[role="tab"][aria-selected="true"]') === document.activeElement);
+    assert.equal(await panel.count(), 1, 'Rapid toggles keep one panel');
+    await page.getByRole('tab', { name: chatLabel }).click();
+    await page.waitForTimeout(260);
+    assert.equal(await page.locator('.tabs').evaluate(el => getComputedStyle(el, '::before').transitionDuration), '0.24s');
+    assert.equal(await page.getByText('Periksa sambungan.').isVisible(), true, 'Chat history survives morph');
+    await page.getByRole('tab', { name: chatLabel }).press('End');
+    assert.equal(await page.getByRole('tab', { name: feedbackLabel }).getAttribute('aria-selected'), 'true');
+    await page.waitForTimeout(260);
+    const bounds = await panel.boundingBox();
+    const button = await page.locator('.hermes-launcher').boundingBox();
+    assert(bounds.x >= 0 && bounds.x + bounds.width <= width + 1 && bounds.y >= 0 && bounds.y + bounds.height < button.y, `${width}px: expanded morph fits viewport`);
+    const sendButton = await page.locator('.feedback-content button[type="submit"]').boundingBox();
+    assert(sendButton.y >= bounds.y && sendButton.y + sendButton.height <= bounds.y + bounds.height, `${width}px: feedback send stays visible`);
+    if (process.env.SCREENSHOT_DIR && width === 390) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/assistant-${user.language}.png` });
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('.hermes-launcher').evaluate(el => el === document.activeElement), true);
+    await panel.waitFor({ state: 'detached' });
+   }
+   await page.emulateMedia({ reducedMotion: 'reduce' });
   }
   if (path === '/booking-zoom') {
    await page.locator('.booking-header .zoom-primary').click();

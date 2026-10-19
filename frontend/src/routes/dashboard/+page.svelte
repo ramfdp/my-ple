@@ -1,5 +1,4 @@
 <script lang="ts">
- import FeedbackButton from '$lib/components/FeedbackButton.svelte';
  import HermesChat from '$lib/components/HermesChat.svelte';
  import { currentUser } from '$lib/api';
  import { visibleFeatures } from '$lib/navigation';
@@ -24,6 +23,5 @@
   {/each}</div>
  </section>
 </main>
-<FeedbackButton/>
 <HermesChat/>
 <style>.dashboard-page{padding-bottom:96px}.dashboard-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}</style>
