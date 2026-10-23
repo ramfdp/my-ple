@@ -8,9 +8,12 @@ services:
       AI_IMPORT_ENABLED: "true"
       AI_IMPORT_TOKEN_FILE: /run/secrets/ai_import_token
       AI_IMPORT_ALLOWED_WORKSPACE_IDS: ${AI_PRODUCTION_ALLOWED_WORKSPACE_IDS:?set production import workspace grants}
+      HERMES_CHAT_ENABLED: "true"
+      HERMES_CHAT_TOKEN_FILE: /run/secrets/hermes_chat_token
     volumes:
       - ${AI_PRODUCTION_BACKEND_TOKEN_FILE:?set private backend token path}:/run/secrets/ai_service_token:ro
       - ${AI_PRODUCTION_BACKEND_IMPORT_TOKEN_FILE:?set private backend import token path}:/run/secrets/ai_import_token:ro
+      - ${AI_PRODUCTION_BACKEND_CHAT_TOKEN_FILE:?set private backend chat token path}:/run/secrets/hermes_chat_token:ro
     networks:
       default:
       myple_read_production:

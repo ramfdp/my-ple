@@ -1,4 +1,4 @@
-# Hermes dashboard chat (testing)
+# Hermes dashboard chat
 
 The dashboard chat searches current MyHIS PostgreSQL data at request time: evaluation findings, accessible workspace tasks (including archived), current weekly reports, and saved weekly archives. Search and role filtering run in the MyHIS backend. Only the top eight bounded excerpts cross the private service link. No embedding index or conversation table is created.
 
@@ -10,4 +10,6 @@ The dashboard chat searches current MyHIS PostgreSQL data at request time: evalu
 4. In `my-ple-hermes`, set `HERMES_CHAT_TOKEN_FILE` to its token file path and start the `chat` profile with `compose.chat-testing.yaml`. The service listens only on `myple_read_testing` and `myple_ai`; do not publish port 8787.
 5. Confirm the MyHIS dashboard returns answers with source links for authorized users. Check that public gateway requests to `/v1/chat` fail and that a role without evaluation access receives no evaluation source.
 
-The backend URL is fixed to `http://hermes-chat:8787`; assign this alias to the chat service on `myple_read_testing`. A missing service or token yields HTTP 503, with no model call. Disable by removing the MyHIS chat override. Existing evaluations, tasks, reports, and Hermes planner flow remain intact.
+Production uses `compose.ai-production.yaml` with `AI_PRODUCTION_BACKEND_CHAT_TOKEN_FILE`. The matching Hermes service uses `compose.myple-production.yaml` with `AI_PRODUCTION_WORKER_CHAT_TOKEN_FILE`. Both files must contain the same token while remaining readable only by their respective container users. The service stays private on `myple_read_production`; no port is published.
+
+The backend URL is fixed to `http://hermes-chat:8787`; assign this alias to the chat service on the matching private network. A missing service or token yields HTTP 503, with no model call. Disable by removing the MyHIS chat override. Existing evaluations, tasks, reports, and Hermes planner flow remain intact.
