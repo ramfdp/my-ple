@@ -37,9 +37,31 @@ func newHandler(database *db.Database, corsOrigin string, contexts ...context.Co
 		go notifications.Relay(contexts[0], os.Getenv("DATABASE_URL"))
 	}
 	protected := middleware.RequireAuth(database, changeEvents(protectedHandler(database, authCtrl, notifications), notifications))
+	var aiSnapshot http.Handler
+	var aiImport http.Handler
+	if database != nil {
+		aiSnapshot = controller.NewAISnapshotHandler(database)
+		aiImport = controller.NewAIImportHandler(database)
+	}
 	uploads := http.StripPrefix("/uploads/", http.FileServer(http.Dir(envOr("UPLOAD_DIR", "upload"))))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/internal/ai/") {
+			if r.URL.Path == "/internal/ai/v1/drafts/import" || strings.HasPrefix(r.URL.Path, "/internal/ai/v1/analyses/") {
+				if aiImport == nil {
+					http.Error(w, "AI import unavailable", http.StatusServiceUnavailable)
+					return
+				}
+				aiImport.ServeHTTP(w, r)
+				return
+			}
+			if aiSnapshot == nil {
+				http.Error(w, "AI snapshot unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			aiSnapshot.ServeHTTP(w, r)
+			return
+		}
 		w.Header().Add("Vary", "Origin")
 		w.Header().Set("Access-Control-Allow-Origin", corsOrigin)
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
@@ -90,13 +112,18 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 	weeklyCtrl := controller.NewWeeklyController(database)
 	jobCtrl := &controller.JobController{DB: database}
 	checklistCtrl := &controller.DocumentChecklistController{DB: database}
+	lessonsCtrl := &controller.LessonsLearnedController{DB: database}
+	hermesChat := controller.NewHermesChatController(database)
 	billingCtrl := &controller.BillingDocumentsController{DB: database}
 	zoomCtrl := &controller.ZoomBookingController{DB: database, Notifications: notificationService}
 	zoomResourceCtrl := &controller.ZoomResourceController{DB: database}
 	notificationCtrl := &controller.NotificationController{DB: database}
 	leaveCtrl := &controller.LeaveController{DB: database, Notifications: notificationService}
+	overtimeCtrl := &controller.OvertimeController{DB: database, Notifications: notificationService}
 	attendanceCtrl := controller.NewAttendanceController(database)
 	workspaceCtrl := &controller.WorkspaceController{DB: database, Notifications: notificationService}
+	aiPlans := &controller.AIPlansController{DB: database}
+	aiAnalyses := &controller.AIAnalysesController{DB: database}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		current, ok := middleware.GetClaims(r.Context())
 		if !ok {
@@ -107,6 +134,18 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 			feedback.ServeHTTP(w, r)
 			return
 		}
+		if r.URL.Path == "/hermes/chat" {
+			hermesChat.ServeHTTP(w, r)
+			return
+		}
+		if strings.HasPrefix(r.URL.Path, "/ai-plans/") {
+			aiPlans.ServeHTTP(w, r)
+			return
+		}
+		if strings.HasPrefix(r.URL.Path, "/ai-analyses/") {
+			aiAnalyses.ServeHTTP(w, r)
+			return
+		}
 		if r.URL.Path == "/attendance" || strings.HasPrefix(r.URL.Path, "/attendance/") {
 			attendanceCtrl.ServeHTTP(w, r)
 			return
@@ -115,12 +154,20 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 			checklistCtrl.ServeHTTP(w, r)
 			return
 		}
+		if r.URL.Path == "/lessons-learned" || strings.HasPrefix(r.URL.Path, "/lessons-learned/") {
+			lessonsCtrl.ServeHTTP(w, r)
+			return
+		}
 		if r.URL.Path == "/billing-documents" || strings.HasPrefix(r.URL.Path, "/billing-documents/") {
 			billingCtrl.ServeHTTP(w, r)
 			return
 		}
 		if r.URL.Path == "/leave-requests" || strings.HasPrefix(r.URL.Path, "/leave-requests/") {
 			leaveCtrl.ServeHTTP(w, r)
+			return
+		}
+		if strings.HasPrefix(r.URL.Path, "/overtime-sheets/") || r.URL.Path == "/overtime-approvals" || strings.HasPrefix(r.URL.Path, "/overtime-approvals/") {
+			overtimeCtrl.ServeHTTP(w, r)
 			return
 		}
 		if r.URL.Path == "/jobs" || strings.HasPrefix(r.URL.Path, "/jobs/") {
@@ -355,11 +402,11 @@ func startCleanup(database *db.Database) func() {
 	ctx, cancel := context.WithCancel(context.Background())
 	workerDone := make(chan struct{})
 	go func() { defer close(workerDone); (&notification.ZoomEmailWorker{DB: database}).Start(ctx) }()
-	
+
 	// Start attendance reminder service
 	attendanceReminder := notification.NewAttendanceReminderService(database)
 	attendanceReminder.Start(ctx)
-	
+
 	go func() {
 		timer := time.NewTimer(time.Until(time.Now().Truncate(time.Minute).Add(time.Minute)))
 		defer timer.Stop()

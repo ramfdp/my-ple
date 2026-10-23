@@ -1,6 +1,7 @@
 <script lang="ts">
  import { locale, t as translate } from '$lib/i18n';
 	import { onMount } from 'svelte';
+	import { tick } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { api, APIError, currentUser, download, session, type Report, type ReportingPeriod, type WeeklyRoleGroup } from '$lib/api';
 	import { goBack } from '$lib/navigation';
@@ -100,7 +101,7 @@
 		localStorage.removeItem('weekly-reports');
 		const requested = new URLSearchParams(location.search).get('division');
 		const index = divisions.indexOf(requested ?? '');
-		if (index >= 0) void selectDivision(index);
+		if (index >= 0) void selectDivision(index).then(async()=>{await tick();if(location.hash)document.getElementById(location.hash.slice(1))?.scrollIntoView({block:'center'})});
 		const stop=subscribeChanges(['reports.changed','jobs.changed'],()=>{if(selectedDivision!==null)return selectDivision(selectedDivision,true)});
 		return()=>{loadGeneration++;stop()};
 	});
@@ -141,7 +142,7 @@
 										<td colspan="2" class="task-work-title" data-role={row.roleLabel} data-category={row.categoryLabel}><div class="job-heading"><span>{row.work}</span>{#if row.pics?.length}<small>{$translate("PIC:")} {row.pics.map(pic=>pic.name+(pic.isActive?'':' (Nonaktif)')).join(', ')}</small>{/if}</div></td><td class="task-actions"></td>
 									</tr>
 								{:else}
-									<tr><td class="task-number">{row.displayNumber}</td><td class="task-description">{row.report.description}</td><td class="task-actions">{#if !period?.readOnly && $currentUser}<div class="report-row-actions"><button class="edit-report" type="button" onclick={() => { latest=null;remoteDeleted=false;editing = row.report; pickerReport=row.report; editDescription = row.report.description; }}>{$translate("Edit")}</button><button class="delete-report" type="button" onclick={() => (deleting = row.report)}>{$translate("Hapus")}</button></div>{:else}<span class="no-actions">—</span>{/if}</td></tr>
+									<tr id={'report-'+row.report.id}><td class="task-number">{row.displayNumber}</td><td class="task-description">{row.report.description}</td><td class="task-actions">{#if !period?.readOnly && $currentUser}<div class="report-row-actions"><button class="edit-report" type="button" onclick={() => { latest=null;remoteDeleted=false;editing = row.report; pickerReport=row.report; editDescription = row.report.description; }}>{$translate("Edit")}</button><button class="delete-report" type="button" onclick={() => (deleting = row.report)}>{$translate("Hapus")}</button></div>{:else}<span class="no-actions">—</span>{/if}</td></tr>
 								{/if}
 							{/each}{/if}
 						</tbody>

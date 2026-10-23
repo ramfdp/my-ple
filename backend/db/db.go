@@ -38,6 +38,9 @@ var workspaceSQL string
 //go:embed leave.sql
 var leaveSQL string
 
+//go:embed overtime.sql
+var overtimeSQL string
+
 //go:embed email_delivery.sql
 var emailDeliverySQL string
 
@@ -55,6 +58,18 @@ var attendanceSQL string
 
 //go:embed billing_documents.sql
 var billingDocumentsSQL string
+
+//go:embed ai_plans.sql
+var aiPlansSQL string
+
+//go:embed lessons_learned.sql
+var lessonsLearnedSQL string
+
+//go:embed hermes_search.sql
+var hermesSearchSQL string
+
+//go:embed rekap_seed.json
+var rekapSeedJSON string
 
 type Database struct {
 	Conn *sql.DB
@@ -83,7 +98,10 @@ func (db *Database) Migrate(ctx context.Context) error {
 	if _, err = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(71260402)`); err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, schemaSQL+weeklyArchiveSQL+jobsSQL+reportNumberingSQL+jobPICsSQL+workspaceSQL+leaveSQL+emailDeliverySQL+collaborationSQL+qaValidationSQL+documentChecklistsSQL+attendanceSQL+billingDocumentsSQL); err != nil {
+	if _, err = tx.ExecContext(ctx, schemaSQL+weeklyArchiveSQL+jobsSQL+reportNumberingSQL+jobPICsSQL+workspaceSQL+leaveSQL+overtimeSQL+emailDeliverySQL+collaborationSQL+qaValidationSQL+documentChecklistsSQL+attendanceSQL+billingDocumentsSQL+aiPlansSQL+lessonsLearnedSQL+hermesSearchSQL); err != nil {
+		return err
+	}
+	if err = seedRekap(ctx, tx); err != nil {
 		return err
 	}
 	var unmatched int

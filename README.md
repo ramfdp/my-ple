@@ -75,6 +75,25 @@ ZOOM_EMAIL_ENABLED=false
 
 File `.env.testing` tidak masuk Git.
 
+## Snapshot AI internal (branch `testing`)
+
+`GET /internal/ai/v1/workspaces/{id}/snapshot` hanya tersedia pada backend yang diberi `AI_SNAPSHOT_ENABLED=true`. Metode lain mendapat 405. Bearer token mesin 32 byte acak (64 karakter heksadesimal) dibaca dari `AI_SERVICE_TOKEN_FILE`; `AI_ALLOWED_WORKSPACE_IDS` berisi ID divisi yang diizinkan, dipisah koma. Tanpa token atau grant, endpoint gagal tertutup. Token manusia `my_ple_session` tidak berlaku. Token mesin tidak memberi akses ke `/users`, `/workspaces`, atau API admin biasa.
+
+Respons `schemaVersion: "1.0"` berisi `workspaceId`, `snapshotAt` UTC, `tasks`, dan `allowedAssigneeIds: []`. Tugas hanya dari workspace yang diminta, belum diarsipkan, belum `DONE`, diurutkan menurut ID. Proyeksi tugas: ID, workspace, job ID/nama, judul, deskripsi maksimum 1000 karakter, tanggal, status, prioritas, revisi, QA, versi, dan `assigneeIds: []`. Tidak ada nama, email, foto, atau detail akun pegawai. Jika lebih dari 200 tugas aktif atau JSON melebihi 64 KiB, API mengembalikan 413; tidak mengirim halaman parsial. Query memakai transaksi read-only repeatable-read dan parameter SQL. Respons tidak disimpan oleh proxy (`Cache-Control: no-store`).
+
+Gunakan jaringan terpisah `myple_read_testing`: hanya backend testing dan Worker. Backend tetap di jaringan Compose lamanya bersama PostgreSQL; Hermes hanya di `myple_ai`. `compose.ai-testing.yaml` mengaktifkan endpoint untuk **testing saja**. Nginx utama dan gateway testing mengembalikan 404 untuk `/internal/ai/` dan `/api/internal/ai/`. Jangan pasang override ini pada project produksi.
+
+Sesudah membuat dua salinan token privat dengan isi identik dan izin baca masing-masing UID backend `10001` dan Worker `65532`, atur `AI_BACKEND_TOKEN_FILE` serta `AI_ALLOWED_WORKSPACE_IDS` pada lingkungan Compose testing. Jangan mencetak token atau menaruhnya di Git/.env yang dilacak. Untuk validasi lokal yang sudah dijalankan:
+
+```sh
+docker compose -p myple-ai-it-web -f compose.yaml -f compose.testing.yaml -f compose.ai-testing.yaml config --quiet
+go -C backend test ./...
+```
+
+Di VPS, gunakan `--env-file .env.testing` bersama ketiga berkas Compose, periksa hasil `config --quiet`, lalu hanya perbarui backend testing pada jadwal yang disetujui. File token dimuat sekali saat proses mulai; rotasi memerlukan penghentian run-once Worker, penggantian kedua salinan secara atomik, lalu restart seluruh replika backend testing dan Worker. Token lama ditarik setelah seluruh replika memakai token baru. Jangan ubah branch `production` atau project `/opt/my-ple`.
+
+Promosi produksi memakai override terpisah `compose.ai-production.yaml` setelah provider model korporat disetujui, uji beban dan RBAC pemakai hasil AI, audit jaringan serta rotasi token. Jalankan hanya dengan prosedur pada `my-ple-hermes/docs/deployment.md`; endpoint publik tetap 404. Rollback testing: jalankan ulang Compose testing tanpa `compose.ai-testing.yaml`, lalu pastikan `AI_SNAPSHOT_ENABLED=false` dan endpoint publik tetap 404. Simpan backup volume dan berkas token; jangan menjalankan `down -v`.
+
 `POSTGRES_PASSWORD` hanya digunakan untuk menginisialisasi password saat volume
 PostgreSQL pertama kali dibuat. Mengubah nilainya pada `.env.testing` tidak otomatis
 mengubah password role PostgreSQL yang sudah tersimpan pada volume lama.

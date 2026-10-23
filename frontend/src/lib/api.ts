@@ -44,7 +44,8 @@ export interface ZoomResource {
 export interface ZoomResourceInput { description: string; meetingUrl: string; meetingId: string; hostKey: string; passcode: string }
 export interface Notification {
  leave?: import('./leave').LeaveRequest & {title:string;message:string;path:string};
-	id: string; type: 'zoom_booking_created'|'workspace_task'|'work_item_assigned'|'leave_request_created'|'leave_request_approved'|'leave_request_rejected'; actor: { id: string; name: string };
+	overtime?: {sheetId:string;employeeName:string;period:string;status:string;title:string;message:string;path:string};
+	id: string; type: 'zoom_booking_created'|'workspace_task'|'work_item_assigned'|'leave_request_created'|'leave_request_approved'|'leave_request_rejected'|'overtime_submitted'|'overtime_approved'|'overtime_rejected'; actor: { id: string; name: string };
 	workspace?: {title:string;workspaceId:number;message:string;projectName?:string;startDate?:string;dueDate?:string;priority?:string};
 	entityType: string; entityId: string; createdAt: string; readAt: string | null;
 	booking?: { id: string; zoomName: string; startAt: string; endAt: string; description?: string };

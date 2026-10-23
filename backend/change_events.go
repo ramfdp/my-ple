@@ -33,7 +33,7 @@ func changeEvents(next http.Handler, s *notification.Service) http.Handler {
 			return
 		}
 		parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
-		event := map[string]string{"reports": "reports.changed", "zoom-bookings": "zoom.changed", "zoom-resources": "zoom.changed", "jobs": "jobs.changed", "users": "users.changed", "profile": "users.changed", "attendance": "attendance.changed", "document-checklists": "document-checklists.changed", "notifications": "notifications.changed"}[parts[0]]
+		event := map[string]string{"reports": "reports.changed", "zoom-bookings": "zoom.changed", "zoom-resources": "zoom.changed", "jobs": "jobs.changed", "users": "users.changed", "profile": "users.changed", "attendance": "attendance.changed", "document-checklists": "document-checklists.changed", "lessons-learned": "lessons-learned.changed", "notifications": "notifications.changed"}[parts[0]]
 		if parts[0] == "billing-documents" {
 			event = "billing-documents.changed"
 		}

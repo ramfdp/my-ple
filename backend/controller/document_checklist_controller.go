@@ -142,6 +142,19 @@ func (c *DocumentChecklistController) ServeHTTP(w http.ResponseWriter, r *http.R
 			w.WriteHeader(405)
 			return
 		}
+	} else if len(parts) == 4 && parts[3] == "headers" {
+		if r.Method != "PATCH" {
+			w.WriteHeader(405)
+			return
+		}
+		var in model.ChecklistHeaderPatch
+		if !DecodeStrictJSON(w, r, &in) {
+			return
+		}
+		if err = c.DB.UpdateDocumentChecklistHeader(r.Context(), jobID, tableID, in); err != nil {
+			fail(err)
+			return
+		}
 	} else if parts[3] == "items" {
 		itemID := 0
 		if len(parts) == 5 {

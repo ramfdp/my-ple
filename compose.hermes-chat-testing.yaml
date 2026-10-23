@@ -1,0 +1,16 @@
+# Testing only. Pair with the private Hermes chat service; no public route.
+services:
+  backend:
+    environment:
+      HERMES_CHAT_ENABLED: "true"
+      HERMES_CHAT_TOKEN_FILE: /run/secrets/hermes_chat_token
+    volumes:
+      - ${MY_PLE_HERMES_CHAT_TOKEN_FILE:?set private backend chat token path}:/run/secrets/hermes_chat_token:ro
+    networks:
+      default:
+      myple_read_testing:
+        aliases: [myple-testing-backend]
+networks:
+  myple_read_testing:
+    external: true
+    name: myple_read_testing

@@ -5,6 +5,8 @@ import assert from 'node:assert/strict';
 const origin=process.env.RESPONSIVE_ORIGIN??'http://127.0.0.1:5173';
 const long = 'Koordinasi Pekerjaan Antar Tim Jember';
 const now = new Date().toISOString(), day = now.slice(0,10);
+const currentDay=Number(day.slice(8,10)),periodDate=new Date(Date.UTC(Number(day.slice(0,4)),Number(day.slice(5,7))-1-(currentDay<=5?1:0),1));
+const currentMonth=periodDate.toISOString().slice(0,7),monthDate=currentMonth+'-07';
 const user = {id:'u1',name:long,email:long+'@example.test',username:'pegawai',roleId:1,role:'Admin',language:'id',jobTitle:long,salary:15000000,residence:long,phoneNumber:'+628123456789',employmentStatus:'Permanent',avatarUrl:'',isActive:true,createdAt:now,updatedAt:now};
 const member = {id:'u1',name:long,avatarUrl:''};
 const job = {id:1,divisionId:1,roleId:1,jobCategoryId:1,name:long,description:long,isActive:true,sortOrder:0,division:'Project Engineer',role:'Engineer',category:'Supervisi',referenced:false,pics:[{userId:'u1',name:long,isActive:true}]};
@@ -32,19 +34,54 @@ Object.assign(fixtures, {
  '/attendance': { records: [attendance], today: attendance, open: null, todayDate: day, officeConfigured: true },
  '/attendance/overview': { date: day, todayDate: day, employees: [{ ...attendance, userId: user.id, name: long, role: user.role, status: 'PRESENT', leaveTypes: '' }] },
  '/leave-requests': { requests: [leave] }, '/leave-requests/approvals': { requests: [leave] },
- '/document-checklists/1': { checklists: [{ id: 1, jobId: 1, title: 'Kelengkapan Dokumen Pekerjaan', version: 1, requireDigitalSignature: true, signers: [{ id: 1, type: 'external', name: long.repeat(5), position: long.repeat(5), archived: false, displayOrder: 0 }], items: [{ id: 1, documentName: long.repeat(5), documentPosition: 'X'.repeat(255), notes: (long + '\n').repeat(20), signatures: {}, digitalSigned: false, sentDate: day }] }] },
+ '/document-checklists/1': { checklists: [{ id: 1, jobId: 1, title: 'Kelengkapan Dokumen Pekerjaan', headerLabels: {}, version: 1, requireDigitalSignature: true, signers: [{ id: 1, type: 'external', name: long.repeat(5), position: long.repeat(5), archived: false, displayOrder: 0 }], items: [{ id: 1, parentId: null, number: '1', documentName: long.repeat(5), documentPosition: 'X'.repeat(255), notes: (long + '\n').repeat(20), signatures: {}, digitalSigned: false, sentDate: day }] }] },
  '/billing-documents': { jobs: [job], stages: [{ id: 1, jobId: 1, name: 'Tahap Pertama', periodLabel: 'Oktober', notes: long, updatedAt: now, version: 1, readiness: 'BELUM SIAP', documents: [], milestones: [{ id: 1, name: 'Pemeriksaan Dokumen', notes: long, readiness: 'BELUM SIAP', documents: [{ id: 1, name: 'Lembar Pengesahan', status: 'BELUM ADA', updatedAt: now }] }] }] }
 });
+const overtimeEntry={workDate:monthDate,startTime:'17:00',endTime:'20:00',dayType:'WORKDAY',isOverride:false,overrideReason:'',project:'internal',description:long,actualMinutes:180,weightedMinutes:180};
+const overtimeSheet={id:'ot1',userId:user.id,employeeName:user.name,employeeRole:user.role,period:currentMonth,status:'DRAFT',version:1,entries:[overtimeEntry],actualMinutes:180,weightedMinutes:180,submittedAt:null,reviewedBy:null,reviewerName:'',reviewedAt:null,reviewerNote:'',createdAt:now,updatedAt:now};
+fixtures['/overtime-sheets/'+currentMonth]={sheet:overtimeSheet,submissionOpen:true};
+fixtures['/overtime-approvals']={employees:[{sheetId:'ot1',userId:user.id,employeeName:user.name,employeeRole:user.role,status:'DRAFT',submittedAt:null,reviewedAt:null}]};
 const page = await browser.newPage({ viewport: { width: 320, height: 850 }, hasTouch: true, reducedMotion: 'reduce' });
 user.language = process.env.TEST_LANGUAGE || 'id';
 await page.addInitScript(language => localStorage.setItem('language', language), user.language);
 const errors = [], failures = [];
+const chatRequests = [], feedbackRequests = [], headerRequests = [], checklistConfigRequests = [];
+let feedbackStatus = 204;
 page.on('pageerror', error => errors.push(error.message));
 await page.routeWebSocket(/ws\/notifications/, () => {});
 await page.route('**/*', async route => {
  const url = new URL(route.request().url());
  if (/fonts\.(googleapis|gstatic)\.com/.test(url.hostname)) return route.fulfill({ body: '' });
  if (url.port !== '3000') return route.continue();
+ if (url.pathname === '/hermes/chat') {
+  chatRequests.push(route.request().postDataJSON());
+  return route.fulfill({ status: 200, json: { answer: 'Periksa sambungan.', sources: [{ id: 'task:t1', kind: 'task', title: 'Sambungan', excerpt: 'Periksa kabel.', url: '/workspace/1?task=t1' }] }, headers: { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true' } });
+ }
+ if (url.pathname === '/feedback') {
+  feedbackRequests.push(route.request().postDataJSON());
+  const headers = { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true' };
+  return feedbackStatus === 204 ? route.fulfill({ status: 204, headers }) : route.fulfill({ status: 503, json: { error: 'Layanan email belum tersedia. Silakan coba nanti.' }, headers });
+ }
+ if (url.pathname === '/document-checklists/1/tables/1/headers' && route.request().method() === 'PATCH') {
+  const patch = route.request().postDataJSON(), checklist = fixtures['/document-checklists/1'].checklists[0];
+  headerRequests.push(patch);
+  if (patch.field === 'title') checklist.title = patch.value; else checklist.headerLabels[patch.field] = patch.value;
+  return route.fulfill({ status: 200, json: { checklist }, headers: { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true' } });
+ }
+ if (url.pathname === '/document-checklists/1/tables/1' && route.request().method() === 'PUT') {
+  const input = route.request().postDataJSON(), checklist = fixtures['/document-checklists/1'].checklists[0];
+  checklistConfigRequests.push(input);
+  const ids = new Map(), children = new Map();
+  for (const item of input.newItems) {
+   const id = checklist.items.length + 1, parentId = item.parentId || ids.get(item.parentClientId) || null;
+   ids.set(item.clientId, id);
+   const count = (children.get(parentId) || 0) + 1; children.set(parentId, count);
+   const parent = checklist.items.find(existing => existing.id === parentId);
+   checklist.items.push({ id, parentId, number: parent ? parent.number+'.'+count : String(count), documentName: item.documentName, documentPosition: '', notes: '', signatures: {}, digitalSigned: false, sentDate: null });
+  }
+  checklist.version++;
+  return route.fulfill({ status: 200, json: { checklist }, headers: { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true' } });
+ }
  return route.fulfill({ status: url.pathname === '/auth/me' && !fixtures[url.pathname].user ? 401 : 200, json: fixtures[url.pathname] || {}, headers: { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true' } });
 });
 async function check(label, prepare) {
@@ -56,6 +93,14 @@ async function check(label, prepare) {
    const fields = page.locator('.checklist table textarea');
    assert.equal(await fields.count(), 5, 'All checklist text cells remain editable');
    assert(await fields.evaluateAll(elements => elements.every(field => field.scrollHeight <= field.clientHeight + 1 && field.scrollWidth <= field.clientWidth + 1)), width + 'px: full checklist values visible without internal scrolling');
+  }
+  if (label === 'Hermes panel' || label === 'Feedback tab') {
+   const positions = await page.evaluate(() => {
+    const panel = document.querySelector('.hermes-panel').getBoundingClientRect();
+    const launcher = document.querySelector('.hermes-launcher').getBoundingClientRect();
+    return { left: panel.left, right: panel.right, top: panel.top, bottom: panel.bottom, launcherTop: launcher.top, viewport: innerWidth };
+   });
+   assert(positions.left >= 0 && positions.right <= positions.viewport + 1 && positions.top >= 0 && positions.bottom < positions.launcherTop, `${width}px: panel fits above launcher`);
   }
   if (prepare) await prepare();
   const broken = await page.evaluate(() => {
@@ -88,17 +133,86 @@ async function check(label, prepare) {
  console.log(`Checked ${label}`);
 }
 try {
- for (const path of ['/dashboard', '/employees', '/my-profile', '/attendance', '/attendance/overview', '/leave', '/leave/approvals', '/document-checklists', '/billing-documents', '/weekly-progress?division=Project%20Engineer', '/weekly-progress/history', '/weekly-progress/new', '/settings/jobs', '/booking-zoom', '/workspace', '/workspace/1']) {
+ for (const path of ['/dashboard', '/employees', '/my-profile', '/attendance', '/attendance/overview', '/leave', '/leave/approvals', '/overtime', '/overtime/approvals', '/document-checklists', '/billing-documents', '/weekly-progress?division=Project%20Engineer', '/weekly-progress/history', '/weekly-progress/new', '/settings/jobs', '/booking-zoom', '/workspace', '/workspace/1']) {
   await page.goto(origin + path);
   await page.locator('main').waitFor();
   await page.waitForTimeout(250);
   await check(path);
   if (path === '/dashboard') {
+   const chatLabel = user.language === 'en' ? 'Hermes chat' : 'Chat Hermes';
+   const feedbackLabel = user.language === 'en' ? 'Send to Gmail' : 'Kirim ke Gmail';
+   const emailError = user.language === 'en' ? 'Email service is unavailable. Please try later.' : 'Layanan email belum tersedia. Silakan coba nanti.';
+   const successMessage = user.language === 'en' ? 'Feedback sent successfully.' : 'Kritik dan saran berhasil dikirim.';
    await check('Notifications', () => page.locator('.notification-button').click());
    await page.keyboard.press('Escape');
-   await page.locator('.feedback-button').click();
-   await check('Feedback dialog');
+   assert.equal(await page.locator('.hermes-launcher').count(), 1);
+   assert.equal(await page.locator('.feedback-button').count(), 0);
+   await page.locator('.hermes-launcher').click();
+   assert.equal(await page.locator('.hermes-panel').evaluate(el => el.getAnimations().some(animation => animation.effect.getTiming().duration > 0)), false, 'Reduced motion disables morph');
+   await check('Hermes panel');
+   assert.equal(await page.getByRole('tab', { name: chatLabel }).getAttribute('aria-selected'), 'true');
+   await page.locator('#hermes-question').fill('Sambungan gagal');
+   await page.getByRole('tab', { name: feedbackLabel }).click();
+   await check('Feedback tab');
+   await page.locator('#feedback-message').fill('Masukan tersimpan');
+   await page.getByRole('tab', { name: chatLabel }).click();
+   assert.equal(await page.locator('#hermes-question').inputValue(), 'Sambungan gagal');
+   await page.locator('.chat-form button[type="submit"]').click();
+   await page.getByText('Periksa sambungan.').waitFor();
+   assert.equal(chatRequests.at(-1).question, 'Sambungan gagal');
+   assert.equal(await page.getByRole('link', { name: 'Sambungan' }).getAttribute('href'), '/workspace/1?task=t1');
+   await page.getByRole('tab', { name: chatLabel }).press('ArrowRight');
+   assert.equal(await page.locator('#feedback-message').inputValue(), 'Masukan tersimpan');
+   feedbackStatus = 503;
+   await page.locator('.feedback-content button[type="submit"]').click();
+   await page.getByRole('alert').getByText(emailError).waitFor();
+   assert.equal(await page.locator('#feedback-message').inputValue(), 'Masukan tersimpan');
+   feedbackStatus = 204;
+   await page.locator('.feedback-content button[type="submit"]').click();
+   await page.getByText(successMessage).waitFor();
+   await page.waitForFunction(() => document.querySelector('.hermes-launcher') === document.activeElement);
+   assert.equal(feedbackRequests.at(-1).message, 'Masukan tersimpan');
+   assert.equal(await page.locator('.hermes-panel').count(), 0);
+   await page.locator('.hermes-launcher').click();
+   await page.getByRole('tab', { name: feedbackLabel }).click();
+   assert.equal(await page.locator('#feedback-message').inputValue(), '');
    await page.keyboard.press('Escape');
+   assert.equal(await page.locator('.hermes-launcher').evaluate(el => el === document.activeElement), true);
+   await page.locator('.hermes-panel').waitFor({ state: 'detached' });
+   await page.emulateMedia({ reducedMotion: 'no-preference' });
+   for (const width of [320, 390, 430, 768, 1440]) {
+    await page.setViewportSize({ width, height: 850 });
+    await page.locator('.hermes-launcher').click();
+    const panel = page.locator('.hermes-panel');
+    await panel.waitFor();
+    assert.equal(await panel.evaluate(el => el.getAnimations()[0].effect.getTiming().duration), 600, 'Morph runs at 0.75x speed');
+    assert.equal(await page.locator('.hermes-launcher').evaluate(el => el === document.activeElement), true, 'Focus waits for morph');
+    await page.waitForTimeout(100);
+    assert.notEqual(await panel.evaluate(el => getComputedStyle(el).clipPath), 'none', 'Morph clips a shape without scaling text');
+    await page.locator('.hermes-launcher').click();
+    assert.equal(await panel.evaluate(el => el.inert), true, 'Closing panel is inert');
+    await page.waitForTimeout(40);
+    await page.locator('.hermes-launcher').click();
+    await page.waitForFunction(() => document.querySelector('[role="tab"][aria-selected="true"]') === document.activeElement);
+    assert.equal(await panel.count(), 1, 'Rapid toggles keep one panel');
+    await page.getByRole('tab', { name: chatLabel }).click();
+    await page.waitForTimeout(260);
+    assert.equal(await page.locator('.tabs').evaluate(el => getComputedStyle(el, '::before').transitionDuration), '0.24s');
+    assert.equal(await page.getByText('Periksa sambungan.').isVisible(), true, 'Chat history survives morph');
+    await page.getByRole('tab', { name: chatLabel }).press('End');
+    assert.equal(await page.getByRole('tab', { name: feedbackLabel }).getAttribute('aria-selected'), 'true');
+    await page.waitForTimeout(260);
+    const bounds = await panel.boundingBox();
+    const button = await page.locator('.hermes-launcher').boundingBox();
+    assert(bounds.x >= 0 && bounds.x + bounds.width <= width + 1 && bounds.y >= 0 && bounds.y + bounds.height < button.y, `${width}px: expanded morph fits viewport`);
+    const sendButton = await page.locator('.feedback-content button[type="submit"]').boundingBox();
+    assert(sendButton.y >= bounds.y && sendButton.y + sendButton.height <= bounds.y + bounds.height, `${width}px: feedback send stays visible`);
+    if (process.env.SCREENSHOT_DIR && width === 390) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/assistant-${user.language}.png` });
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('.hermes-launcher').evaluate(el => el === document.activeElement), true);
+    await panel.waitFor({ state: 'detached' });
+   }
+   await page.emulateMedia({ reducedMotion: 'reduce' });
   }
   if (path === '/booking-zoom') {
    await page.locator('.booking-header .zoom-primary').click();
@@ -108,7 +222,23 @@ try {
   if (path === '/document-checklists') {
    await page.locator('.job-heading').click();
    await page.locator('.checklist table').waitFor();
+   const documentHeader = page.locator('.checklist thead tr:nth-child(2) th:nth-child(2) input');
+   await documentHeader.fill('Berkas');
+   await documentHeader.press('Enter');
+   await page.waitForTimeout(50);
+   assert.deepEqual(headerRequests.at(-1), { field: 'documentName', value: 'Berkas' });
+   assert.equal(await documentHeader.inputValue(), 'Berkas');
    await check('Checklist table');
+   await page.getByRole('button', { name: 'Edit Tabel Checklist' }).click();
+   const modalItems = page.locator('.modal-item');
+   await modalItems.nth(0).locator('.add-subpoint').click();
+   await modalItems.nth(1).locator('input').fill('Lampiran');
+   await modalItems.nth(1).locator('.add-subpoint').click();
+   await modalItems.nth(2).locator('input').fill('Detail Lampiran');
+   await page.locator('dialog .ws-row .ws-primary').click();
+   await page.locator('dialog').waitFor({ state: 'hidden' });
+   assert.deepEqual(checklistConfigRequests.at(-1).newItems.map(item => [item.parentId, item.parentClientId, item.documentName]), [[1, '', 'Lampiran'], [0, 'draft-1', 'Detail Lampiran']]);
+   assert.deepEqual(await page.locator('.checklist tbody tr td:first-child').allTextContents(), ['1', '1.1', '1.1.1']);
   }
  }
  for (const [index, tab] of [[1, 'Table'], [3, 'Board'], [4, 'Timeline'], [5, 'Calendar'], [6, 'Workload'], [7, 'Notes']]) {
