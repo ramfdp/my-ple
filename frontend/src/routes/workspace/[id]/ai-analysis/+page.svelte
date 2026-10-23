@@ -2,7 +2,6 @@
  import {page} from '$app/state';
  import {afterNavigate} from '$app/navigation';
  import {api,APIError} from '$lib/api';
- import {isOneDriveLink} from '$lib/ai-planner';
 
  type Item={taskId:string;title:string;relatedUrl:string;summary:string;nextSteps:string[];decision:string;reviewerName?:string;version:number};
  type Batch={id:string;planDate:string;items:Item[];stale:boolean;finalized?:boolean;planCreated?:boolean};
@@ -33,7 +32,6 @@
   {#each batch.items as item (item.taskId)}
    <article>
     <h3>{item.title||item.taskId}</h3>
-    {#if !batch.stale&&isOneDriveLink(item.relatedUrl)}<p><a href={item.relatedUrl} target="_blank" rel="noopener noreferrer">Buka dokumen sumber</a></p>{/if}
     {#if item.decision==='UNAVAILABLE'}<p>Dokumen atau bukti tidak dapat dibaca. Pekerjaan ini dikecualikan.</p>
     {:else}
      <p>{item.summary}</p>
