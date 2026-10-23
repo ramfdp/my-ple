@@ -119,6 +119,7 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 	zoomResourceCtrl := &controller.ZoomResourceController{DB: database}
 	notificationCtrl := &controller.NotificationController{DB: database}
 	leaveCtrl := &controller.LeaveController{DB: database, Notifications: notificationService}
+	overtimeCtrl := &controller.OvertimeController{DB: database, Notifications: notificationService}
 	attendanceCtrl := controller.NewAttendanceController(database)
 	workspaceCtrl := &controller.WorkspaceController{DB: database, Notifications: notificationService}
 	aiPlans := &controller.AIPlansController{DB: database}
@@ -163,6 +164,10 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 		}
 		if r.URL.Path == "/leave-requests" || strings.HasPrefix(r.URL.Path, "/leave-requests/") {
 			leaveCtrl.ServeHTTP(w, r)
+			return
+		}
+		if strings.HasPrefix(r.URL.Path, "/overtime-sheets/") || r.URL.Path == "/overtime-approvals" || strings.HasPrefix(r.URL.Path, "/overtime-approvals/") {
+			overtimeCtrl.ServeHTTP(w, r)
 			return
 		}
 		if r.URL.Path == "/jobs" || strings.HasPrefix(r.URL.Path, "/jobs/") {

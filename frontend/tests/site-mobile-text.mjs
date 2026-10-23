@@ -5,6 +5,8 @@ import assert from 'node:assert/strict';
 const origin=process.env.RESPONSIVE_ORIGIN??'http://127.0.0.1:5173';
 const long = 'Koordinasi Pekerjaan Antar Tim Jember';
 const now = new Date().toISOString(), day = now.slice(0,10);
+const currentDay=Number(day.slice(8,10)),periodDate=new Date(Date.UTC(Number(day.slice(0,4)),Number(day.slice(5,7))-1-(currentDay<=5?1:0),1));
+const currentMonth=periodDate.toISOString().slice(0,7),monthDate=currentMonth+'-07';
 const user = {id:'u1',name:long,email:long+'@example.test',username:'pegawai',roleId:1,role:'Admin',language:'id',jobTitle:long,salary:15000000,residence:long,phoneNumber:'+628123456789',employmentStatus:'Permanent',avatarUrl:'',isActive:true,createdAt:now,updatedAt:now};
 const member = {id:'u1',name:long,avatarUrl:''};
 const job = {id:1,divisionId:1,roleId:1,jobCategoryId:1,name:long,description:long,isActive:true,sortOrder:0,division:'Project Engineer',role:'Engineer',category:'Supervisi',referenced:false,pics:[{userId:'u1',name:long,isActive:true}]};
@@ -35,6 +37,10 @@ Object.assign(fixtures, {
  '/document-checklists/1': { checklists: [{ id: 1, jobId: 1, title: 'Kelengkapan Dokumen Pekerjaan', headerLabels: {}, version: 1, requireDigitalSignature: true, signers: [{ id: 1, type: 'external', name: long.repeat(5), position: long.repeat(5), archived: false, displayOrder: 0 }], items: [{ id: 1, parentId: null, number: '1', documentName: long.repeat(5), documentPosition: 'X'.repeat(255), notes: (long + '\n').repeat(20), signatures: {}, digitalSigned: false, sentDate: day }] }] },
  '/billing-documents': { jobs: [job], stages: [{ id: 1, jobId: 1, name: 'Tahap Pertama', periodLabel: 'Oktober', notes: long, updatedAt: now, version: 1, readiness: 'BELUM SIAP', documents: [], milestones: [{ id: 1, name: 'Pemeriksaan Dokumen', notes: long, readiness: 'BELUM SIAP', documents: [{ id: 1, name: 'Lembar Pengesahan', status: 'BELUM ADA', updatedAt: now }] }] }] }
 });
+const overtimeEntry={workDate:monthDate,startTime:'17:00',endTime:'20:00',dayType:'WORKDAY',isOverride:false,overrideReason:'',project:'internal',description:long,actualMinutes:180,weightedMinutes:180};
+const overtimeSheet={id:'ot1',userId:user.id,employeeName:user.name,employeeRole:user.role,period:currentMonth,status:'DRAFT',version:1,entries:[overtimeEntry],actualMinutes:180,weightedMinutes:180,submittedAt:null,reviewedBy:null,reviewerName:'',reviewedAt:null,reviewerNote:'',createdAt:now,updatedAt:now};
+fixtures['/overtime-sheets/'+currentMonth]={sheet:overtimeSheet,submissionOpen:true};
+fixtures['/overtime-approvals']={employees:[{sheetId:'ot1',userId:user.id,employeeName:user.name,employeeRole:user.role,status:'DRAFT',submittedAt:null,reviewedAt:null}]};
 const page = await browser.newPage({ viewport: { width: 320, height: 850 }, hasTouch: true, reducedMotion: 'reduce' });
 user.language = process.env.TEST_LANGUAGE || 'id';
 await page.addInitScript(language => localStorage.setItem('language', language), user.language);
@@ -127,7 +133,7 @@ async function check(label, prepare) {
  console.log(`Checked ${label}`);
 }
 try {
- for (const path of ['/dashboard', '/employees', '/my-profile', '/attendance', '/attendance/overview', '/leave', '/leave/approvals', '/document-checklists', '/billing-documents', '/weekly-progress?division=Project%20Engineer', '/weekly-progress/history', '/weekly-progress/new', '/settings/jobs', '/booking-zoom', '/workspace', '/workspace/1']) {
+ for (const path of ['/dashboard', '/employees', '/my-profile', '/attendance', '/attendance/overview', '/leave', '/leave/approvals', '/overtime', '/overtime/approvals', '/document-checklists', '/billing-documents', '/weekly-progress?division=Project%20Engineer', '/weekly-progress/history', '/weekly-progress/new', '/settings/jobs', '/booking-zoom', '/workspace', '/workspace/1']) {
   await page.goto(origin + path);
   await page.locator('main').waitFor();
   await page.waitForTimeout(250);

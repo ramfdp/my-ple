@@ -68,7 +68,7 @@ export function startNotifications() {
    if (stopped) return;
 			try {
 				const message = JSON.parse(data) as { event: string; notification: Notification; workspaceId?:number };
-				if(['workspace.changed','leave.changed','reports.changed','zoom.changed','jobs.changed','users.changed','attendance.changed','document-checklists.changed','lessons-learned.changed','billing-documents.changed','notifications.changed'].includes(message.event))window.dispatchEvent(new CustomEvent(message.event,{detail:message}));
+				if(['workspace.changed','leave.changed','overtime.changed','reports.changed','zoom.changed','jobs.changed','users.changed','attendance.changed','document-checklists.changed','lessons-learned.changed','billing-documents.changed','notifications.changed'].includes(message.event))window.dispatchEvent(new CustomEvent(message.event,{detail:message}));
     if (message.event === 'notification.created' && message.notification?.id && message.notification.actor?.id && message.notification.actor.id !== current.user.id) {
      const item = message.notification;
      if (!seen.has(item.id)) { seen.add(item.id); addNotification(item); if (!item.readAt) sound.play(); }
@@ -78,7 +78,7 @@ export function startNotifications() {
 		socket.onclose = () => { if (!stopped) { timer = setTimeout(connect, retry); retry = Math.min(retry * 2, 30_000); } };
 	};
 	void refresh(false).then(connect).catch(connect);
-	const stopFeed=subscribeChanges(['notifications.changed','zoom.changed','workspace.changed','leave.changed'],change=>refresh(change.event==='workspace.changed'||change.event==='leave.changed'));
+	const stopFeed=subscribeChanges(['notifications.changed','zoom.changed','workspace.changed','leave.changed','overtime.changed'],change=>refresh(change.event==='workspace.changed'||change.event==='leave.changed'||change.event==='overtime.changed'));
 	const stopUser=subscribeChanges(['users.changed'],async()=>{
 		const {user}=await api<{user:User}>('/auth/me');
 		if(!stopped)setAuthenticated(user);

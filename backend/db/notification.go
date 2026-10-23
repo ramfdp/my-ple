@@ -25,6 +25,10 @@ func scanNotification(row interface{ Scan(...any) error }) (model.Notification, 
 		n.Leave = &model.LeaveNotification{}
 		err = json.Unmarshal(data, n.Leave)
 	}
+	if err == nil && n.EntityType == "overtime_sheet" {
+		n.Overtime = &model.OvertimeNotification{}
+		err = json.Unmarshal(data, n.Overtime)
+	}
 	return n, err
 }
 

@@ -38,6 +38,9 @@ var workspaceSQL string
 //go:embed leave.sql
 var leaveSQL string
 
+//go:embed overtime.sql
+var overtimeSQL string
+
 //go:embed email_delivery.sql
 var emailDeliverySQL string
 
@@ -95,7 +98,7 @@ func (db *Database) Migrate(ctx context.Context) error {
 	if _, err = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(71260402)`); err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, schemaSQL+weeklyArchiveSQL+jobsSQL+reportNumberingSQL+jobPICsSQL+workspaceSQL+leaveSQL+emailDeliverySQL+collaborationSQL+qaValidationSQL+documentChecklistsSQL+attendanceSQL+billingDocumentsSQL+aiPlansSQL+lessonsLearnedSQL+hermesSearchSQL); err != nil {
+	if _, err = tx.ExecContext(ctx, schemaSQL+weeklyArchiveSQL+jobsSQL+reportNumberingSQL+jobPICsSQL+workspaceSQL+leaveSQL+overtimeSQL+emailDeliverySQL+collaborationSQL+qaValidationSQL+documentChecklistsSQL+attendanceSQL+billingDocumentsSQL+aiPlansSQL+lessonsLearnedSQL+hermesSearchSQL); err != nil {
 		return err
 	}
 	if err = seedRekap(ctx, tx); err != nil {

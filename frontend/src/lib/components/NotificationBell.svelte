@@ -33,14 +33,16 @@
 				{#each $notifications.items as item (item.id)}
 					<li class:unread={!item.readAt}>
 						<div class="notification-content">
-							<strong>{#if item.leave}{$translate(item.type==='leave_request_approved'?'{actor} menyetujui pengajuan':item.type==='leave_request_rejected'?'{actor} menolak pengajuan':'{actor} mengajukan izin/cuti',{actor:item.actor.name})}{:else if item.workspace}{$translate(item.type==='work_item_assigned'?'{actor} menetapkan pekerjaan':item.workspace.message==='Komentar baru'?'{actor} menambahkan komentar':'{actor} memperbarui pekerjaan',{actor:item.actor.name})} — {item.workspace.title}{:else}{item.actor.name} {$translate("membooking")} {item.booking?.zoomName ?? $translate('Zoom')}{/if}</strong>
+							<strong>{#if item.leave}{$translate(item.type==='leave_request_approved'?'{actor} menyetujui pengajuan':item.type==='leave_request_rejected'?'{actor} menolak pengajuan':'{actor} mengajukan izin/cuti',{actor:item.actor.name})}{:else if item.overtime}{item.overtime.title}{:else if item.workspace}{$translate(item.type==='work_item_assigned'?'{actor} menetapkan pekerjaan':item.workspace.message==='Komentar baru'?'{actor} menambahkan komentar':'{actor} memperbarui pekerjaan',{actor:item.actor.name})} — {item.workspace.title}{:else}{item.actor.name} {$translate("membooking")} {item.booking?.zoomName ?? $translate('Zoom')}{/if}</strong>
 							{#if item.leave}<span>{labelDate(item.leave.startDate, $locale)} &ndash; {labelDate(item.leave.endDate, $locale)}</span><span class="booking-description">{item.leave.reason}</span>{#if item.leave.reviewerNote}<span class="booking-description">{$translate("Catatan:")} {item.leave.reviewerNote}</span>{/if}{/if}
+							{#if item.overtime}<span>{item.overtime.employeeName} · {item.overtime.period}</span><span class="booking-description">{item.overtime.message}</span>{/if}
 							{#if item.booking}<span>{date(item.booking.startAt)} · {time(item.booking.startAt)}–{time(item.booking.endAt)}</span>{/if}
 							{#if item.type==='work_item_assigned'&&item.workspace}<span>{$translate("Project:")} {item.workspace.projectName??$translate('Tanpa project')}</span><span>{item.workspace.startDate||$translate('Tanpa tanggal')} – {item.workspace.dueDate||$translate('Tanpa deadline')} · {$translate(item.workspace.priority ?? '')}</span>{/if}
 							{#if item.booking?.description}<span class="booking-description">{$translate("Deskripsi:")} {item.booking.description}</span>{/if}
 							<small>{relative(item.createdAt)}</small>
 						</div>
 						{#if item.leave}<a href={(item.type==='leave_request_created'?'/leave/approvals':'/leave')+'?request='+encodeURIComponent(item.entityId)} onclick={() => void markRead(item.id).catch(() => {})}>{$translate("Lihat Pengajuan →")}</a>{/if}
+						{#if item.overtime}<a href={item.overtime.path} onclick={() => void markRead(item.id).catch(() => {})}>Lihat Lembur →</a>{/if}
 						{#if item.workspace}<a href={'/workspace/'+item.workspace.workspaceId} onclick={() => void markRead(item.id).catch(() => {})}>{$translate("Buka Workspace →")}</a>{/if}
 						{#if item.booking}<a href="/booking-zoom" onclick={() => void markRead(item.id).catch(() => {})}>{$translate("Buka Booking Zoom →")}</a>{/if}
 						<button class="notification-dismiss" type="button" onclick={() => void dismissNotification(item.id).catch(() => {})}>{$translate("Hapus")}</button>

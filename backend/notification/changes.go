@@ -51,6 +51,9 @@ func (s *Service) deliverChange(ctx context.Context, c Change) {
 	case "attendance.changed", "leave.changed":
 		query += ` AND (r.name IN ('Admin','Management','HR') OR u.id=$1)`
 		args = append(args, c.EntityID)
+	case "overtime.changed":
+		query += ` AND (r.name IN ('Finance','Admin') OR u.id=$1)`
+		args = append(args, c.EntityID)
 	case "notifications.changed":
 		query += ` AND u.id=$1`
 		args = append(args, c.EntityID)
