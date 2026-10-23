@@ -55,6 +55,12 @@ func checklistPDF(job string, tables []*model.DocumentChecklist) ([]byte, error)
 		pdf.Ln(2)
 	}
 	for _, table := range tables {
+		header := func(field, fallback string) string {
+			if value := table.HeaderLabels[field]; value != "" {
+				return value
+			}
+			return fallback
+		}
 		signers := []model.ChecklistSigner{}
 		for _, kind := range []string{"internal", "external"} {
 			for _, s := range table.Signers {
@@ -90,12 +96,12 @@ func checklistPDF(job string, tables []*model.DocumentChecklist) ([]byte, error)
 			}
 			panel := signers[first : first+count]
 			widths := []float64{12, 46}
-			labels := []string{"No.", "Dokumen"}
+			labels := []string{header("number", "No."), header("documentName", "Dokumen")}
 			digitalIndex := -1
 			if table.RequireDigitalSignature {
 				digitalIndex = len(widths)
 				widths = append(widths, 18)
-				labels = append(labels, "TTD Digital")
+				labels = append(labels, header("digitalSignature", "TTD Digital"))
 			}
 			signatureStart := len(widths)
 			for _, s := range panel {
@@ -103,7 +109,7 @@ func checklistPDF(job string, tables []*model.DocumentChecklist) ([]byte, error)
 				labels = append(labels, s.Name+"\n"+s.Position)
 			}
 			widths = append(widths, 28, 26, 45)
-			labels = append(labels, "Posisi Dokumen", "Tanggal Kirim Dokumen", "Catatan")
+			labels = append(labels, header("documentPosition", "Posisi Dokumen"), header("sentDate", "Tanggal Kirim Dokumen"), header("notes", "Catatan"))
 			if count == 0 {
 				widths[1] += signatureSpace
 			}
@@ -143,9 +149,9 @@ func checklistPDF(job string, tables []*model.DocumentChecklist) ([]byte, error)
 						for end < count && panel[end].Type == panel[start].Type {
 							end++
 						}
-						group := "Paraf Hardcopy"
+						group := header("internalGroup", "Paraf Hardcopy")
 						if panel[start].Type == "external" {
-							group = "TTD Hardcopy"
+							group = header("externalGroup", "TTD Hardcopy")
 						}
 						cell(x+float64(start)*signerWidth, y, float64(end-start)*signerWidth, 8, group, true)
 						start = end
@@ -157,8 +163,8 @@ func checklistPDF(job string, tables []*model.DocumentChecklist) ([]byte, error)
 				pdf.SetXY(10, y+headerHeight)
 				pdf.SetFont("Report", "", 8)
 			}
-			valuesFor := func(index int, item model.ChecklistItem) ([]string, map[int]bool) {
-				values := []string{fmt.Sprint(index + 1), item.DocumentName}
+			valuesFor := func(item model.ChecklistItem) ([]string, map[int]bool) {
+				values := []string{item.Number, item.DocumentName}
 				checks := map[int]bool{}
 				if digitalIndex >= 0 {
 					checks[digitalIndex] = item.DigitalSigned
@@ -180,7 +186,7 @@ func checklistPDF(job string, tables []*model.DocumentChecklist) ([]byte, error)
 			pdf.SetFont("Report", "", 8)
 			firstHeight := 8.0
 			if len(table.Items) > 0 {
-				values, _ := valuesFor(0, table.Items[0])
+				values, _ := valuesFor(table.Items[0])
 				for i, value := range values {
 					firstHeight = max(firstHeight, float64(len(pdf.SplitText(value, widths[i]-4)))*line+4)
 				}
@@ -196,8 +202,8 @@ func checklistPDF(job string, tables []*model.DocumentChecklist) ([]byte, error)
 			}
 			drawHeader()
 			bodyStart := pdf.GetY()
-			for index, item := range table.Items {
-				values, checks := valuesFor(index, item)
+			for _, item := range table.Items {
+				values, checks := valuesFor(item)
 				lines := make([][]string, len(values))
 				longest := 1
 				for i, value := range values {
@@ -233,17 +239,17 @@ func checklistPDF(job string, tables []*model.DocumentChecklist) ([]byte, error)
 						cell(x, y, widths[i], h, text, false)
 						if checked, ok := checks[i]; ok {
 							cx, cy := x+widths[i]/2-1.6, y+h/2-1.6
-						pdf.Rect(cx, cy, 3.2, 3.2, "D")
-						if checked {
-							red, green, blue := pdf.GetDrawColor()
-							lineWidth := pdf.GetLineWidth()
-							pdf.SetDrawColor(0, 0, 0)
-							pdf.SetLineWidth(0.7)
-							pdf.Line(cx+.5, cy+1.6, cx+1.3, cy+2.5)
-							pdf.Line(cx+1.3, cy+2.5, cx+2.8, cy+.6)
-							pdf.SetLineWidth(lineWidth)
-							pdf.SetDrawColor(red, green, blue)
-						}
+							pdf.Rect(cx, cy, 3.2, 3.2, "D")
+							if checked {
+								red, green, blue := pdf.GetDrawColor()
+								lineWidth := pdf.GetLineWidth()
+								pdf.SetDrawColor(0, 0, 0)
+								pdf.SetLineWidth(0.7)
+								pdf.Line(cx+.5, cy+1.6, cx+1.3, cy+2.5)
+								pdf.Line(cx+1.3, cy+2.5, cx+2.8, cy+.6)
+								pdf.SetLineWidth(lineWidth)
+								pdf.SetDrawColor(red, green, blue)
+							}
 						}
 						x += widths[i]
 					}

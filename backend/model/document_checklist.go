@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -26,12 +27,20 @@ type ChecklistSigner struct {
 	Archived     bool   `json:"archived"`
 }
 type ChecklistConfigInput struct {
-	Title                   string            `json:"title"`
-	RequireDigitalSignature bool              `json:"requireDigitalSignature"`
-	Version                 int               `json:"version"`
-	InternalCount           int               `json:"internalCount"`
-	ExternalCount           int               `json:"externalCount"`
-	Signers                 []ChecklistSigner `json:"signers"`
+	Title                   string             `json:"title"`
+	RequireDigitalSignature bool               `json:"requireDigitalSignature"`
+	Version                 int                `json:"version"`
+	InternalCount           int                `json:"internalCount"`
+	ExternalCount           int                `json:"externalCount"`
+	Signers                 []ChecklistSigner  `json:"signers"`
+	NewItems                []ChecklistNewItem `json:"newItems"`
+}
+
+type ChecklistNewItem struct {
+	ClientID       string `json:"clientId"`
+	ParentID       int    `json:"parentId"`
+	ParentClientID string `json:"parentClientId"`
+	DocumentName   string `json:"documentName"`
 }
 
 func (in *ChecklistConfigInput) Validate() error {
@@ -60,11 +69,21 @@ func (in *ChecklistConfigInput) Validate() error {
 	if counts["internal"] != in.InternalCount || counts["external"] != in.ExternalCount {
 		return ErrInvalidChecklist
 	}
+	drafts := map[string]bool{}
+	for i := range in.NewItems {
+		item := &in.NewItems[i]
+		item.ClientID, item.ParentClientID, item.DocumentName = strings.TrimSpace(item.ClientID), strings.TrimSpace(item.ParentClientID), strings.TrimSpace(item.DocumentName)
+		if item.ClientID == "" || len(item.ClientID) > 100 || drafts[item.ClientID] || item.DocumentName == "" || len([]rune(item.DocumentName)) > 255 || item.ParentID < 0 || (item.ParentID > 0 && item.ParentClientID != "") || (item.ParentClientID != "" && !drafts[item.ParentClientID]) {
+			return ErrInvalidChecklist
+		}
+		drafts[item.ClientID] = true
+	}
 	return nil
 }
 
 type DocumentChecklist struct {
 	Title                   string            `json:"title"`
+	HeaderLabels            map[string]string `json:"headerLabels"`
 	ID                      int               `json:"id"`
 	JobID                   int               `json:"jobId"`
 	RequireDigitalSignature bool              `json:"requireDigitalSignature"`
@@ -72,8 +91,29 @@ type DocumentChecklist struct {
 	Signers                 []ChecklistSigner `json:"signers"`
 	Items                   []ChecklistItem   `json:"items"`
 }
+
+type ChecklistHeaderPatch struct {
+	Field string `json:"field"`
+	Value string `json:"value"`
+}
+
+func (p *ChecklistHeaderPatch) Validate() error {
+	p.Value = strings.TrimSpace(p.Value)
+	if p.Value == "" || len([]rune(p.Value)) > 255 {
+		return ErrInvalidChecklist
+	}
+	switch p.Field {
+	case "title", "number", "documentName", "digitalSignature", "internalGroup", "externalGroup", "documentPosition", "sentDate", "notes":
+		return nil
+	default:
+		return ErrInvalidChecklist
+	}
+}
+
 type ChecklistItem struct {
 	ID               int          `json:"id"`
+	ParentID         *int         `json:"parentId"`
+	Number           string       `json:"number"`
 	DocumentName     string       `json:"documentName"`
 	DigitalSigned    bool         `json:"digitalSigned"`
 	DocumentPosition string       `json:"documentPosition"`
@@ -82,6 +122,22 @@ type ChecklistItem struct {
 	CreatedAt        time.Time    `json:"createdAt"`
 	UpdatedAt        time.Time    `json:"updatedAt"`
 	Signatures       map[int]bool `json:"signatures"`
+}
+
+func NumberChecklistItems(items []ChecklistItem) {
+	counts, numbers := map[int]int{}, map[int]string{}
+	for i := range items {
+		parent := 0
+		if items[i].ParentID != nil {
+			parent = *items[i].ParentID
+		}
+		counts[parent]++
+		items[i].Number = fmt.Sprint(counts[parent])
+		if parent != 0 {
+			items[i].Number = numbers[parent] + "." + items[i].Number
+		}
+		numbers[items[i].ID] = items[i].Number
+	}
 }
 
 // One field per PATCH prevents stale row snapshots from overwriting other cells.

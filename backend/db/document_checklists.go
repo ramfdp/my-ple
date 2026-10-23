@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"my-ple-backend/model"
 )
 
@@ -12,10 +13,16 @@ func (db *Database) DocumentChecklist(ctx context.Context, jobID, checklistID in
 		return nil, err
 	}
 	defer tx.Rollback()
-	c := &model.DocumentChecklist{JobID: jobID, Signers: []model.ChecklistSigner{}, Items: []model.ChecklistItem{}}
-	err = tx.QueryRowContext(ctx, `SELECT id,title,require_digital_signature,version FROM document_checklists WHERE job_id=$1 AND id=$2`, jobID, checklistID).Scan(&c.ID, &c.Title, &c.RequireDigitalSignature, &c.Version)
+	c := &model.DocumentChecklist{JobID: jobID, HeaderLabels: map[string]string{}, Signers: []model.ChecklistSigner{}, Items: []model.ChecklistItem{}}
+	var headerLabels []byte
+	err = tx.QueryRowContext(ctx, `SELECT id,title,header_labels,require_digital_signature,version FROM document_checklists WHERE job_id=$1 AND id=$2`, jobID, checklistID).Scan(&c.ID, &c.Title, &headerLabels, &c.RequireDigitalSignature, &c.Version)
 	if err != nil {
 		return nil, err
+	}
+	if len(headerLabels) > 0 {
+		if err = json.Unmarshal(headerLabels, &c.HeaderLabels); err != nil {
+			return nil, err
+		}
 	}
 	rows, err := tx.QueryContext(ctx, `SELECT id,signer_type,name,position,display_order,archived_at IS NOT NULL FROM document_checklist_signers WHERE checklist_id=$1 ORDER BY display_order,id`, c.ID)
 	if err != nil {
@@ -34,14 +41,18 @@ func (db *Database) DocumentChecklist(ctx context.Context, jobID, checklistID in
 	if err != nil {
 		return nil, err
 	}
-	rows, err = tx.QueryContext(ctx, `SELECT id,document_name,digital_signed,document_position,to_char(sent_date,'YYYY-MM-DD'),notes,created_at,updated_at FROM document_checklist_items WHERE checklist_id=$1 AND deleted_at IS NULL ORDER BY id`, c.ID)
+	rows, err = tx.QueryContext(ctx, `WITH RECURSIVE ordered AS (
+		SELECT id,ARRAY[id] path FROM document_checklist_items WHERE checklist_id=$1 AND parent_item_id IS NULL AND deleted_at IS NULL
+		UNION ALL
+		SELECT child.id,parent.path||child.id FROM document_checklist_items child JOIN ordered parent ON child.parent_item_id=parent.id WHERE child.checklist_id=$1 AND child.deleted_at IS NULL
+	) SELECT item.id,item.parent_item_id,item.document_name,item.digital_signed,item.document_position,to_char(item.sent_date,'YYYY-MM-DD'),item.notes,item.created_at,item.updated_at FROM ordered JOIN document_checklist_items item USING(id) ORDER BY ordered.path`, c.ID)
 	if err != nil {
 		return nil, err
 	}
 	indexes := map[int]int{}
 	for rows.Next() {
 		item := model.ChecklistItem{Signatures: map[int]bool{}}
-		if err = rows.Scan(&item.ID, &item.DocumentName, &item.DigitalSigned, &item.DocumentPosition, &item.SentDate, &item.Notes, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		if err = rows.Scan(&item.ID, &item.ParentID, &item.DocumentName, &item.DigitalSigned, &item.DocumentPosition, &item.SentDate, &item.Notes, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -53,6 +64,7 @@ func (db *Database) DocumentChecklist(ctx context.Context, jobID, checklistID in
 	if err != nil {
 		return nil, err
 	}
+	model.NumberChecklistItems(c.Items)
 	rows, err = tx.QueryContext(ctx, `SELECT item_id,signer_id,signed FROM document_checklist_signatures WHERE checklist_id=$1`, c.ID)
 	if err != nil {
 		return nil, err
@@ -143,10 +155,43 @@ func (db *Database) SaveDocumentChecklist(ctx context.Context, jobID, checklistI
 			return 0, err
 		}
 	}
+	drafts := map[string]int{}
+	for _, item := range in.NewItems {
+		var parent any
+		switch {
+		case item.ParentID > 0:
+			var found int
+			if err = tx.QueryRowContext(ctx, `SELECT id FROM document_checklist_items WHERE id=$1 AND checklist_id=$2 AND deleted_at IS NULL`, item.ParentID, id).Scan(&found); err != nil {
+				if err == sql.ErrNoRows {
+					return 0, model.ErrInvalidChecklist
+				}
+				return 0, err
+			}
+			parent = found
+		case item.ParentClientID != "":
+			parent = drafts[item.ParentClientID]
+		}
+		var itemID int
+		if err = tx.QueryRowContext(ctx, `INSERT INTO document_checklist_items(checklist_id,parent_item_id,document_name) VALUES($1,$2,$3) RETURNING id`, id, parent, item.DocumentName).Scan(&itemID); err != nil {
+			return 0, err
+		}
+		drafts[item.ClientID] = itemID
+	}
 	if _, err = tx.ExecContext(ctx, `UPDATE jobs SET used_at=COALESCE(used_at,NOW()) WHERE id=$1`, jobID); err != nil {
 		return 0, err
 	}
 	return id, tx.Commit()
+}
+
+func (db *Database) UpdateDocumentChecklistHeader(ctx context.Context, jobID, checklistID int, patch model.ChecklistHeaderPatch) error {
+	if err := patch.Validate(); err != nil {
+		return err
+	}
+	var id int
+	if patch.Field == "title" {
+		return db.Conn.QueryRowContext(ctx, `UPDATE document_checklists SET title=$3,updated_at=NOW() WHERE job_id=$1 AND id=$2 RETURNING id`, jobID, checklistID, patch.Value).Scan(&id)
+	}
+	return db.Conn.QueryRowContext(ctx, `UPDATE document_checklists SET header_labels=jsonb_set(header_labels,ARRAY[$3],to_jsonb($4::text),true),updated_at=NOW() WHERE job_id=$1 AND id=$2 RETURNING id`, jobID, checklistID, patch.Field, patch.Value).Scan(&id)
 }
 
 func (db *Database) MutateChecklistItem(ctx context.Context, jobID, checklistID, itemID int, method string, patch model.ChecklistItemPatch) error {
@@ -177,6 +222,13 @@ func (db *Database) MutateChecklistItem(ctx context.Context, jobID, checklistID,
 		}
 		switch {
 		case method == "DELETE":
+			var children bool
+			if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM document_checklist_items WHERE parent_item_id=$1 AND checklist_id=$2 AND deleted_at IS NULL)`, itemID, configID).Scan(&children); err != nil {
+				return err
+			}
+			if children {
+				return model.ErrInvalidChecklist
+			}
 			_, err = tx.ExecContext(ctx, `UPDATE document_checklist_items SET deleted_at=NOW(),updated_at=NOW() WHERE id=$1`, itemID)
 		case patch.Field == "signature":
 			if err = tx.QueryRowContext(ctx, `SELECT id FROM document_checklist_signers WHERE id=$1 AND checklist_id=$2 AND archived_at IS NULL`, patch.SignerID, configID).Scan(&found); err != nil {

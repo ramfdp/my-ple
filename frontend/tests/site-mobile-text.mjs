@@ -32,14 +32,14 @@ Object.assign(fixtures, {
  '/attendance': { records: [attendance], today: attendance, open: null, todayDate: day, officeConfigured: true },
  '/attendance/overview': { date: day, todayDate: day, employees: [{ ...attendance, userId: user.id, name: long, role: user.role, status: 'PRESENT', leaveTypes: '' }] },
  '/leave-requests': { requests: [leave] }, '/leave-requests/approvals': { requests: [leave] },
- '/document-checklists/1': { checklists: [{ id: 1, jobId: 1, title: 'Kelengkapan Dokumen Pekerjaan', version: 1, requireDigitalSignature: true, signers: [{ id: 1, type: 'external', name: long.repeat(5), position: long.repeat(5), archived: false, displayOrder: 0 }], items: [{ id: 1, documentName: long.repeat(5), documentPosition: 'X'.repeat(255), notes: (long + '\n').repeat(20), signatures: {}, digitalSigned: false, sentDate: day }] }] },
+ '/document-checklists/1': { checklists: [{ id: 1, jobId: 1, title: 'Kelengkapan Dokumen Pekerjaan', headerLabels: {}, version: 1, requireDigitalSignature: true, signers: [{ id: 1, type: 'external', name: long.repeat(5), position: long.repeat(5), archived: false, displayOrder: 0 }], items: [{ id: 1, parentId: null, number: '1', documentName: long.repeat(5), documentPosition: 'X'.repeat(255), notes: (long + '\n').repeat(20), signatures: {}, digitalSigned: false, sentDate: day }] }] },
  '/billing-documents': { jobs: [job], stages: [{ id: 1, jobId: 1, name: 'Tahap Pertama', periodLabel: 'Oktober', notes: long, updatedAt: now, version: 1, readiness: 'BELUM SIAP', documents: [], milestones: [{ id: 1, name: 'Pemeriksaan Dokumen', notes: long, readiness: 'BELUM SIAP', documents: [{ id: 1, name: 'Lembar Pengesahan', status: 'BELUM ADA', updatedAt: now }] }] }] }
 });
 const page = await browser.newPage({ viewport: { width: 320, height: 850 }, hasTouch: true, reducedMotion: 'reduce' });
 user.language = process.env.TEST_LANGUAGE || 'id';
 await page.addInitScript(language => localStorage.setItem('language', language), user.language);
 const errors = [], failures = [];
-const chatRequests = [], feedbackRequests = [];
+const chatRequests = [], feedbackRequests = [], headerRequests = [], checklistConfigRequests = [];
 let feedbackStatus = 204;
 page.on('pageerror', error => errors.push(error.message));
 await page.routeWebSocket(/ws\/notifications/, () => {});
@@ -55,6 +55,26 @@ await page.route('**/*', async route => {
   feedbackRequests.push(route.request().postDataJSON());
   const headers = { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true' };
   return feedbackStatus === 204 ? route.fulfill({ status: 204, headers }) : route.fulfill({ status: 503, json: { error: 'Layanan email belum tersedia. Silakan coba nanti.' }, headers });
+ }
+ if (url.pathname === '/document-checklists/1/tables/1/headers' && route.request().method() === 'PATCH') {
+  const patch = route.request().postDataJSON(), checklist = fixtures['/document-checklists/1'].checklists[0];
+  headerRequests.push(patch);
+  if (patch.field === 'title') checklist.title = patch.value; else checklist.headerLabels[patch.field] = patch.value;
+  return route.fulfill({ status: 200, json: { checklist }, headers: { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true' } });
+ }
+ if (url.pathname === '/document-checklists/1/tables/1' && route.request().method() === 'PUT') {
+  const input = route.request().postDataJSON(), checklist = fixtures['/document-checklists/1'].checklists[0];
+  checklistConfigRequests.push(input);
+  const ids = new Map(), children = new Map();
+  for (const item of input.newItems) {
+   const id = checklist.items.length + 1, parentId = item.parentId || ids.get(item.parentClientId) || null;
+   ids.set(item.clientId, id);
+   const count = (children.get(parentId) || 0) + 1; children.set(parentId, count);
+   const parent = checklist.items.find(existing => existing.id === parentId);
+   checklist.items.push({ id, parentId, number: parent ? parent.number+'.'+count : String(count), documentName: item.documentName, documentPosition: '', notes: '', signatures: {}, digitalSigned: false, sentDate: null });
+  }
+  checklist.version++;
+  return route.fulfill({ status: 200, json: { checklist }, headers: { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true' } });
  }
  return route.fulfill({ status: url.pathname === '/auth/me' && !fixtures[url.pathname].user ? 401 : 200, json: fixtures[url.pathname] || {}, headers: { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true' } });
 });
@@ -196,7 +216,23 @@ try {
   if (path === '/document-checklists') {
    await page.locator('.job-heading').click();
    await page.locator('.checklist table').waitFor();
+   const documentHeader = page.locator('.checklist thead tr:nth-child(2) th:nth-child(2) input');
+   await documentHeader.fill('Berkas');
+   await documentHeader.press('Enter');
+   await page.waitForTimeout(50);
+   assert.deepEqual(headerRequests.at(-1), { field: 'documentName', value: 'Berkas' });
+   assert.equal(await documentHeader.inputValue(), 'Berkas');
    await check('Checklist table');
+   await page.getByRole('button', { name: 'Edit Tabel Checklist' }).click();
+   const modalItems = page.locator('.modal-item');
+   await modalItems.nth(0).locator('.add-subpoint').click();
+   await modalItems.nth(1).locator('input').fill('Lampiran');
+   await modalItems.nth(1).locator('.add-subpoint').click();
+   await modalItems.nth(2).locator('input').fill('Detail Lampiran');
+   await page.locator('dialog .ws-row .ws-primary').click();
+   await page.locator('dialog').waitFor({ state: 'hidden' });
+   assert.deepEqual(checklistConfigRequests.at(-1).newItems.map(item => [item.parentId, item.parentClientId, item.documentName]), [[1, '', 'Lampiran'], [0, 'draft-1', 'Detail Lampiran']]);
+   assert.deepEqual(await page.locator('.checklist tbody tr td:first-child').allTextContents(), ['1', '1.1', '1.1.1']);
   }
  }
  for (const [index, tab] of [[1, 'Table'], [3, 'Board'], [4, 'Timeline'], [5, 'Calendar'], [6, 'Workload'], [7, 'Notes']]) {
