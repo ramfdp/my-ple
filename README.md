@@ -92,7 +92,7 @@ go -C backend test ./...
 
 Di VPS, gunakan `--env-file .env.testing` bersama ketiga berkas Compose, periksa hasil `config --quiet`, lalu hanya perbarui backend testing pada jadwal yang disetujui. File token dimuat sekali saat proses mulai; rotasi memerlukan penghentian run-once Worker, penggantian kedua salinan secara atomik, lalu restart seluruh replika backend testing dan Worker. Token lama ditarik setelah seluruh replika memakai token baru. Jangan ubah branch `production` atau project `/opt/my-ple`.
 
-Promosi produksi belum dilakukan. Prasyarat: provider model korporat yang disetujui, uji beban dan RBAC pemakai hasil AI, audit jaringan serta rotasi token, dan prosedur perubahan produksi terpisah. Rollback testing: jalankan ulang Compose testing tanpa `compose.ai-testing.yaml`, lalu pastikan `AI_SNAPSHOT_ENABLED=false` dan endpoint publik tetap 404. Simpan backup volume dan berkas token; jangan menjalankan `down -v`.
+Promosi produksi memakai override terpisah `compose.ai-production.yaml` setelah provider model korporat disetujui, uji beban dan RBAC pemakai hasil AI, audit jaringan serta rotasi token. Jalankan hanya dengan prosedur pada `my-ple-hermes/docs/deployment.md`; endpoint publik tetap 404. Rollback testing: jalankan ulang Compose testing tanpa `compose.ai-testing.yaml`, lalu pastikan `AI_SNAPSHOT_ENABLED=false` dan endpoint publik tetap 404. Simpan backup volume dan berkas token; jangan menjalankan `down -v`.
 
 `POSTGRES_PASSWORD` hanya digunakan untuk menginisialisasi password saat volume
 PostgreSQL pertama kali dibuat. Mengubah nilainya pada `.env.testing` tidak otomatis
