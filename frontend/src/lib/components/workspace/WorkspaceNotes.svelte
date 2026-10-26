@@ -40,7 +40,7 @@
  <label>{$translate("Halaman Induk")}<select bind:value={input.parentId}><option value={null}>{$translate("Root / tanpa induk")}</option>{#each pages.filter(p=>p.id!==selected?.id&&p.visibility===input.visibility&&(p.visibility==='DIVISION'||p.createdBy===$currentUser?.id)) as p}<option value={p.id}>{p.title}</option>{/each}</select></label>
  <p class="ws-muted">{$translate("Tulis catatan dengan format sederhana. Maksimal 200 paragraf dan 10.000 karakter.")}</p>
  {#each input.content as line,i}<div class="ws-note-line"><label>{$translate("Format")}<select bind:value={line.kind}>{#each kinds as kind}<option value={kind.value}>{$translate(kind.label)}</option>{/each}</select></label>
- <label class="ws-note-text">{$translate("Isi")}<textarea rows="2" bind:value={line.text} maxlength="10000"></textarea></label>
+ <label class="ws-note-text">{$translate("Isi")}<textarea rows="6" bind:value={line.text} maxlength="10000"></textarea></label>
  {#if line.kind==='check'}<label>{$translate("Selesai")}<input type="checkbox" bind:checked={line.checked}/></label>{/if}
  {#if line.kind==='link'}<label>{$translate("URL")}<input required type="url" bind:value={line.url}/></label>{/if}
  <button type="button" aria-label={$translate('Hapus paragraf ')+(i+1)} onclick={()=>input.content=input.content.filter((_,n)=>n!==i)}>✕</button></div>{/each}
