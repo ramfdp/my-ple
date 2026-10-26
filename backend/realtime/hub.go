@@ -33,6 +33,8 @@ func (h *Hub) ServeHTTP(database middleware.SessionStore, w http.ResponseWriter,
 	if err != nil {
 		return
 	}
+	_ = conn.SetReadDeadline(time.Time{})
+	_ = conn.SetWriteDeadline(time.Time{})
 	h.add(claims.ID, conn)
 	expires := time.AfterFunc(time.Until(expiresAt), func() { _ = conn.Close() })
 	defer expires.Stop()

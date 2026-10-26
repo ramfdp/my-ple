@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:18-alpine
+    image: postgres:18-alpine@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
     environment:
       POSTGRES_DB: my_ple
       POSTGRES_USER: my_ple
@@ -22,6 +22,7 @@ services:
     environment:
       DATABASE_URL: "host=db port=5432 user=my_ple password=${POSTGRES_PASSWORD:-my_ple_local} dbname=my_ple sslmode=disable"
       PORT: "3000"
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
       AI_SNAPSHOT_ENABLED: "false"
       AI_IMPORT_ENABLED: "false"
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
@@ -46,7 +47,7 @@ services:
     restart: unless-stopped
 
   nginx:
-    image: nginx:1.28-alpine
+    image: nginx:1.28-alpine@sha256:a8b39bd9cf0f83869a2162827a0caf6137ddf759d50a171451b335cecc87d236
     ports:
       - "127.0.0.1:${BACKEND_HOST_PORT:-3000}:80"
     volumes:

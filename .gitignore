@@ -7,7 +7,13 @@
 /.env
 /.env.production
 /.env.testing
+/.env.local
+/.env.*.local
 /.dump
 /ai-secrets/
 *.token
+*.pem
+*.key
+*.p12
+*.pfx
 /.codex

@@ -28,7 +28,10 @@ func newHandler(database *db.Database, corsOrigin string, contexts ...context.Co
 	if err != nil || sessionTTL <= 0 {
 		sessionTTL = 8 * time.Hour
 	}
-	secureCookie := strings.EqualFold(os.Getenv("COOKIE_SECURE"), "true") || strings.EqualFold(os.Getenv("APP_ENV"), "production")
+	secureCookie, err := secureCookieConfig()
+	if err != nil {
+		panic(err)
+	}
 	authCtrl := controller.NewAuthController(database, sessionTTL, secureCookie)
 	hub := realtime.NewHub(corsOrigin)
 	authCtrl.OnLogout = hub.CloseUser
@@ -46,6 +49,7 @@ func newHandler(database *db.Database, corsOrigin string, contexts ...context.Co
 	uploads := http.StripPrefix("/uploads/", http.FileServer(http.Dir(envOr("UPLOAD_DIR", "upload"))))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		setSecurityHeaders(w, secureCookie)
 		if strings.HasPrefix(r.URL.Path, "/internal/ai/") {
 			if r.URL.Path == "/internal/ai/v1/drafts/import" || strings.HasPrefix(r.URL.Path, "/internal/ai/v1/analyses/") {
 				if aiImport == nil {
@@ -104,6 +108,44 @@ func newHandler(database *db.Database, corsOrigin string, contexts ...context.Co
 		}
 		protected.ServeHTTP(w, r)
 	})
+}
+
+func secureCookieConfig() (bool, error) {
+	value := strings.TrimSpace(os.Getenv("COOKIE_SECURE"))
+	production := strings.EqualFold(strings.TrimSpace(os.Getenv("APP_ENV")), "production")
+	if production && !strings.EqualFold(value, "true") {
+		return false, errors.New("COOKIE_SECURE must be true when APP_ENV=production")
+	}
+	if value == "" {
+		return true, nil
+	}
+	secure, err := strconv.ParseBool(value)
+	if err != nil {
+		return false, fmt.Errorf("invalid COOKIE_SECURE: %w", err)
+	}
+	return secure, nil
+}
+
+func setSecurityHeaders(w http.ResponseWriter, hsts bool) {
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+	if hsts {
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+	}
+}
+
+func newHTTPServer(addr string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
 }
 
 // ponytail: unified protected routing for reports and employee profile
@@ -386,7 +428,7 @@ func main() {
 	fmt.Printf("my-ple backend listening on http://localhost:%s\n", port)
 	shutdown, stopSignal := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stopSignal()
-	server := &http.Server{Addr: ":" + port, Handler: newHandler(database, envOr("FRONTEND_ORIGIN", "http://localhost:5173"), shutdown)}
+	server := newHTTPServer(":"+port, newHandler(database, envOr("FRONTEND_ORIGIN", "http://localhost:5173"), shutdown))
 	go func() {
 		<-shutdown.Done()
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
