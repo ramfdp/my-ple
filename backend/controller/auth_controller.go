@@ -23,11 +23,7 @@ import (
 	"my-ple-backend/model"
 )
 
-const (
-	maxAvatarSize      = 1 << 20
-	maxAvatarDimension = 4096
-	maxAvatarPixels    = 16_000_000
-)
+const maxAvatarSize = 1 << 20
 
 var (
 	usernamePattern  = regexp.MustCompile(`^[a-zA-Z0-9_.-]{3,50}$`)
@@ -41,22 +37,15 @@ func ownsAvatar(id, path string) bool {
 	return strings.HasPrefix(path, "/uploads/"+id+".") || strings.HasPrefix(path, "/uploads/"+id+"-")
 }
 
-func validAvatarConfig(config image.Config) bool {
-	return config.Width > 0 && config.Height > 0 &&
-		config.Width <= maxAvatarDimension && config.Height <= maxAvatarDimension &&
-		config.Width*config.Height <= maxAvatarPixels
-}
-
 type AuthController struct {
 	DB           *db.Database
 	SessionTTL   time.Duration
 	SecureCookie bool
 	OnLogout     func(string)
-	loginLimiter *loginLimiter
 }
 
 func NewAuthController(database *db.Database, sessionTTL time.Duration, secureCookie bool) *AuthController {
-	return &AuthController{DB: database, SessionTTL: sessionTTL, SecureCookie: secureCookie, loginLimiter: newLoginLimiter(10, 15*time.Minute, time.Now)}
+	return &AuthController{DB: database, SessionTTL: sessionTTL, SecureCookie: secureCookie}
 }
 
 func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
@@ -153,19 +142,11 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 	if identifier == "" {
 		identifier = strings.TrimSpace(input.Email)
 	}
-	ip := loginClientIP(r)
-	if c.loginLimiter.blocked(ip, identifier) {
-		w.Header().Set("Retry-After", "900")
-		WriteJSON(w, http.StatusTooManyRequests, map[string]string{"error": "Terlalu banyak percobaan login. Coba lagi nanti."})
-		return
-	}
 	u, err := c.DB.FindUser(r.Context(), identifier)
 	if err != nil || !u.IsActive || bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(input.Password)) != nil {
-		c.loginLimiter.failed(ip, identifier)
 		WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Username/email atau password salah."})
 		return
 	}
-	c.loginLimiter.succeeded(identifier)
 	token, tokenHash, err := middleware.NewSessionToken()
 	if err != nil || c.DB.CreateSession(r.Context(), u.ID, tokenHash, time.Now().Add(c.SessionTTL)) != nil {
 		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Terjadi kesalahan pada server."})
@@ -309,8 +290,8 @@ func (c *AuthController) UploadAvatar(w http.ResponseWriter, r *http.Request, id
 		return
 	}
 	defer file.Close()
-	config, format, err := image.DecodeConfig(io.LimitReader(file, maxAvatarSize+1))
-	if err != nil || !validAvatarConfig(config) {
+	_, format, err := image.Decode(io.LimitReader(file, maxAvatarSize+1))
+	if err != nil {
 		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "File harus berupa gambar JPEG, PNG, atau GIF yang valid."})
 		return
 	}

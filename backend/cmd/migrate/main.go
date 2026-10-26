@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"os"
 
@@ -11,19 +10,13 @@ import (
 	"my-ple-backend/db"
 )
 
-func databaseURL() (string, error) {
-	value := os.Getenv("DATABASE_URL")
-	if value == "" {
-		return "", errors.New("DATABASE_URL is required")
-	}
-	return value, nil
-}
-
 func main() {
-	dbURL, err := databaseURL()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	dbURL := os.Getenv("DATABASE_URL")
+	if len(os.Args) > 1 && os.Args[1] != "" {
+		dbURL = os.Args[1]
+	}
+	if dbURL == "" {
+		dbURL = "postgres://postgres:postgres@localhost:5432/my_ple"
 	}
 
 	fmt.Println("Connecting to configured database...")
@@ -37,7 +30,7 @@ func main() {
 	if err := conn.Ping(); err != nil {
 		fmt.Printf("Database ping failed: %v\n", err)
 		fmt.Println("\nTip: Pastikan PostgreSQL aktif dan DATABASE_URL sesuai dengan password pgAdmin Anda.")
-		fmt.Println("Set DATABASE_URL melalui environment atau secret manager sebelum menjalankan migrasi.")
+		fmt.Println("Contoh: go run cmd/migrate/main.go \"postgres://postgres:PASSWORD_ANDA@localhost:5432/my_ple\"")
 		os.Exit(1)
 	}
 
