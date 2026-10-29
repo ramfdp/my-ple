@@ -215,8 +215,6 @@
                     {#if rows[date]}
                     {@const calculation=calculateOvertime(rows[date].startTime,rows[date].endTime,rows[date].dayType)}
                     <tr class:weekend={automaticDayType(date)==='HOLIDAY'}>
-                        {#if rows[date].dayType!==automaticDayType(date)}
-                        <input class="override" aria-label={`Alasan perubahan jenis hari ${date}`} placeholder="Alasan override" maxlength="500" bind:value={rows[date].overrideReason} disabled={!editable||busy}/>{/if}
                         <th scope="row">{fmt.format(new Date(`${date}T00:00:00Z`))}</th>
                             <td>
                                 <input aria-label={`Jam mulai ${date}`} type="time" bind:value={rows[date].startTime} disabled={!editable||busy}/>
@@ -228,6 +226,8 @@
                                 <select aria-label={`Jenis hari ${date}`} bind:value={rows[date].dayType} disabled={!editable||busy}>
                                     <option value="WORKDAY">Hari kerja</option>
                                     <option value="HOLIDAY">Libur</option>
+                                    {#if rows[date].dayType!==automaticDayType(date)}
+                                    <input class="override" aria-label={`Alasan perubahan jenis hari ${date}`} placeholder="Alasan override" maxlength="500" bind:value={rows[date].overrideReason} disabled={!editable||busy}/>{/if}
                                 </select>
                             </td>
                             <td>
