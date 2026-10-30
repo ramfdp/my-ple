@@ -11,14 +11,21 @@
 
     let loading=$state(true),busy=$state(false),error=$state(''),notice=$state(''),reviewerNote=$state(''),offset=$state(0);
     
+    const reviewerNoteDrafts = new Map<string,string>();
+    function updateReviewerNote(value:string){
+        reviewerNote = value;
+        if(selected) reviewerNoteDrafts.set(selected.id,value);
+    }
+    
     async function load(){
         if(!authorized){
             loading=false;
             return
         }
+
         loading = true;
-        error='';
         selected = null;
+        error='';
         try{
             const query = new URLSearchParams({
                 period,status,offset:String(offset)
@@ -32,7 +39,9 @@
         }
     }
     
-        onMount(()=>{void load();return subscribeChanges(['overtime.changed'],()=>load())});
+        onMount(()=>{
+            void load();
+            return subscribeChanges(['overtime.changed'],()=>load())});
     
         async function open(item:OvertimeRosterItem){
             if(!item.sheetId||(item.status==='DRAFT'&&$currentUser?.role==='Finance')) return;
@@ -40,7 +49,7 @@
             try{
                 selected=(await api<{sheet:OvertimeSheet}>
                 (`/overtime-approvals/${item.sheetId}`)).sheet;
-                reviewerNote=''
+                reviewerNote=reviewerNoteDrafts.get(selected.id)??'';
             } catch(e){
                 error=(e as Error).message
             }
@@ -55,6 +64,7 @@
                 selected=(await api<{sheet:OvertimeSheet}>(`/overtime-approvals/${selected.id}/decision`,{
                     method:'POST',body:JSON.stringify({status:decision,reviewerNote:reviewerNote.trim()})
                 })).sheet;
+                reviewerNoteDrafts.delete(selected.id);
                 notice = decision === 'APPROVED'?'Lembur disetujui.':'Lembur dikembalikan untuk diperbaiki.';
                 await load()
             } catch(e){
@@ -216,7 +226,7 @@
                             <p>Pengajuan sendiri harus diperiksa Finance/Admin lain.</p>
                         {:else}
                             <label class="review-note">Catatan reviewer 
-                                <textarea rows="3" maxlength="4000" bind:value={reviewerNote}></textarea>
+                                <textarea rows="3" maxlength="4000" bind:value={()=>reviewerNote,updateReviewerNote}></textarea>
                             </label>
                             <div class="decision-actions">
                                 <button disabled={busy||!reviewerNote.trim()} onclick={()=>decide('REJECTED')}>Tolak</button>
