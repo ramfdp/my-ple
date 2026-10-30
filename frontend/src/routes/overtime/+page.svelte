@@ -226,9 +226,10 @@
                                 <select aria-label={`Jenis hari ${date}`} bind:value={rows[date].dayType} disabled={!editable||busy}>
                                     <option value="WORKDAY">Hari kerja</option>
                                     <option value="HOLIDAY">Libur</option>
-                                    {#if rows[date].dayType!==automaticDayType(date)}
-                                    <input class="override" aria-label={`Alasan perubahan jenis hari ${date}`} placeholder="Alasan override" maxlength="500" bind:value={rows[date].overrideReason} disabled={!editable||busy}/>{/if}
                                 </select>
+                                {#if rows[date].dayType!==automaticDayType(date)}
+                                    <input class="override" aria-label={`Alasan perubahan jenis hari ${date}`} placeholder="Alasan override" maxlength="500" bind:value={rows[date].overrideReason} disabled={!editable||busy}/>
+                                {/if}
                             </td>
                             <td>
                                 <input aria-label={`Project ${date}`} maxlength="255" bind:value={rows[date].project} disabled={!editable||busy}/>
