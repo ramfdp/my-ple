@@ -1,32 +1,354 @@
 <script lang="ts">
- import {onMount} from 'svelte';
- import {api,currentUser} from '$lib/api';
- import {subscribeChanges} from '$lib/realtime';
- import NotificationBell from '$lib/components/NotificationBell.svelte';
- import {defaultOvertimePeriod,hours,overtimeStatuses,type OvertimeRosterItem,type OvertimeSheet} from '$lib/overtime';
- import '$lib/styles/workspace.css';
- const authorized=$derived(['Finance','Admin'].includes($currentUser?.role??''));
- let period=$state(defaultOvertimePeriod()),status=$state(''),employees=$state<OvertimeRosterItem[]>([]),selected=$state<OvertimeSheet|null>(null);
- let loading=$state(true),busy=$state(false),error=$state(''),notice=$state(''),reviewerNote=$state(''),offset=$state(0);
- async function load(){if(!authorized){loading=false;return}loading=true;error='';selected=null;try{const query=new URLSearchParams({period,status,offset:String(offset)});employees=(await api<{employees:OvertimeRosterItem[]}>(`/overtime-approvals?${query}`)).employees}catch(e){error=(e as Error).message}finally{loading=false}}
- onMount(()=>{void load();return subscribeChanges(['overtime.changed'],()=>load())});
- async function open(item:OvertimeRosterItem){if(!item.sheetId||(item.status==='DRAFT'&&$currentUser?.role==='Finance'))return;error='';try{selected=(await api<{sheet:OvertimeSheet}>(`/overtime-approvals/${item.sheetId}`)).sheet;reviewerNote=''}catch(e){error=(e as Error).message}}
- async function decide(decision:'APPROVED'|'REJECTED'){if(!selected||busy||(decision==='REJECTED'&&!reviewerNote.trim()))return;busy=true;error='';notice='';try{selected=(await api<{sheet:OvertimeSheet}>(`/overtime-approvals/${selected.id}/decision`,{method:'POST',body:JSON.stringify({status:decision,reviewerNote:reviewerNote.trim()})})).sheet;notice=decision==='APPROVED'?'Lembur disetujui.':'Lembur dikembalikan untuk diperbaiki.';await load()}catch(e){error=(e as Error).message}finally{busy=false}}
- const time=(value:string|null)=>value?new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Jakarta',dateStyle:'medium',timeStyle:'short'}).format(new Date(value)):'—';
+    import {onMount, tick} from 'svelte';
+    import {api,currentUser} from '$lib/api';
+    import {subscribeChanges} from '$lib/realtime';
+    import NotificationBell from '$lib/components/NotificationBell.svelte';
+    import {defaultOvertimePeriod,hours,overtimeStatuses,type OvertimeRosterItem,type OvertimeSheet} from '$lib/overtime';
+    import '$lib/styles/workspace.css';
+ 
+    const authorized=$derived(['Finance','Admin'].includes($currentUser?.role??''));
+    let period = $state(defaultOvertimePeriod()),status=$state(''),employees=$state<OvertimeRosterItem[]>([]),selected=$state<OvertimeSheet|null>(null);
+
+    let loading=$state(true),busy=$state(false),error=$state(''),notice=$state(''),reviewerNote=$state(''),offset=$state(0);
+    let detailElement = $state<HTMLElement|null> (null);
+    
+    const reviewerNoteDrafts = new Map<string,string>();
+    function updateReviewerNote(value:string){
+        reviewerNote = value;
+        if(selected) reviewerNoteDrafts.set(selected.id,value);
+    }
+    
+    async function load(){
+        if(!authorized){
+            loading=false;
+            return
+        }
+
+        loading = true;
+        selected = null;
+        error='';
+        try{
+            const query = new URLSearchParams({
+                period,status,offset:String(offset)
+            });
+            employees = (await api<{employees:OvertimeRosterItem[]}>
+            (`/overtime-approvals?${query}`)).employees
+        } catch(e){
+            error = (e as Error).message
+        } finally{
+            loading=false
+        }
+    }
+    
+        onMount(()=>{
+            void load();
+            return subscribeChanges(['overtime.changed'],()=>load())});
+        
+        function scrollToDetail(){
+            if (!detailElement || !window.matchMedia('(max-width:1050px)').matches) return;
+            const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            detailElement.scrollIntoView({behavior:reduced ? 'auto' : 'smooth', block:'start'})
+        }
+
+        async function open(item:OvertimeRosterItem){
+            if(!item.sheetId||(item.status==='DRAFT'&&$currentUser?.role==='Finance')) return;
+            error='';
+            try{
+                selected=(await api<{sheet:OvertimeSheet}>
+                (`/overtime-approvals/${item.sheetId}`)).sheet;
+                reviewerNote=reviewerNoteDrafts.get(selected.id)??'';
+                await tick();
+                scrollToDetail();
+            } catch(e){
+                error=(e as Error).message
+            }
+        }
+    
+        async function decide(decision:'APPROVED'|'REJECTED'){
+            if(!selected||busy||(decision==='REJECTED'&&!reviewerNote.trim())) return;
+            busy=true;
+            error='';
+            notice='';
+            try{
+                selected=(await api<{sheet:OvertimeSheet}>(`/overtime-approvals/${selected.id}/decision`,{
+                    method:'POST',body:JSON.stringify({status:decision,reviewerNote:reviewerNote.trim()})
+                })).sheet;
+                reviewerNoteDrafts.delete(selected.id);
+                notice = decision === 'APPROVED'?'Lembur disetujui.':'Lembur dikembalikan untuk diperbaiki.';
+                await load()
+            } catch(e){
+                error=(e as Error).message
+            } finally{
+                busy=false
+            }
+        }
+    const time=(value:string|null)=>value?new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Jakarta',dateStyle:'medium',timeStyle:'short'}).format(new Date(value)):'—';
 </script>
-<svelte:head><title>Persetujuan Lembur | MyHIS</title></svelte:head>
-<main class="workspace-page approval-page">
- <header class="ws-row"><div><p class="dashboard-kicker">FINANCE</p><h1>Persetujuan Lembur</h1><p>Pantau pengisian dan proses lembar lembur bulanan.</p></div><NotificationBell/></header>
- {#if !authorized}<p role="alert">Halaman ini hanya tersedia untuk Finance dan Admin.</p>{:else}
- <form class="ws-panel approval-filters" onsubmit={(e)=>{e.preventDefault();offset=0;void load()}}><label>Periode <input type="month" bind:value={period}/></label><label>Status <select bind:value={status}><option value="">Semua</option>{#each Object.entries(overtimeStatuses) as [value,label]}<option {value}>{label}</option>{/each}</select></label><button disabled={loading}>Terapkan</button></form>
- {#if error}<p role="alert" class="approval-error">{error}</p>{/if}{#if notice}<p role="status" class="approval-notice">{notice}</p>{/if}
- {#if loading}<p role="status">Memuat daftar karyawan…</p>{:else}
- <div class="approval-grid"><section class="ws-panel roster"><h2>Status Karyawan</h2><div class="roster-wrap"><table><thead><tr><th>Nama</th><th>Role</th><th>Status</th><th>Dikirim</th><th></th></tr></thead><tbody>{#each employees as employee (employee.userId)}<tr><td>{employee.employeeName}</td><td>{employee.employeeRole}</td><td><span class="status status-{employee.status.toLowerCase()}">{overtimeStatuses[employee.status]}</span></td><td>{time(employee.submittedAt)}</td><td>{#if employee.sheetId&&!(employee.status==='DRAFT'&&$currentUser?.role==='Finance')}<button type="button" onclick={()=>open(employee)}>Detail</button>{:else}—{/if}</td></tr>{/each}</tbody></table></div><div class="pager"><button disabled={offset===0} onclick={()=>{offset-=50;void load()}}>Sebelumnya</button><button disabled={employees.length<50} onclick={()=>{offset+=50;void load()}}>Berikutnya</button></div></section>
- {#if selected}<section class="ws-panel detail"><div class="ws-row"><div><h2>{selected.employeeName}</h2><p>{selected.employeeRole} · {selected.period}</p></div><button aria-label="Tutup detail" onclick={()=>selected=null}>×</button></div><dl><dt>Status</dt><dd>{overtimeStatuses[selected.status]}</dd><dt>Total aktual</dt><dd>{hours(selected.actualMinutes)} jam</dd><dt>Total bobot</dt><dd>{hours(selected.weightedMinutes)} jam</dd><dt>Dikirim</dt><dd>{time(selected.submittedAt)}</dd>{#if selected.reviewedAt}<dt>Reviewer</dt><dd>{selected.reviewerName}</dd><dt>Keputusan</dt><dd>{time(selected.reviewedAt)}</dd><dt>Catatan</dt><dd>{selected.reviewerNote||'—'}</dd>{/if}</dl>
- <div class="detail-table"><table><thead><tr><th>Tanggal</th><th>Jam</th><th>Jenis</th><th>Project</th><th>Deskripsi</th><th>Aktual</th><th>Bobot</th></tr></thead><tbody>{#each selected.entries as entry}<tr><td>{entry.workDate}{#if entry.isOverride}<small>Override: {entry.overrideReason}</small>{/if}</td><td>{entry.startTime}–{entry.endTime}</td><td>{entry.dayType==='HOLIDAY'?'Libur':'Kerja'}</td><td>{entry.project}</td><td>{entry.description}</td><td>{hours(entry.actualMinutes)}</td><td>{hours(entry.weightedMinutes)}</td></tr>{/each}</tbody></table></div>
- {#if selected.status==='SUBMITTED'}{#if selected.userId===$currentUser?.id}<p>Pengajuan sendiri harus diperiksa Finance/Admin lain.</p>{:else}<label class="review-note">Catatan reviewer <textarea rows="3" maxlength="4000" bind:value={reviewerNote}></textarea></label><div class="decision-actions"><button disabled={busy||!reviewerNote.trim()} onclick={()=>decide('REJECTED')}>Tolak</button><button class="ws-primary" disabled={busy} onclick={()=>decide('APPROVED')}>Setujui</button></div>{/if}{/if}</section>{/if}</div>
- {/if}{/if}
+    <svelte:head>
+        <title>Persetujuan Lembur | MyHIS</title>
+    </svelte:head>
+
+    <main class="workspace-page approval-page">
+    <header class="ws-row">
+        <div>
+            <p class="dashboard-kicker">FINANCE</p>
+            <h1>Persetujuan Lembur</h1>
+            <p>Pantau pengisian dan proses lembar lembur bulanan.</p>
+        </div>
+        <NotificationBell/>
+    </header>
+ 
+    {#if !authorized}
+        <p role="alert">Halaman ini hanya tersedia untuk Finance dan Admin.</p>
+    {:else}
+    <form class="ws-panel approval-filters" onsubmit={(e)=>{
+        e.preventDefault();offset=0;void load()
+        }
+    }>
+        <label>Periode 
+            <input type="month" bind:value={period}/>
+        </label>
+        <label>Status 
+            <select bind:value={status}>
+                <option value="">Semua</option>
+                {#each Object.entries(overtimeStatuses) as [value,label]}
+                <option {value}>{label}</option>
+                {/each}
+            </select>
+        </label>
+        
+        <button disabled={loading}>Terapkan</button></form>
+ 
+        {#if error}
+            <p role="alert" class="approval-error">{error}</p>
+        {/if}
+        {#if notice}
+            <p role="status" class="approval-notice">{notice}</p>
+        {/if}
+        {#if loading}
+            <p role="status">Memuat daftar karyawan…</p>
+        {:else}
+            <div class="approval-grid">
+                <section class="ws-panel roster">
+                    <h2>Status Karyawan</h2>
+                    <div class="roster-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Nama</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Dikirim</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {#each employees as employee (employee.userId)}
+                                <tr>
+                                    <td>{employee.employeeName}</td>
+                                    <td>{employee.employeeRole}</td>
+                                    <td>
+                                        <span class="status status-{employee.status.toLowerCase()}">{overtimeStatuses[employee.status]}</span>
+                                    </td>
+                                    <td>{time(employee.submittedAt)}</td>
+                                    <td>{#if employee.sheetId&&!(employee.status==='DRAFT'&&$currentUser?.role==='Finance')}
+                                        <button type="button" onclick={()=>open(employee)}>Detail</button>
+                                        {:else}
+                                            —
+                                        {/if}
+                                    </td>
+                                </tr>
+                                {/each}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="pager">
+                        <button disabled={offset===0} onclick={()=>{offset-=50;void load()}}>Sebelumnya</button>
+                        <button disabled={employees.length<50} onclick={()=>{offset+=50;void load()}}>Berikutnya</button>
+                    </div>
+                </section>
+
+                {#if selected}
+                <section class="ws-panel detail" bind:this={detailElement}>
+                    <div class="ws-row">
+                        <div>
+                            <h2>{selected.employeeName}</h2>
+                            <p>{selected.employeeRole} · {selected.period}</p>
+                        </div>
+                        <button aria-label="Tutup detail" onclick={()=>selected=null}>×</button>
+                    </div>
+                    <dl>
+                        <dt>Status</dt>
+                        <dd>{overtimeStatuses[selected.status]}</dd>
+                        <dt>Total aktual</dt>
+                        <dd>{hours(selected.actualMinutes)} jam</dd>
+                        <dt>Total bobot</dt>
+                        <dd>{hours(selected.weightedMinutes)} jam</dd>
+                        <dt>Dikirim</dt>
+                        <dd>{time(selected.submittedAt)}</dd>
+                        {#if selected.reviewedAt}
+                            <dt>Reviewer</dt>
+                            <dd>{selected.reviewerName}</dd>
+                            <dt>Keputusan</dt>
+                            <dd>{time(selected.reviewedAt)}</dd>
+                            <dt>Catatan</dt>
+                            <dd>{selected.reviewerNote||'—'}</dd>
+                        {/if}
+                    </dl>
+                    
+                    <div class="detail-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Tanggal</th>
+                                    <th>Jam</th>
+                                    <th>Jenis</th>
+                                    <th>Project</th>
+                                    <th>Deskripsi</th>
+                                    <th>Aktual</th>
+                                    <th>Bobot</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {#each selected.entries as entry}
+                                <tr>
+                                    <td>
+                                        {entry.workDate}
+                                        {#if entry.isOverride}
+                                            <small>Override: {entry.overrideReason}</small>
+                                        {/if}
+                                    </td>
+                                    <td>{entry.startTime}–{entry.endTime}</td>
+                                    <td>{entry.dayType==='HOLIDAY'?'Libur':'Kerja'}</td>
+                                    <td>{entry.project}</td>
+                                    <td>{entry.description}</td>
+                                    <td>{hours(entry.actualMinutes)}</td>
+                                    <td>{hours(entry.weightedMinutes)}</td>
+                                </tr>{/each}
+                            </tbody>
+                        </table>
+                    </div>
+            
+                    {#if selected.status==='SUBMITTED'}
+                        {#if selected.userId===$currentUser?.id}
+                            <p>Pengajuan sendiri harus diperiksa Finance/Admin lain.</p>
+                        {:else}
+                            <label class="review-note">Catatan reviewer 
+                                <textarea rows="3" maxlength="4000" bind:value={()=>reviewerNote,updateReviewerNote}></textarea>
+                            </label>
+                            <div class="decision-actions">
+                                <button disabled={busy||!reviewerNote.trim()} onclick={()=>decide('REJECTED')}>Tolak</button>
+                                <button class="ws-primary" disabled={busy} onclick={()=>decide('APPROVED')}>Setujui</button>
+                            </div>
+                        {/if}
+                    {/if}
+                </section>
+                {/if}
+            </div>
+        {/if}
+    {/if}
 </main>
 <style>
- .approval-page{max-width:1700px}.approval-filters{display:flex;gap:16px;align-items:end;flex-wrap:wrap;margin-bottom:16px}.approval-filters label{display:grid;gap:5px}.approval-grid{display:grid;grid-template-columns:minmax(520px,1fr) minmax(0,1.35fr);gap:16px}.roster h2,.detail h2{margin-top:0}.roster-wrap,.detail-table{overflow:auto}.roster table,.detail table{width:100%;border-collapse:collapse;min-width:650px}.roster th,.roster td,.detail th,.detail td{padding:9px;border-bottom:1px solid #e5e7eb;text-align:left;vertical-align:top}.detail td:nth-child(5){white-space:pre-wrap;min-width:260px}.detail small{display:block;color:#92400e;margin-top:4px}.status{display:inline-block;padding:5px 8px;border-radius:6px;background:#e2e8f0;white-space:nowrap}.status-submitted{background:#fef3c7}.status-approved{background:#dcfce7}.status-rejected{background:#fee2e2}.detail dl{display:grid;grid-template-columns:max-content 1fr;gap:6px 12px}.detail dt{font-weight:600}.detail dd{margin:0}.review-note{display:grid;gap:6px;margin-top:16px}.decision-actions,.pager{display:flex;justify-content:flex-end;gap:10px;margin-top:14px}.approval-error{color:#991b1b}.approval-notice{color:#166534}@media(max-width:1050px){.approval-grid{grid-template-columns:1fr}}
+.approval-page{
+    max-width:1700px
+}
+.approval-filters{
+    display:flex;
+    gap:16px;
+    align-items:end;
+    flex-wrap:wrap;
+    margin-bottom:16px
+}
+.approval-filters label{
+    display:grid;
+    gap:5px
+}.approval-filters button{
+    min-width: 120px;
+}.approval-grid{
+    display:grid;
+    grid-template-columns:minmax(520px,1fr) minmax(0,1.35fr);
+    gap:16px
+}
+.roster h2, .detail h2{
+    margin-top:0
+}
+.roster-wrap, .detail-table{
+    overflow:auto
+}.roster table, .detail table{
+    width:100%;
+    border-collapse:collapse;
+    min-width:650px
+}
+.roster th, .roster td ,.detail th, .detail td{
+    padding:9px;
+    border-bottom:1px solid #e5e7eb;
+    text-align:left;
+    vertical-align:top
+}.roster td button{
+    min-width: 80px;
+}.detail{
+    scroll-margin-top: 12px;
+}.detail td:nth-child(5){
+    white-space:pre-wrap;
+    min-width:260px
+}.detail small{
+    display:block;
+    color:#92400e;
+    margin-top:4px
+}.status{
+    display:inline-block;
+    padding:5px 8px;
+    border-radius:6px;
+    background:#e2e8f0;
+    white-space:nowrap
+}.status-submitted{
+    background:#fef3c7
+}.status-approved{
+    background:#dcfce7
+}.status-rejected{
+    background:#fee2e2
+}.detail dl{
+    display:grid;
+    grid-template-columns:max-content minmax(0,1fr);
+    gap:6px 12px
+}.detail dt{
+    font-weight:600
+}.detail dd{
+    margin:0;
+    overflow-wrap:anywhere
+}.review-note{
+    display:grid;
+    gap:6px;
+    margin-top:16px
+}.decision-actions, .pager{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+    gap:10px;
+    margin-top:14px
+}.decision-actions, .pager{
+    min-width: 140px;
+    min-height:  40px;
+    padding-inline: 24px;
+}.approval-error{
+    color:#991b1b
+}.approval-notice{
+    color:#166534
+}
+@media(max-width:1050px){
+    .approval-grid{
+        grid-template-columns:minmax(0,1fr)
+        }
+}
+@media(max-width: 700px){
+    .decision-actions, .pager{
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+    .decision-actions button, .pager button{
+        width: 100%;
+        min-width: 0;
+    }
+}
 </style>
