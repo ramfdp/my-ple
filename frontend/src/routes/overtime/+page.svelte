@@ -344,6 +344,7 @@
     min-width:40px;min-height:40px
 }.overtime-actions{
     display:flex;
+    flex-wrap:wrap;
     justify-content:flex-end;
     gap:12px;margin-top:16px
 }.overtime-actions button{
@@ -358,6 +359,7 @@
 }
 
 @media(max-width:700px){
+    .overtime-actions button{flex:1 1 140px}
     .overtime-status{margin-left:0}.overtime-actions{position:sticky;
     bottom:0;
     background:white;
