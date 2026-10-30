@@ -4,7 +4,6 @@ import test from 'node:test';
 import vm from 'node:vm';
 import ts from 'typescript';
 
-// Exercise the page's handlers with mocked API and lifecycle dependencies.
 function approvalPage() {
  const source = readFileSync(new URL('../src/routes/overtime/approvals/+page.svelte', import.meta.url), 'utf8');
  const script = source.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1].replace(/^\s*import .*;$/gm, '');

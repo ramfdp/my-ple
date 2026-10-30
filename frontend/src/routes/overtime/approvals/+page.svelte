@@ -1,5 +1,5 @@
 <script lang="ts">
-    import {onMount} from 'svelte';
+    import {onMount, tick} from 'svelte';
     import {api,currentUser} from '$lib/api';
     import {subscribeChanges} from '$lib/realtime';
     import NotificationBell from '$lib/components/NotificationBell.svelte';
@@ -10,6 +10,7 @@
     let period = $state(defaultOvertimePeriod()),status=$state(''),employees=$state<OvertimeRosterItem[]>([]),selected=$state<OvertimeSheet|null>(null);
 
     let loading=$state(true),busy=$state(false),error=$state(''),notice=$state(''),reviewerNote=$state(''),offset=$state(0);
+    let detailElement = $state<HTMLElement|null> (null);
     
     const reviewerNoteDrafts = new Map<string,string>();
     function updateReviewerNote(value:string){
@@ -42,7 +43,13 @@
         onMount(()=>{
             void load();
             return subscribeChanges(['overtime.changed'],()=>load())});
-    
+        
+        function scrollToDetail(){
+            if (!detailElement || !window.matchMedia('(max-width:1050px)').matches) return;
+            const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            detailElement.scrollIntoView({behavior:reduced ? 'auto' : 'smooth', block:'start'})
+        }
+
         async function open(item:OvertimeRosterItem){
             if(!item.sheetId||(item.status==='DRAFT'&&$currentUser?.role==='Finance')) return;
             error='';
@@ -50,6 +57,8 @@
                 selected=(await api<{sheet:OvertimeSheet}>
                 (`/overtime-approvals/${item.sheetId}`)).sheet;
                 reviewerNote=reviewerNoteDrafts.get(selected.id)??'';
+                await tick();
+                scrollToDetail();
             } catch(e){
                 error=(e as Error).message
             }
@@ -161,7 +170,7 @@
                 </section>
 
                 {#if selected}
-                <section class="ws-panel detail">
+                <section class="ws-panel detail" bind:this={detailElement}>
                     <div class="ws-row">
                         <div>
                             <h2>{selected.employeeName}</h2>
@@ -254,8 +263,9 @@
 .approval-filters label{
     display:grid;
     gap:5px
-}
-.approval-grid{
+}.approval-filters button{
+    min-width: 120px;
+}.approval-grid{
     display:grid;
     grid-template-columns:minmax(520px,1fr) minmax(0,1.35fr);
     gap:16px
@@ -275,6 +285,10 @@
     border-bottom:1px solid #e5e7eb;
     text-align:left;
     vertical-align:top
+}.roster td button{
+    min-width: 80px;
+}.detail{
+    scroll-margin-top: 12px;
 }.detail td:nth-child(5){
     white-space:pre-wrap;
     min-width:260px
@@ -296,25 +310,45 @@
     background:#fee2e2
 }.detail dl{
     display:grid;
-    grid-template-columns:max-content 1fr;
+    grid-template-columns:max-content minmax(0,1fr);
     gap:6px 12px
 }.detail dt{
     font-weight:600
 }.detail dd{
-    margin:0
+    margin:0;
+    overflow-wrap:anywhere
 }.review-note{
     display:grid;
     gap:6px;
     margin-top:16px
 }.decision-actions, .pager{
     display:flex;
+    flex-wrap:wrap;
     justify-content:flex-end;
     gap:10px;
     margin-top:14px
+}.decision-actions, .pager{
+    min-width: 140px;
+    min-height:  40px;
+    padding-inline: 24px;
 }.approval-error{
     color:#991b1b
 }.approval-notice{
     color:#166534
 }
-@media(max-width:1050px){.approval-grid{grid-template-columns:1fr}}
+@media(max-width:1050px){
+    .approval-grid{
+        grid-template-columns:minmax(0,1fr)
+        }
+}
+@media(max-width: 700px){
+    .decision-actions, .pager{
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+    .decision-actions button, .pager button{
+        width: 100%;
+        min-width: 0;
+    }
+}
 </style>
