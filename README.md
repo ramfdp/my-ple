@@ -899,6 +899,7 @@ Run these commands on the VPS from the deployed repository directory. Keep all b
    services:
      weekly-recovery:
        extends:
+         file: compose.yaml
          service: backend
        image: my-ple-weekly-recovery:local
        build:
