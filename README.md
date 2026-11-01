@@ -860,3 +860,102 @@ If eligible rows remain on or after **7 November 2026 00:00 WIB**, or an affecte
 Number collisions are resolved in completion-time/ID order within the existing job scope (or division/category for legacy rows). Available numbers stay unchanged; collisions append above the highest existing/candidate number. Target counters are rebuilt without lowering existing counters. Empty affected source counters are removed; archived periods and unrelated counters remain unchanged.
 
 Rollback requires downtime: stop every new backend and worker, keep writes blocked, and restore the verified pre-cutover database plus matching archive storage before starting the old release. The migration ledger is an audit/reconciliation aid, not an automatic down migration. Do not blindly restore its original keys/numbers after new writes or archives: that could collide with new reports or invalidate immutable snapshots. If writes have resumed, reconcile against the backup and ledger before any rollback.
+
+### One-time weekly recovery: archive the selected current batch
+
+This recovery is an explicit exception for the current batch across **all divisions**. It moves the selected, unarchived `2026-10-30` working rows to the `2026-10-23` key, then uses the normal snapshot, PDF verification, finalization, and reset path at the real current time. History labels this batch **23–30 October 2026**, including selected reports completed after 30 October. Original completion timestamps, authors, content, and job references remain intact. Review this intentionally exceptional label before applying.
+
+The default command only previews the selected row count and fingerprint. Applying requires both exact values. A recovery ledger retains the selected IDs, original assignments, and the batch fingerprint. Retry the same batch after a failure; it must never collect newly entered work. Existing source or target archives cause a safe refusal rather than editing history. A changed preview requires investigation and a fresh operator review, not automatic acceptance.
+
+Run these commands on the VPS from the deployed repository directory. Keep all backend replicas, other lifecycle workers, and report writes stopped until verification finishes. Do not use a rolling deployment or change the server clock.
+
+1. Record the deployed commit and replica count. Pull the recovery release, then stop every backend replica. Stop any separately managed backend/worker process as well.
+
+   ```sh
+   set -eu
+   git rev-parse HEAD
+   docker compose --env-file .env.production ps backend
+   git pull --ff-only origin production
+   docker compose --env-file .env.production stop backend
+   docker compose --env-file .env.production ps backend
+   ```
+
+2. Back up the database and matching PDF storage while writes remain blocked. Use a new directory and protect the backups. Verify the dump listing and archive listing, and confirm a restore to a separate disposable database works before applying recovery.
+
+   ```sh
+   umask 077
+   recovery_backup="weekly-recovery-backup-$(date +%Y%m%d-%H%M%S)"
+   mkdir "$recovery_backup"
+   docker compose --env-file .env.production exec -T db pg_dump -U my_ple -d my_ple -Fc > "$recovery_backup/database.dump"
+   docker compose --env-file .env.production run --rm --no-deps -T --entrypoint tar backend -C /app/storage -czf - weekly-reports > "$recovery_backup/weekly-reports.tar.gz"
+   docker compose --env-file .env.production exec -T db pg_restore --list < "$recovery_backup/database.dump"
+   tar -tzf "$recovery_backup/weekly-reports.tar.gz"
+   ```
+
+3. Create a temporary recovery service. It inherits the production database/environment and named storage volumes, but builds a separate image. The normal backend image remains unchanged. The recovery process runs as the same UID 10001 and needs write access to the existing reports directory; fix an ownership problem on that directory deliberately rather than running the recovery as root.
+
+   ```sh
+   cat > .weekly-recovery.override.yaml <<'YAML'
+   services:
+     weekly-recovery:
+       extends:
+         service: backend
+       image: my-ple-weekly-recovery:local
+       build:
+         context: ./backend
+         args:
+           GO_PACKAGE: ./cmd/weekly-recovery
+       profiles: [recovery]
+       restart: "no"
+       healthcheck:
+         disable: true
+   YAML
+   docker compose --env-file .env.production -f compose.yaml -f .weekly-recovery.override.yaml --profile recovery config --quiet
+   docker compose --env-file .env.production -f compose.yaml -f .weekly-recovery.override.yaml --profile recovery build weekly-recovery
+   ```
+
+4. Preview, inspect the count/divisions and fingerprint, then apply with those exact values. Replace `COUNT_FROM_PREVIEW` and `FINGERPRINT_FROM_PREVIEW`; never fabricate them or reuse values from a different batch.
+
+   ```sh
+   docker compose --env-file .env.production -f compose.yaml -f .weekly-recovery.override.yaml --profile recovery run --rm --no-deps -T weekly-recovery
+   docker compose --env-file .env.production -f compose.yaml -f .weekly-recovery.override.yaml --profile recovery run --rm --no-deps -T weekly-recovery backend -apply -expected-count COUNT_FROM_PREVIEW -fingerprint FINGERPRINT_FROM_PREVIEW
+   ```
+
+   Preview does not run schema migration or start lifecycle workers. Apply is bounded to the recovery ledger, with a 10-minute timeout. A nonzero exit or partial failure means **keep writes stopped**. Resolve the reported PDF/storage/database problem, then retry with the same count and fingerprint. Do not delete the ledger, manually delete reports, or trigger the broad weekly worker to complete this recovery.
+
+5. Require a successful apply result for every selected division. Verify that every selected archive is finalized, its stored PDF checksum is valid, and no selected source report remains; then open the generated PDFs and confirm the selected totals and exceptional 23–30 October label. Re-running preview/apply for the same completed batch must remain idempotent and must not sweep new work. Management delivery records are queued through the normal path; this recovery command does not send email. Ordinary workers may send those queued notifications after restart.
+
+   ```sh
+   docker compose --env-file .env.production exec -T db psql -U my_ple -d my_ple -v ON_ERROR_STOP=1 <<'SQL'
+   SELECT count(*) AS selected, count(r.id) AS remaining,
+          count(*) FILTER (WHERE EXISTS (
+            SELECT 1 FROM weekly_report_archives a
+            WHERE a.primary_division=m.primary_division
+              AND (a.week_start AT TIME ZONE 'Asia/Jakarta')::date=m.recovered_week
+              AND a.status='finalized' AND a.pdf_sha256<>'' AND a.reset_at IS NOT NULL
+              AND EXISTS (SELECT 1 FROM jsonb_array_elements(a.snapshot) item WHERE item->>'id'=m.report_id::text)
+          )) AS finalized_and_reset
+   FROM weekly_report_recovery_rows m LEFT JOIN reports r ON r.id=m.report_id
+   WHERE m.recovery_name='2026-10-31-missed-week-recovery-v1';
+   SELECT a.id,a.primary_division,a.pdf_storage_key,a.pdf_sha256,a.status,a.reset_at
+   FROM weekly_report_archives a
+   WHERE EXISTS (SELECT 1 FROM weekly_report_recovery_rows m
+     WHERE m.recovery_name='2026-10-31-missed-week-recovery-v1'
+       AND m.primary_division=a.primary_division
+       AND m.recovered_week=(a.week_start AT TIME ZONE 'Asia/Jakarta')::date);
+   SQL
+   docker compose --env-file .env.production run --rm --no-deps -T --entrypoint sha256sum backend /app/storage/weekly-reports/2026/ARCHIVE_ID_FROM_RESULT.pdf
+   ```
+
+   Require `selected` to equal the reviewed count, `remaining=0`, and `finalized_and_reset=selected`. For each returned archive, replace `ARCHIVE_ID_FROM_RESULT` in the checksum command and compare with `pdf_sha256`. Do not restart on a missing PDF, mismatched checksum, or count discrepancy.
+
+6. Restart the normal production backend image with the **previously recorded replica count** (the example uses three), verify health, then reopen report writes and inspect History. Do not start the recovery image as the regular backend.
+
+   ```sh
+   docker compose --env-file .env.production up -d --no-deps --scale backend=3 --wait backend
+   docker compose --env-file .env.production ps backend
+   docker compose --env-file .env.production logs --tail=100 backend
+   rm -- .weekly-recovery.override.yaml
+   ```
+
+Keep the protected backups and recovery ledger for reconciliation. If rollback is required, keep every backend stopped and restore the matching pre-recovery database and PDF storage together. Once new writes or email delivery have occurred, reconcile them first; a blind restore can discard new work or cause duplicate notifications.
