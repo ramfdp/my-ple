@@ -42,7 +42,7 @@
 	<a class="back-link" href="/dashboard" onclick={goBack}>← {$translate("Kembali")}</a>
 	<header class="weekly-header"><p class="weekly-kicker">{$translate("WEEKLY PROGRESS")}</p><h1>{$translate("Input laporan pekerjaan.")}</h1><p>{$translate("Isi pekerjaan yang sudah dilakukan agar tampil pada daftar progres.")}</p></header>
 	<form class="report-form" onsubmit={saveReport}>
-		{#if checking}<p role="status">{$translate("Memeriksa periode laporan…")}</p>{:else if readOnly}<p role="status">{$translate("Periode ditutup. Input baru dibuka Selasa 00:00 WIB setelah arsip periode sebelumnya aman.")} <a href="/weekly-progress/history">{$translate("Lihat riwayat")}</a></p>{/if}
+		{#if checking}<p role="status">{$translate("Memeriksa periode laporan…")}</p>{:else if readOnly}<p role="status">{$translate("Periode ditutup. Input baru dibuka Sabtu 00:00 WIB setelah arsip periode sebelumnya aman.")} <a href="/weekly-progress/history">{$translate("Lihat riwayat")}</a></p>{/if}
 		<JobPicker bind:division bind:selected bind:busy={jobsBusy} />
 		<label>{$translate("Uraian pekerjaan yang dilakukan")}<textarea bind:this={descriptionInput} bind:value={description} oninput={()=>description=capitalizeReportDescription(description)} disabled={submitting} rows="8" required></textarea></label>
 		{#if error}<p class="demo-note">{$translate(error)}</p>{/if}<button class="report-submit" type="submit" disabled={submitting || readOnly || checking || jobsBusy || !selected}>{submitting ? $translate('Menyimpan…') : $translate('Simpan laporan')}</button>

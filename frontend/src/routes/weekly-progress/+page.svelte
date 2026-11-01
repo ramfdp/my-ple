@@ -119,14 +119,14 @@
 		<a class="back-link" href="/dashboard" onclick={goBack}>← {$translate("Kembali")}</a>
 		<header class="weekly-header"><p class="weekly-kicker">{$translate("WEEKLY PROGRESS")}</p><h1>{$translate("Progres kerja per divisi.")}</h1><p>{$translate("Pilih divisi terlebih dahulu untuk melihat daftar pekerjaan minggu ini.")}</p></header>
 		<section class="division-selection" aria-labelledby="division-title">
-			<p class="report-period">{$translate("Laporan diarsipkan otomatis setiap Selasa mulai 00:00 WIB. Ekspor manual tidak diperlukan. PDF dapat diunduh dari Riwayat Laporan Mingguan.")}</p>
+			<p class="report-period">{$translate("Laporan diarsipkan otomatis setiap Sabtu mulai 00:00 WIB. Ekspor manual tidak diperlukan. PDF dapat diunduh dari Riwayat Laporan Mingguan.")}</p>
 			<a class="report-button" href="/weekly-progress/history">{$translate("Weekly Report History")}</a>
 			<h2 id="division-title">{$translate("Pilih divisi")}</h2><p>{$translate("Daftar ini menentukan pekerjaan yang akan ditampilkan.")}</p>
 			<div class="division-grid">{#each divisions as division, index}<button class:selected={selectedDivision === index} class="division-button" type="button" aria-pressed={selectedDivision === index} onclick={() => void selectDivision(index)}>{$translate(division)}<span aria-hidden="true">→</span></button>{/each}</div>
 		</section>
 		{#if selectedDivision !== null}
 			<section class="task-list" aria-labelledby="task-title">
-				{#if period?.readOnly}<p role="status" class="report-period">{period.status === 'finalized' ? $translate('Finalized') : $translate('Periode ditutup — arsip diproses')} {$translate("— hanya baca. Laporan tetap tersedia selama Senin. Reset mulai Selasa 00:00 WIB setelah arsip dan PDF berhasil disimpan.")}</p>{/if}
+				{#if period?.readOnly}<p role="status" class="report-period">{period.status === 'finalized' ? $translate('Finalized') : $translate('Periode ditutup — arsip diproses')} {$translate("— hanya baca. Laporan tetap tersedia selama Jumat. Reset mulai Sabtu 00:00 WIB setelah arsip dan PDF berhasil disimpan.")}</p>{/if}
 				<div class="task-list-header"><div><h2 id="task-title">{$translate("Pekerjaan yang sudah dilakukan")}</h2><p>{$translate("Daftar pekerjaan pada minggu berjalan.")}</p>{#if period}<p class="report-period">{$translate("Periode:")} {new Intl.DateTimeFormat($locale,{timeZone:'Asia/Jakarta',day:'numeric',month:'long',year:'numeric'}).formatRange(new Date(period.start),new Date(period.end))}</p>{/if}</div><div class="task-list-actions"><p class="selected-division">{$translate(divisions[selectedDivision])}</p><div class="report-actions"><button class="report-button export-button" type="button" disabled={reports.length === 0 || exporting || loading} onclick={() => {exportError='';exportDialog.showModal()}}>{$translate("Export")}</button>{#if !period?.readOnly}<a class="report-button" href={`/weekly-progress/new?division=${encodeURIComponent(divisions[selectedDivision])}`}>{$translate("+ Input laporan")}</a>{/if}</div></div></div>
 				<div class="work-table-wrap">
 					<table class="work-table current-report-table">

@@ -25,13 +25,25 @@ func ReportingPeriodWeek(now time.Time) (time.Time, time.Time) {
 }
 
 // WeeklyFinalizationBoundary returns the exclusive end of the latest period
-// eligible for archival. A Monday-Sunday period becomes eligible Tuesday 00:00 WIB.
+// eligible for archival. A Friday-keyed period becomes eligible Saturday 00:00 WIB.
 func WeeklyFinalizationBoundary(now time.Time) time.Time {
 	location, _ := time.LoadLocation(ReportingTimezone)
 	local := now.In(location)
-	daysSinceTuesday := (int(local.Weekday()) + 5) % 7
-	cutoff := time.Date(local.Year(), local.Month(), local.Day()-daysSinceTuesday, 0, 0, 0, 0, location)
+	daysSinceSaturday := (int(local.Weekday()) + 1) % 7
+	cutoff := time.Date(local.Year(), local.Month(), local.Day()-daysSinceSaturday, 0, 0, 0, 0, location)
 	return cutoff.AddDate(0, 0, -1)
+}
+
+// ReportingPeriodDates preserves Monday-keyed archive labels while Friday-keyed
+// periods include the closing Friday, whose input window ends Saturday.
+func ReportingPeriodDates(start, next time.Time) (time.Time, string) {
+	location, _ := time.LoadLocation(ReportingTimezone)
+	start, next = start.In(location), next.In(location)
+	end := next.AddDate(0, 0, -1)
+	if start.Weekday() == time.Friday {
+		end = next
+	}
+	return end, IndonesianWeekLabel(start, end.AddDate(0, 0, 1))
 }
 
 func IndonesianWeekLabel(start, next time.Time) string {

@@ -13,7 +13,7 @@ type WeeklyArchive struct {
 	ID             string        `json:"id"`
 	Division       string        `json:"division"`
 	WeekStart      time.Time     `json:"weekStart"`
-	WeekEnd        time.Time     `json:"weekEnd"` // exclusive Monday boundary
+	WeekEnd        time.Time     `json:"weekEnd"` // period key boundary (Monday historically, Friday for current periods)
 	Items          []ArchiveItem `json:"items,omitempty"`
 	Status         string        `json:"status"`
 	FinalizedAt    *time.Time    `json:"finalizedAt"`
@@ -27,7 +27,8 @@ type WeeklyArchive struct {
 
 func (a WeeklyArchive) Period() ReportingPeriod {
 	start, next := a.WeekStart, a.WeekEnd
-	return ReportingPeriod{Start: start, End: next.AddDate(0, 0, -1), Label: IndonesianWeekLabel(start, next), ReadOnly: true}
+	end, label := ReportingPeriodDates(start, next)
+	return ReportingPeriod{Start: start, End: end, Label: label, ReadOnly: true}
 }
 
 func (a WeeklyArchive) Reports() []WeeklyReport {

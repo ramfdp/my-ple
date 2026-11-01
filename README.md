@@ -842,3 +842,21 @@ docker compose down
 
 Frontend memakai [adapter Node SvelteKit](https://svelte.dev/docs/kit/adapter-node).
 Urutan startup mengikuti [health check Compose](https://docs.docker.com/compose/how-tos/startup-order/).
+
+### Friday weekly-period cutover (2026-10-30)
+
+This release changes weekly report labels to Friday–Friday. The closing Friday remains editable until Saturday 00:00 WIB. The first transition label is 30 October–6 November 2026; the next label is 6–13 November. Report assignment changes only at Saturday 00:00 WIB, so overlapping labels do not duplicate submissions.
+
+Do not use a rolling deployment for this cutover. Old backend replicas use a different assignment rule and can overwrite the database trigger during startup.
+
+1. Back up the production database and archive/PDF storage. Record the currently deployed commit. Verify the backup can be restored before proceeding.
+2. Stop **all** old backend replicas and lifecycle workers, and block report writes. Keep them stopped throughout migration and verification. Do not start an old replica against the migrated database.
+3. Start one new backend instance. Startup runs the migration in the schema transaction under advisory locks before lifecycle workers start. On any error, the transaction rolls back and startup fails; do not bypass the error or delete the migration marker.
+4. Verify `weekly_period_migrations` contains `2026-10-30-friday-report-period-v1`. Review `weekly_period_migration_reports` for original and migrated week/number assignments. Unarchived rows previously keyed 26 October or 2 November move to 30 October. IDs, authors, job references, content and timestamps remain unchanged. Rows represented by any archive, including pending/failed archives or snapshot IDs with another period key, stay untouched.
+5. Confirm migrated report counts and numbering against the backup, inspect historical archives, and confirm the current label and Saturday cutoff. Start the remaining replicas using the same release, then reopen report writes.
+
+If eligible rows remain on or after **7 November 2026 00:00 WIB**, or an affected division already has a 30 October archive, startup aborts for manual reconciliation. Empty/fresh databases can record the migration without moving rows. Repeated startup after a successful migration does nothing.
+
+Number collisions are resolved in completion-time/ID order within the existing job scope (or division/category for legacy rows). Available numbers stay unchanged; collisions append above the highest existing/candidate number. Target counters are rebuilt without lowering existing counters. Empty affected source counters are removed; archived periods and unrelated counters remain unchanged.
+
+Rollback requires downtime: stop every new backend and worker, keep writes blocked, and restore the verified pre-cutover database plus matching archive storage before starting the old release. The migration ledger is an audit/reconciliation aid, not an automatic down migration. Do not blindly restore its original keys/numbers after new writes or archives: that could collide with new reports or invalidate immutable snapshots. If writes have resumed, reconcile against the backup and ledger before any rollback.

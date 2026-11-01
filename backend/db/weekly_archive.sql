@@ -34,7 +34,9 @@ CREATE TABLE IF NOT EXISTS weekly_report_email_deliveries (
 
 -- Working sequences are weekly; a retained older week cannot affect new numbering.
 ALTER TABLE report_sequences ADD COLUMN IF NOT EXISTS week_start DATE NOT NULL
-  DEFAULT date_trunc('week', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta')::date;
+  DEFAULT (date_trunc('week', (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta') - interval '5 days')::date + 4);
+ALTER TABLE report_sequences ALTER COLUMN week_start SET DEFAULT
+  (date_trunc('week', (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta') - interval '5 days')::date + 4);
 ALTER TABLE reports ADD COLUMN IF NOT EXISTS report_week DATE GENERATED ALWAYS AS
   (date_trunc('week', completed_at AT TIME ZONE 'Asia/Jakarta')::date) STORED;
 -- Preserve existing period assignments; Monday additions belong to the closing week.
@@ -42,7 +44,8 @@ ALTER TABLE reports ALTER COLUMN report_week DROP EXPRESSION IF EXISTS;
 ALTER TABLE reports ALTER COLUMN report_week SET NOT NULL;
 CREATE OR REPLACE FUNCTION assign_report_week() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
- NEW.report_week := date_trunc('week', (NEW.completed_at AT TIME ZONE 'Asia/Jakarta') - interval '1 day')::date;
+ -- Friday is the label; assignments roll over only at Saturday 00:00 WIB.
+ NEW.report_week := date_trunc('week', (NEW.completed_at AT TIME ZONE 'Asia/Jakarta') - interval '5 days')::date + 4;
  RETURN NEW;
 END $$;
 CREATE OR REPLACE TRIGGER reports_assign_week BEFORE INSERT ON reports

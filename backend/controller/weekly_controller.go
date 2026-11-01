@@ -75,7 +75,7 @@ func (c *WeeklyController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if errors.Is(err, db.ErrReportClosed) {
-		WriteJSON(w, http.StatusConflict, map[string]string{"error": "Periode laporan ditutup. Input baru dibuka Selasa 00:00 WIB."})
+		WriteJSON(w, http.StatusConflict, map[string]string{"error": "Periode laporan ditutup. Input baru dibuka Sabtu 00:00 WIB."})
 		return
 	}
 	if err != nil {

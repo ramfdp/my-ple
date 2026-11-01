@@ -40,7 +40,8 @@ func (db *Database) writableReport(ctx context.Context, tx *sql.Tx, id string) (
 
 func (db *Database) WorkingPeriod(ctx context.Context, division string, now time.Time) (model.ReportingPeriod, error) {
 	start, next := model.ReportingPeriodWeek(now)
-	return model.ReportingPeriod{Start: start, End: next.AddDate(0, 0, -1), Label: model.IndonesianWeekLabel(start, next), Status: "active"}, nil
+	end, label := model.ReportingPeriodDates(start, next)
+	return model.ReportingPeriod{Start: start, End: end, Label: label, Status: "active"}, nil
 }
 
 const archiveColumns = `id,primary_division,week_start,week_end,snapshot,status,finalized_at,pdf_filename,pdf_sha256,pdf_generated_at,reset_at,created_at,pdf_storage_key`
@@ -74,11 +75,11 @@ func (db *Database) PeriodReports(ctx context.Context, division string, period m
 			return nil, err
 		}
 	}
-	return db.ListReports(ctx, division, period.Start, period.End.AddDate(0, 0, 1))
+	return db.ListReports(ctx, division, period.Start, period.Start.AddDate(0, 0, 7))
 }
 
 func (db *Database) ArchiveHistory(ctx context.Context, division, date string, offset int) ([]model.WeeklyArchive, error) {
-	rows, err := db.Conn.QueryContext(ctx, `SELECT `+strings.Replace(archiveColumns, "snapshot", "'[]'::jsonb", 1)+` FROM weekly_report_archives WHERE ($1='' OR primary_division=$1) AND ($2='' OR (week_start <= NULLIF($2,'')::date::timestamp AT TIME ZONE 'Asia/Jakarta' AND week_end > NULLIF($2,'')::date::timestamp AT TIME ZONE 'Asia/Jakarta')) ORDER BY week_start DESC,id LIMIT 21 OFFSET $3`, division, date, offset)
+	rows, err := db.Conn.QueryContext(ctx, `SELECT `+strings.Replace(archiveColumns, "snapshot", "'[]'::jsonb", 1)+` FROM weekly_report_archives WHERE ($1='' OR primary_division=$1) AND ($2='' OR ((week_start AT TIME ZONE 'Asia/Jakarta')::date <= NULLIF($2,'')::date AND (week_end AT TIME ZONE 'Asia/Jakarta')::date + CASE WHEN EXTRACT(ISODOW FROM week_start AT TIME ZONE 'Asia/Jakarta')=5 THEN 1 ELSE 0 END > NULLIF($2,'')::date)) ORDER BY week_start DESC,id LIMIT 21 OFFSET $3`, division, date, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +103,7 @@ type DueWeek struct {
 
 func (db *Database) DueWeeks(ctx context.Context, now time.Time) ([]DueWeek, error) {
 	boundary := model.WeeklyFinalizationBoundary(now)
-	rows, err := db.Conn.QueryContext(ctx, `SELECT primary_division, report_week::timestamp AT TIME ZONE 'Asia/Jakarta' AS week_start FROM reports WHERE report_week<($1::timestamptz AT TIME ZONE 'Asia/Jakarta')::date GROUP BY 1,2 UNION SELECT primary_division,week_start FROM weekly_report_archives WHERE reset_at IS NULL OR status<>'finalized' ORDER BY 2,1`, boundary)
+	rows, err := db.Conn.QueryContext(ctx, `SELECT primary_division, report_week::timestamp AT TIME ZONE 'Asia/Jakarta' AS week_start FROM reports WHERE report_week<($1::timestamptz AT TIME ZONE 'Asia/Jakarta')::date GROUP BY 1,2 UNION SELECT primary_division,week_start FROM weekly_report_archives WHERE (reset_at IS NULL OR status<>'finalized') AND (EXTRACT(ISODOW FROM week_start AT TIME ZONE 'Asia/Jakarta')<>5 OR week_start<$1) ORDER BY 2,1`, boundary)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +175,8 @@ func (db *Database) SnapshotWeek(ctx context.Context, w DueWeek) (model.WeeklyAr
 
 // Called only after the worker has verified the archive's stored PDF checksum.
 func (db *Database) ResetArchivedWeek(ctx context.Context, a model.WeeklyArchive, now time.Time) (int64, error) {
-	if a.Status != "finalized" || a.SHA256 == "" || now.Before(a.WeekEnd) {
+	location, _ := time.LoadLocation(model.ReportingTimezone)
+	if a.Status != "finalized" || a.SHA256 == "" || now.Before(a.WeekEnd) || (a.WeekStart.In(location).Weekday() == time.Friday && !a.WeekStart.Before(model.WeeklyFinalizationBoundary(now))) {
 		return 0, ErrReportClosed
 	}
 	tx, err := db.Conn.BeginTx(ctx, nil)
