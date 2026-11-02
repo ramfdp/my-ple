@@ -21,9 +21,18 @@ test('hours formats half hours',()=>{
 });
 
 test('overtime preview calculates actual and weighted minutes before save',()=>{
- assert.deepEqual(calculateOvertime('17:00','19:30','WORKDAY'),{actualMinutes:150,weightedMinutes:150});
+ assert.deepEqual(calculateOvertime('17:00','19:30','WORKDAY'),{actualMinutes:90,weightedMinutes:90});
  assert.deepEqual(calculateOvertime('08:00','10:00','HOLIDAY'),{actualMinutes:120,weightedMinutes:240});
  assert.equal(calculateOvertime('','','WORKDAY'),null);
+});
+
+test('workday preview excludes 08:00 to 18:00 on both sides of midnight',()=>{
+ for(const [start,end,expected] of [
+  ['17:00','18:00',0],['18:00','19:00',60],['06:00','09:00',120],
+  ['08:00','17:00',0],['22:00','09:00',600],['22:00','02:00',240],
+  ['19:00','18:30',810],['18:00','18:15',30],['18:00','18:14',0]
+ ])assert.deepEqual(calculateOvertime(start,end,'WORKDAY'),{actualMinutes:expected,weightedMinutes:expected},`${start}-${end}`);
+ assert.deepEqual(calculateOvertime('22:00','02:00','HOLIDAY'),{actualMinutes:240,weightedMinutes:480});
 });
 
 test('unsaved overtime survives page recreation',()=>{

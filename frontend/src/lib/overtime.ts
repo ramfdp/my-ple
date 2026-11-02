@@ -21,7 +21,12 @@ export function calculateOvertime(start:string,end:string,dayType:OvertimeDayTyp
  if(!/^\d{2}:\d{2}$/.test(start)||!/^\d{2}:\d{2}$/.test(end)||start===end)return null;
  const minutes=(value:string)=>{const [hour,minute]=value.split(':').map(Number);return hour*60+minute};
  const startMinute=minutes(start);let endMinute=minutes(end);if(endMinute<startMinute)endMinute+=24*60;
- let actualMinutes=dayType==='HOLIDAY'?endMinute-startMinute:Math.max(0,Math.min(endMinute,8*60)-startMinute)+Math.max(0,endMinute-Math.max(startMinute,17*60));
+ let actualMinutes = endMinute - startMinute;
+ if(dayType==='WORKDAY'){
+    for(let day=0; day < endMinute; day += 24*60){
+        actualMinutes -= Math.max(0, Math.min(endMinute, day+18*60) - Math.max(startMinute, day+8*60));
+    }
+ }
  actualMinutes=Math.floor((actualMinutes+15)/30)*30;
  return{actualMinutes,weightedMinutes:dayType==='HOLIDAY'?actualMinutes*2:actualMinutes};
 }

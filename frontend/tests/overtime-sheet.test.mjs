@@ -24,7 +24,7 @@ test('editable sheet uses existing preview and supports short months',()=>{
  const row={...sheet.entries[0],workDate:'2024-02-01',startTime:'17:00',endTime:'19:30',overrideReason:''};
  const {body}=render(Sheet,{props:{sheet,period:'2024-02',editable:true,rows:{'2024-02-01':row}}});
  assert.equal((body.match(/scope="row" title=/g)||[]).length,29);
- assert.match(body,/2,5/);
+ assert.match(body,/1,5/);
  assert.match(body,/aria-label="Jam mulai 2024-02-01"/);
  assert.match(body,/value="WORKDAY"/);
 });
