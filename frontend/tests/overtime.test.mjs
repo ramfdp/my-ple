@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {translate} from '../src/lib/i18n.ts';
 import assert from 'node:assert/strict';
 import {automaticDayType,calculateOvertime,calendarDates,hours,loadOvertimeDraft,saveOvertimeDraft} from '../src/lib/overtime.ts';
 
@@ -16,6 +17,7 @@ test('automaticDayType marks weekends only',()=>{
 
 test('hours formats half hours',()=>{
  assert.equal(hours(90),'1,5');
+ assert.equal(hours(90,'en-GB'),'1.5');
 });
 
 test('overtime preview calculates actual and weighted minutes before save',()=>{
@@ -30,4 +32,13 @@ test('unsaved overtime survives page recreation',()=>{
  const rows={'2026-10-27':{workDate:'2026-10-27',startTime:'17:00',endTime:'19:00',dayType:'WORKDAY',project:'PLE',description:'Testing'}};
  saveOvertimeDraft(storage,'overtime:u1:2026-10',rows);
  assert.deepEqual(loadOvertimeDraft(storage,'overtime:u1:2026-10'),rows);
+});
+
+test('overtime messages translate statuses, errors and parameters in both languages',()=>{
+ assert.equal(translate('Menunggu persetujuan','en'),'Awaiting approval');
+ assert.equal(translate('Lengkapi data lembur {date}.','en',{date:'2026-10-27'}),'Complete the overtime data for 2026-10-27.');
+ assert.equal(translate('Draf lembur tersimpan.','id'),'Draf lembur tersimpan.');
+ assert.equal(translate('Draf lembur tersimpan.','en'),'Overtime draft saved.');
+ assert.equal(translate('{employee} mengajukan lembur periode {period}','en',{employee:'Ayu',period:'2026-10'}),'Ayu submitted overtime for 2026-10');
+ assert.equal(translate('Data lembur tidak valid.','en'),'Invalid overtime data.');
 });

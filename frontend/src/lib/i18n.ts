@@ -1,5 +1,6 @@
 import { derived, writable } from 'svelte/store';
-import { messages, type MessageKey } from './messages.ts';
+import { messages } from './messages.ts';
+const dictionary: Readonly<Record<string, readonly [string, string]>> = messages;
 export type Language = 'id' | 'en';
 export const language = writable<Language>('id');
 export const locale = derived(language, value => value === 'en' ? 'en-GB' : 'id-ID');
@@ -15,7 +16,7 @@ export function restoreLanguage() {
 const enumLabels: Record<string,string> = {LOW:'Low',MEDIUM:'Medium',HIGH:'High',URGENT:'Urgent'};
 export function translate(key: string, lang: Language, params: Record<string,string|number> = {}): string {
  const source = Object.hasOwn(enumLabels,key) ? enumLabels[key] : key;
- const pair = Object.hasOwn(messages,source) ? messages[source as MessageKey] : undefined;
+ const pair = Object.hasOwn(dictionary,source) ? dictionary[source] : undefined;
  const text = pair ? pair[lang === 'en' ? 1 : 0] : key;
  return text.replace(/\{(\w+)\}/g, (placeholder, name) => Object.hasOwn(params,name) ? String(params[name]) : placeholder);
 }

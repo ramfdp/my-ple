@@ -30,4 +30,4 @@ export function saveOvertimeDraft(storage:DraftStorage,key:string,rows:Record<st
 export function loadOvertimeDraft(storage:DraftStorage,key:string){
  try{const value=JSON.parse(storage.getItem(key)??'null');return value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:null}catch{return null}
 }
-export const hours=(minutes:number)=>(minutes/60).toLocaleString('id-ID',{minimumFractionDigits:0,maximumFractionDigits:1});
+export const hours=(minutes:number,locale='id-ID')=>(minutes/60).toLocaleString(locale,{minimumFractionDigits:0,maximumFractionDigits:1});

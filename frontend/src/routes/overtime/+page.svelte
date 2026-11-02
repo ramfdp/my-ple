@@ -6,6 +6,7 @@
     import NotificationBell from '$lib/components/NotificationBell.svelte';
     import {automaticDayType,calendarDates,defaultOvertimePeriod,loadOvertimeDraft,overtimeStatuses,saveOvertimeDraft,type OvertimeEntry,type OvertimeSheet} from '$lib/overtime';
     import '$lib/styles/workspace.css';
+    import {t as translate} from '$lib/i18n';
 
     type Draft = Pick<OvertimeEntry,'workDate'|'startTime'|'endTime'|'dayType'|'overrideReason'|'project'|'description'> & Partial<Pick<OvertimeEntry,'actualMinutes'|'weightedMinutes'>>;
 
@@ -14,6 +15,7 @@
         rows = $state<Record<string,Draft>>({}),
         submissionOpen = $state(false);
 
+    let errorDate = $state('');
     let loading = $state(true),
         busy = $state(false),
         error = $state(''),
@@ -25,7 +27,7 @@
 
     const hasEntries = $derived(dates.some(date=>!!(rows[date]?.startTime||rows[date]?.endTime||rows[date]?.project||rows[date]?.description)));
 
-    const fmt = new Intl.DateTimeFormat('id-ID',{timeZone:'UTC',weekday:'short',day:'numeric',month:'short'});
+
 
     function blank(date:string):Draft{
         return{
@@ -96,7 +98,7 @@
 
             if(!touched)continue;
 
-            if(!row.startTime||!row.endTime||!row.project.trim()||!row.description.trim()||(row.dayType!==automaticDayType(date)&&!row.overrideReason.trim())){error=`Lengkapi data lembur ${date}.`;return null}
+            if(!row.startTime||!row.endTime||!row.project.trim()||!row.description.trim()||(row.dayType!==automaticDayType(date)&&!row.overrideReason.trim())){error='Lengkapi data lembur {date}.';errorDate=date;return null}
 
             entries.push({
                 workDate:row.workDate,
@@ -153,21 +155,21 @@
 
 </script>
 <svelte:head>
-    <title>Lembur | MyHIS</title>
+    <title>{$translate('Lembur | MyHIS')}</title>
 </svelte:head>
 
 <main class="workspace-page overtime-page">
     <header class="ws-row">
         <div>
-            <p class="dashboard-kicker">LEMBUR KARYAWAN</p>
-            <h1>Form Rekapitulasi Lembur</h1>
-            <p>Isi jam, project, dan uraian pekerjaan. Perhitungan dilakukan oleh server.</p>
+            <p class="dashboard-kicker">{$translate('LEMBUR KARYAWAN')}</p>
+            <h1>{$translate('Form Rekapitulasi Lembur')}</h1>
+            <p>{$translate('Isi jam, project, dan uraian pekerjaan. Perhitungan dilakukan oleh server.')}</p>
         </div>
         <NotificationBell/>
     </header>
 
     <section class="ws-panel overtime-toolbar">
-        <label>Periode <input type="month" value={period} onchange={(e)=>{
+        <label>{$translate('Periode')}<input type="month" value={period} onchange={(e)=>{
             const v=e.currentTarget.value;
             if(!v)return;
             period=v;
@@ -179,38 +181,38 @@
                 <strong>{sheet.employeeName}</strong>
                 <small>{sheet.employeeRole}</small>
             </div>
-            <span class="overtime-status status-{sheet.status.toLowerCase()}">{overtimeStatuses[sheet.status]}</span>
+            <span class="overtime-status status-{sheet.status.toLowerCase()}">{$translate(overtimeStatuses[sheet.status])}</span>
         {/if}
     </section>
 
     {#if error}
-        <p role="alert" class="overtime-error">{error}</p>
+        <p role="alert" class="overtime-error">{$translate(error,{date:errorDate})}</p>
     {/if}
     {#if notice}
-        <p role="status" class="overtime-notice">{notice}</p>
+        <p role="status" class="overtime-notice">{$translate(notice)}</p>
     {/if}
 
     {#if loading}
-        <p role="status">Memuat lembar lembur…</p>
+        <p role="status">{$translate('Memuat lembar lembur…')}</p>
     {:else if sheet}
         <OvertimeSheetView {sheet} {period} bind:rows {editable} {busy} onclear={clearRow} onpersist={persistDraft}/>
 
         {#if sheet.reviewerNote}
         <p class="ws-panel">
-            <strong>Catatan reviewer:</strong>
+            <strong>{$translate('Catatan Reviewer:')}</strong>
             {sheet.reviewerNote}
         </p>
         {/if}
 
         <div class="overtime-actions">
             {#if editable}
-                <button type="button" onclick={()=>void save()} disabled={busy}>{busy?'Menyimpan…':'Simpan Draf'}</button>
-                <button class="ws-primary" type="button" onclick={submit} disabled={busy||!submissionOpen||!hasEntries}>Submit Overtime</button>
+                <button type="button" onclick={()=>void save()} disabled={busy}>{busy?$translate('Menyimpan…'):$translate('Simpan Draf')}</button>
+                <button class="ws-primary" type="button" onclick={submit} disabled={busy||!submissionOpen||!hasEntries}>{$translate('Ajukan lembur')}</button>
             {/if}
         </div>
 
         {#if editable&&!submissionOpen}
-            <p class="window-note">Submit tersedia tanggal 26 sampai 5 bulan berikutnya. Draf tetap dapat disimpan.</p>
+            <p class="window-note">{$translate('Submit tersedia tanggal 26 sampai 5 bulan berikutnya. Draf tetap dapat disimpan.')}</p>
         {/if}
     {/if}
 </main>
