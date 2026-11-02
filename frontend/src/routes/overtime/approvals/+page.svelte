@@ -46,7 +46,7 @@
             return subscribeChanges(['overtime.changed'],()=>load())});
 
         function scrollToDetail(){
-            if (!detailElement || !window.matchMedia('(max-width:1050px)').matches) return;
+            if (!detailElement) return;
             const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
             detailElement.scrollIntoView({behavior:reduced ? 'auto' : 'smooth', block:'start'})
         }
