@@ -28,3 +28,23 @@ test('editable sheet uses existing preview and supports short months',()=>{
  assert.match(body,/aria-label="Jam mulai 2024-02-01"/);
  assert.match(body,/value="WORKDAY"/);
 });
+
+test('decimal columns follow clock inputs in editable and read-only sheets',()=>{
+ for(const editable of [true,false]){
+  for(const [startTime,endTime,startDecimal,endDecimal] of [
+   ['18:15','19:30','18,25','19,5'],
+   ['22:45','00:00','22,75','0'],
+   ['08:10','','8,17',''],
+   ['','','',''],
+   ['25:00','12:60','','']
+  ]){
+   const row={...sheet.entries[0],startTime,endTime};
+   const {body}=render(Sheet,{props:{sheet:{...sheet,entries:[row]},period:'2026-10',editable,rows:{[row.workDate]:row}}});
+   const dateRow=body.match(/<tr\b[^>]*>[^]*?<\/tr>/g)?.find(row=>row.includes('title="2026-10-07"'));
+   assert.ok(dateRow);
+   const cells=[...dateRow.matchAll(/<td class="calculated[^\"]*">([^]*?)<\/td>/g)];
+   assert.equal(cells[0][1],startDecimal);
+   assert.equal(cells[1][1],endDecimal);
+  }
+ }
+});
