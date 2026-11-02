@@ -23,19 +23,20 @@ function approvalPage() {
  };
 }
 
-test('realtime refresh closes detail and restores the note only for the same sheet', async () => {
+test('realtime refresh preserves detail and restores the note only for the same sheet', async () => {
  const page = approvalPage();
  await page.run('load()');
  page.run("selected={id:'sheet-1',status:'SUBMITTED'};updateReviewerNote('Mohon periksa jam lembur');");
  let complete;
  page.respond(() => new Promise(resolve => { complete = resolve; }));
  const refreshing = page.refresh();
- assert.equal(page.run('loading'), true);
- assert.equal(page.run('selected'), null);
+ assert.equal(page.run('loading'), false);
+ assert.equal(page.run('selected.id'), 'sheet-1');
  complete({ employees: [{ userId: 'another-employee' }] });
  await refreshing;
  assert.equal(page.run('employees[0].userId'), 'another-employee');
- assert.equal(page.run('selected'), null);
+ assert.equal(page.run('selected.id'), 'sheet-1');
+ assert.equal(page.run('reviewerNote'), 'Mohon periksa jam lembur');
  page.respond(async url => ({ sheet: { id: url.split('/').at(-1), status: 'SUBMITTED' } }));
  await page.run("open({sheetId:'sheet-2',status:'SUBMITTED'})");
  assert.equal(page.run('reviewerNote'), '');

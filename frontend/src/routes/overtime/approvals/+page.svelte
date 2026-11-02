@@ -20,15 +20,17 @@
         if(selected) reviewerNoteDrafts.set(selected.id,value);
     }
 
-    async function load(){
+    async function load(background=false){
         if(!authorized){
             loading=false;
             return
         }
 
-        loading = true;
-        selected = null;
-        error='';
+        if(!background){
+            loading = true;
+            selected = null;
+            error='';
+        }
         try{
             const query = new URLSearchParams({
                 period,status,offset:String(offset)
@@ -44,7 +46,7 @@
 
         onMount(()=>{
             void load();
-            return subscribeChanges(['overtime.changed'],()=>load())});
+            return subscribeChanges(['overtime.changed'],()=>load(true))});
 
         function scrollToDetail(){
             if (!detailElement) return;
