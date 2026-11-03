@@ -235,7 +235,11 @@
     flex-wrap:wrap;
     margin-bottom:16px
 }.overtime-toolbar label,.overtime-toolbar div{
-    display:grid;gap:5px
+    display:grid;
+    gap:5px;
+    min-width:0;
+    max-width:100%;
+    overflow-wrap:anywhere
 }.overtime-toolbar small{
     color:#64748b
 }.overtime-status{

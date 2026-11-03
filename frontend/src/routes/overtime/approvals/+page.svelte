@@ -319,7 +319,8 @@
 @media(max-width: 700px){
     .decision-actions, .pager{
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        padding-inline: 0;
     }
     .decision-actions button, .pager button{
         width: 100%;
