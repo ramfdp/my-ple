@@ -1,14 +1,39 @@
 <script lang="ts">
+ import {onDestroy, tick} from 'svelte';
  import { locale, t as translate } from '$lib/i18n';
 	import {labelDate} from '$lib/workspace';
 	import { notifications, dismissNotification, markAllRead, markRead } from '$lib/notifications';
 	let open = $state(false);
+	let badgeOpen = $state(false);
+	let previousUnread = 0;
+	let badgeFrame = 0;
+	let badgeRun = 0;
 	let panel: HTMLElement;
 	let left = $state(12), top = $state(68);
+	async function animateBadge() {
+		const run = ++badgeRun;
+		badgeOpen = false;
+		await tick();
+		if (run !== badgeRun) return;
+		cancelAnimationFrame(badgeFrame);
+		badgeFrame = requestAnimationFrame(() => { if (run === badgeRun) badgeOpen = true; });
+	}
+	$effect(() => {
+		const unread = $notifications.unread;
+		if (unread > previousUnread) void animateBadge();
+		else if (!unread) {
+			badgeRun++;
+			cancelAnimationFrame(badgeFrame);
+			badgeOpen = false;
+		}
+		previousUnread = unread;
+	});
+	onDestroy(() => { badgeRun++; cancelAnimationFrame(badgeFrame); });
 	function toggle(event: MouseEvent) {
 		const anchor = (event.currentTarget as HTMLElement).getBoundingClientRect();
 		left = Math.max(12, Math.min(anchor.right - 380, window.innerWidth - 392));
 		top = Math.max(12, Math.min(anchor.bottom + 8, window.innerHeight - 160));
+		if (!panel.matches(':popover-open') && $notifications.unread) void animateBadge();
 		panel.togglePopover();
 	}
 	const date = (value: string) => new Date(value).toLocaleDateString($locale, { day: 'numeric', month: 'short', year: 'numeric' });
@@ -22,9 +47,9 @@
 <svelte:window onresize={() => panel?.hidePopover()} onscroll={() => panel?.hidePopover()} />
 
 <div class="notification-wrap">
-	<button class="notification-button" type="button" aria-label={$translate("Notifikasi")} aria-expanded={open} onclick={toggle}>
+	<button class="notification-button" data-badge-open={badgeOpen} type="button" aria-label={$translate("Notifikasi")} aria-expanded={open} onclick={toggle}>
 		<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>
-		{#if $notifications.unread}<span class="notification-badge">{$notifications.unread > 99 ? '99+' : $notifications.unread}</span>{/if}
+		<span class="notification-badge" aria-hidden="true"><span class="notification-badge-inner">{$notifications.unread > 99 ? '99+' : $notifications.unread}</span></span>
 	</button>
 		<section bind:this={panel} popover="auto" ontoggle={(event) => open = event.newState === 'open'} class="notification-panel" style:left={left+'px'} style:top={top+'px'} style:max-height={'min(480px, calc(100dvh - '+(top+12)+'px))'} aria-label={$translate("Daftar notifikasi")}>
 			<header><strong>{$translate("Notifikasi")}</strong>{#if $notifications.unread}<button type="button" onclick={() => void markAllRead().catch(() => {})}>{$translate("Tandai semua dibaca")}</button>{/if}</header>
