@@ -4,14 +4,28 @@ import test from 'node:test';
 import vm from 'node:vm';
 import ts from 'typescript';
 
+test('employee month rollover preserves entries, manual selection and in-flight requests',()=>{
+ const source=readFileSync(new URL('../src/routes/overtime/+page.svelte',import.meta.url),'utf8');
+ const callback=source.match(/watchOvertimePeriod\(current=>\{([\s\S]*?)\}\);/)[1];
+ for(const guard of ['manualPeriod','busy','loading','hasEntries',null]){
+  let loads=0;
+  const context=vm.createContext({manualPeriod:false,busy:false,loading:false,hasEntries:false,period:'2026-10',current:'2026-11',load:()=>{loads++}});
+  if(guard)context[guard]=true;
+  vm.runInContext(`(()=>{${callback}})()`,context);
+  assert.equal(context.period,guard?'2026-10':'2026-11');
+  assert.equal(loads,guard?0:1);
+ }
+});
+
 function approvalPage() {
  const source = readFileSync(new URL('../src/routes/overtime/approvals/+page.svelte', import.meta.url), 'utf8');
  const script = source.match(/<script lang="ts">([\s\S]*?)<\/script>/)[1].replace(/^\s*import .*;$/gm, '');
- let refresh, respond = async () => ({ employees: [{ userId: 'new-employee' }] });
+ let refresh, refreshPeriod, respond = async () => ({ employees: [{ userId: 'new-employee' }] });
  const context = vm.createContext({
   $state: value => value, $derived: value => value,
   $currentUser: { id: 'reviewer', role: 'Finance' },
   defaultOvertimePeriod: () => '2026-10', URLSearchParams, Intl,
+  watchOvertimePeriod: callback => { refreshPeriod=callback; return ()=>{}; },
   api: (...args) => respond(...args), onMount: callback => callback(),
   subscribeChanges: (_events, callback) => { refresh = callback; }
  });
@@ -19,9 +33,26 @@ function approvalPage() {
  return {
   run: code => vm.runInContext(code, context),
   refresh: () => refresh(),
+  refreshPeriod: period => refreshPeriod(period),
   respond: callback => { respond = callback; }
  };
 }
+
+test('month rollover updates approvals but preserves manual periods and open reviews',async()=>{
+ const page=approvalPage();
+ await page.run('load()');
+ page.run('offset=50');
+ page.refreshPeriod('2026-11');
+ assert.equal(page.run('period'),'2026-11');
+ assert.equal(page.run('offset'),0);
+ await page.run('load()');
+ page.run("selected={id:'sheet-1'}");
+ page.refreshPeriod('2026-12');
+ assert.equal(page.run('period'),'2026-11');
+ page.run('selected=null;manualPeriod=true');
+ page.refreshPeriod('2026-12');
+ assert.equal(page.run('period'),'2026-11');
+});
 
 test('realtime refresh preserves detail and restores the note only for the same sheet', async () => {
  const page = approvalPage();
