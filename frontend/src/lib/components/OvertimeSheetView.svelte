@@ -10,6 +10,12 @@
  const month = $derived(new Intl.DateTimeFormat('id-ID',{month:'long',timeZone:'UTC'}).format(new Date(`${period}-01T00:00:00Z`)));
  const total = $derived(editable ? dates.reduce((sum,date)=>sum+(rows[date] ? calculateOvertime(rows[date].startTime,rows[date].endTime,rows[date].dayType)?.weightedMinutes??0 : 0),0) : sheet.weightedMinutes);
  const widths = [24.6,49.2,51,50.4,110.4,81.6,63,45.6,45.6,45.6,45.6,66.6,58.8,61.2,95.4,323.4,57.6];
+ 
+ function decimalTime(value:string|undefined){
+    if(!value||!/^([01]\d|2[0-3]):[0-5]\d$/.test(value))return '';
+    const [hour, minute] = value.split(':').map(Number);
+    return (hour + minute/60).toLocaleString('id-ID',{maximumFractionDigits:2});
+ }
 </script>
 
 {#snippet unavailable()}
@@ -49,7 +55,7 @@
       <th scope="row" title={date}>{index+1}</th>
       <td>{#if editable && row}<input aria-label={`Jam mulai ${date}`} type="time" bind:value={rows[date].startTime} disabled={busy}/><span class="print-value">{row.startTime}</span>{:else}{row?.startTime??''}{/if}</td>
       <td>{#if editable && row}<input aria-label={`Jam selesai ${date}`} type="time" bind:value={rows[date].endTime} disabled={busy}/><span class="print-value">{row.endTime}</span>{:else}{row?.endTime??''}{/if}</td>
-      <td class="calculated">{@render unavailable()}</td><td class="calculated">{@render unavailable()}</td>
+      <td class="calculated">{decimalTime(row?.startTime)}</td><td class="calculated">{decimalTime(row?.endTime)}</td>
       <td class="result">{calculation?.actualMinutes==null?'—':hours(calculation.actualMinutes)}</td>
       {#each [1,2,3,4,5] as bucket}<td class="calculated">{@render unavailable()}</td>{/each}
       <td class="result">{calculation?.weightedMinutes==null?'—':hours(calculation.weightedMinutes)}</td>

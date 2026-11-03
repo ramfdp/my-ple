@@ -10,11 +10,18 @@ func TestCalculateOvertime(t *testing.T) {
 		name, start, end, dayType string
 		actual, weighted          int
 	}{
-		{"workday after hours", "08:00", "21:00", "WORKDAY", 240, 240},
-		{"workday before and after", "07:00", "18:00", "WORKDAY", 120, 120},
+		{"workday after hours", "08:00", "21:00", "WORKDAY", 180, 180},
+		{"workday before and after", "07:00", "19:00", "WORKDAY", 120, 120},
+		{"workday excludes time before eighteen", "17:00", "18:00", "WORKDAY", 0, 0},
+		{"workday starts at eighteen", "18:00", "19:00", "WORKDAY", 60, 60},
+		{"workday morning", "06:00", "09:00", "WORKDAY", 120, 120},
+		{"workday office hours", "08:00", "17:00", "WORKDAY", 0, 0},
+		{"workday overnight excludes next office hours", "22:00", "09:00", "WORKDAY", 600, 600},
+		{"workday overnight before eight", "22:00", "02:00", "WORKDAY", 240, 240},
+		{"workday overnight reaches next evening", "19:00", "18:30", "WORKDAY", 810, 810},
 		{"holiday full duration", "08:00", "10:00", "HOLIDAY", 120, 240},
-		{"rounds fifteen minutes up", "17:15", "18:00", "WORKDAY", 60, 60},
-		{"rounds fourteen minutes down", "17:00", "17:14", "WORKDAY", 0, 0},
+		{"rounds fifteen minutes up", "18:00", "18:15", "WORKDAY", 30, 30},
+		{"rounds fourteen minutes down", "18:00", "18:14", "WORKDAY", 0, 0},
 		{"overnight", "22:00", "02:00", "HOLIDAY", 240, 480},
 	}
 	for _, tt := range tests {

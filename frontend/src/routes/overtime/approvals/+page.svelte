@@ -6,6 +6,7 @@
     import NotificationBell from '$lib/components/NotificationBell.svelte';
     import {defaultOvertimePeriod,hours,overtimeStatuses,type OvertimeRosterItem,type OvertimeSheet} from '$lib/overtime';
     import '$lib/styles/workspace.css';
+    import {locale,t as translate} from '$lib/i18n';
 
     const authorized=$derived(['Finance','Admin'].includes($currentUser?.role??''));
     let period = $state(defaultOvertimePeriod()),status=$state(''),employees=$state<OvertimeRosterItem[]>([]),selected=$state<OvertimeSheet|null>(null);
@@ -19,15 +20,17 @@
         if(selected) reviewerNoteDrafts.set(selected.id,value);
     }
 
-    async function load(){
+    async function load(background=false){
         if(!authorized){
             loading=false;
             return
         }
 
-        loading = true;
-        selected = null;
-        error='';
+        if(!background){
+            loading = true;
+            selected = null;
+            error='';
+        }
         try{
             const query = new URLSearchParams({
                 period,status,offset:String(offset)
@@ -43,10 +46,10 @@
 
         onMount(()=>{
             void load();
-            return subscribeChanges(['overtime.changed'],()=>load())});
+            return subscribeChanges(['overtime.changed'],()=>load(true))});
 
         function scrollToDetail(){
-            if (!detailElement || !window.matchMedia('(max-width:1050px)').matches) return;
+            if (!detailElement) return;
             const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
             detailElement.scrollIntoView({behavior:reduced ? 'auto' : 'smooth', block:'start'})
         }
@@ -83,63 +86,63 @@
                 busy=false
             }
         }
-    const time=(value:string|null)=>value?new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Jakarta',dateStyle:'medium',timeStyle:'short'}).format(new Date(value)):'—';
+    const time=(value:string|null)=>value?new Intl.DateTimeFormat($locale,{timeZone:'Asia/Jakarta',dateStyle:'medium',timeStyle:'short'}).format(new Date(value)):'—';
 </script>
     <svelte:head>
-        <title>Persetujuan Lembur | MyHIS</title>
+        <title>{$translate('Persetujuan Lembur | MyHIS')}</title>
     </svelte:head>
 
     <main class="workspace-page approval-page">
     <header class="ws-row">
         <div>
             <p class="dashboard-kicker">FINANCE</p>
-            <h1>Persetujuan Lembur</h1>
-            <p>Pantau pengisian dan proses lembar lembur bulanan.</p>
+            <h1>{$translate('Persetujuan Lembur')}</h1>
+            <p>{$translate('Pantau pengisian dan proses lembar lembur bulanan.')}</p>
         </div>
         <NotificationBell/>
     </header>
 
     {#if !authorized}
-        <p role="alert">Halaman ini hanya tersedia untuk Finance dan Admin.</p>
+        <p role="alert">{$translate('Halaman ini hanya tersedia untuk Finance dan Admin.')}</p>
     {:else}
     <form class="ws-panel approval-filters" onsubmit={(e)=>{
         e.preventDefault();offset=0;void load()
         }
     }>
-        <label>Periode
+        <label>{$translate('Periode')}
             <input type="month" bind:value={period}/>
         </label>
-        <label>Status
+        <label>{$translate('Status')}
             <select bind:value={status}>
-                <option value="">Semua</option>
+                <option value="">{$translate('Semua')}</option>
                 {#each Object.entries(overtimeStatuses) as [value,label]}
-                <option {value}>{label}</option>
+                <option {value}>{$translate(label)}</option>
                 {/each}
             </select>
         </label>
 
-        <button disabled={loading}>Terapkan</button></form>
+        <button disabled={loading}>{$translate('Terapkan')}</button></form>
 
         {#if error}
-            <p role="alert" class="approval-error">{error}</p>
+            <p role="alert" class="approval-error">{$translate(error)}</p>
         {/if}
         {#if notice}
-            <p role="status" class="approval-notice">{notice}</p>
+            <p role="status" class="approval-notice">{$translate(notice)}</p>
         {/if}
         {#if loading}
-            <p role="status">Memuat daftar karyawan…</p>
+            <p role="status">{$translate('Memuat daftar karyawan…')}</p>
         {:else}
             <div class="approval-grid">
                 <section class="ws-panel roster">
-                    <h2>Status Karyawan</h2>
+                    <h2>{$translate('Status Karyawan')}</h2>
                     <div class="roster-wrap">
                         <table>
                             <thead>
                                 <tr>
-                                    <th>Nama</th>
-                                    <th>Role</th>
-                                    <th>Status</th>
-                                    <th>Dikirim</th>
+                                    <th>{$translate('Nama')}</th>
+                                    <th>{$translate('Role')}</th>
+                                    <th>{$translate('Status')}</th>
+                                    <th>{$translate('Dikirim')}</th>
                                     <th></th>
                                 </tr>
                             </thead>
@@ -149,11 +152,11 @@
                                     <td>{employee.employeeName}</td>
                                     <td>{employee.employeeRole}</td>
                                     <td>
-                                        <span class="status status-{employee.status.toLowerCase()}">{overtimeStatuses[employee.status]}</span>
+                                        <span class="status status-{employee.status.toLowerCase()}">{$translate(overtimeStatuses[employee.status])}</span>
                                     </td>
                                     <td>{time(employee.submittedAt)}</td>
                                     <td>{#if employee.sheetId&&!(employee.status==='DRAFT'&&$currentUser?.role==='Finance')}
-                                        <button type="button" onclick={()=>open(employee)}>Detail</button>
+                                        <button type="button" onclick={()=>open(employee)}>{$translate('Detail')}</button>
                                         {:else}
                                             —
                                         {/if}
@@ -165,8 +168,8 @@
                     </div>
 
                     <div class="pager">
-                        <button disabled={offset===0} onclick={()=>{offset-=50;void load()}}>Sebelumnya</button>
-                        <button disabled={employees.length<50} onclick={()=>{offset+=50;void load()}}>Berikutnya</button>
+                        <button disabled={offset===0} onclick={()=>{offset-=50;void load()}}>{$translate('Sebelumnya')}</button>
+                        <button disabled={employees.length<50} onclick={()=>{offset+=50;void load()}}>{$translate('Berikutnya')}</button>
                     </div>
                 </section>
 
@@ -177,23 +180,23 @@
                             <h2>{selected.employeeName}</h2>
                             <p>{selected.employeeRole} · {selected.period}</p>
                         </div>
-                        <button aria-label="Tutup detail" onclick={()=>selected=null}>×</button>
+                        <button aria-label={$translate('Tutup detail')} onclick={()=>selected=null}>×</button>
                     </div>
                     <dl>
-                        <dt>Status</dt>
-                        <dd>{overtimeStatuses[selected.status]}</dd>
-                        <dt>Total aktual</dt>
-                        <dd>{hours(selected.actualMinutes)} jam</dd>
-                        <dt>Total bobot</dt>
-                        <dd>{hours(selected.weightedMinutes)} jam</dd>
-                        <dt>Dikirim</dt>
+                        <dt>{$translate('Status')}</dt>
+                        <dd>{$translate(overtimeStatuses[selected.status])}</dd>
+                        <dt>{$translate('Total aktual')}</dt>
+                        <dd>{hours(selected.actualMinutes,$locale)} {$translate('jam')}</dd>
+                        <dt>{$translate('Total bobot')}</dt>
+                        <dd>{hours(selected.weightedMinutes,$locale)} {$translate('jam')}</dd>
+                        <dt>{$translate('Dikirim')}</dt>
                         <dd>{time(selected.submittedAt)}</dd>
                         {#if selected.reviewedAt}
-                            <dt>Reviewer</dt>
+                            <dt>{$translate('Reviewer')}</dt>
                             <dd>{selected.reviewerName}</dd>
-                            <dt>Keputusan</dt>
+                            <dt>{$translate('Keputusan')}</dt>
                             <dd>{time(selected.reviewedAt)}</dd>
-                            <dt>Catatan</dt>
+                            <dt>{$translate('Catatan')}</dt>
                             <dd>{selected.reviewerNote||'—'}</dd>
                         {/if}
                     </dl>
@@ -202,14 +205,14 @@
 
                     {#if selected.status==='SUBMITTED'}
                         {#if selected.userId===$currentUser?.id}
-                            <p>Pengajuan sendiri harus diperiksa Finance/Admin lain.</p>
+                            <p>{$translate('Pengajuan sendiri harus diperiksa Finance/Admin lain.')}</p>
                         {:else}
-                            <label class="review-note">Catatan reviewer
+                            <label class="review-note">{$translate('Catatan Reviewer')}
                                 <textarea rows="3" maxlength="4000" bind:value={()=>reviewerNote,updateReviewerNote}></textarea>
                             </label>
                             <div class="decision-actions">
-                                <button disabled={busy||!reviewerNote.trim()} onclick={()=>decide('REJECTED')}>Tolak</button>
-                                <button class="ws-primary" disabled={busy} onclick={()=>decide('APPROVED')}>Setujui</button>
+                                <button disabled={busy||!reviewerNote.trim()} onclick={()=>decide('REJECTED')}>{$translate('Tolak')}</button>
+                                <button class="ws-primary" disabled={busy} onclick={()=>decide('APPROVED')}>{$translate('Setujui')}</button>
                             </div>
                         {/if}
                     {/if}
