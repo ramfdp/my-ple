@@ -46,7 +46,8 @@
 
         onMount(()=>{
             void load();
-            return subscribeChanges(['overtime.changed'],()=>load(true))});
+            return subscribeChanges(['overtime.changed'],()=>load())
+        });
 
         function scrollToDetail(){
             if (!detailElement) return;
@@ -110,7 +111,7 @@
         }
     }>
         <label>{$translate('Periode')}
-            <input type="month" bind:value={period}/>
+            <input type="month" bind:value={period} />
         </label>
         <label>{$translate('Status')}
             <select bind:value={status}>
@@ -310,7 +311,8 @@
 @media(max-width: 700px){
     .decision-actions, .pager{
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        padding-inline: 0;
     }
     .decision-actions button, .pager button{
         width: 100%;

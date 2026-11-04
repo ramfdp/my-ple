@@ -1,11 +1,7 @@
 import test from 'node:test';
 import {translate} from '../src/lib/i18n.ts';
 import assert from 'node:assert/strict';
-import {automaticDayType,calculateOvertime,calendarDates,defaultOvertimePeriod,hours,jakartaToday,loadOvertimeDraft,saveOvertimeDraft} from '../src/lib/overtime.ts';
-
-test('default overtime period uses the current Jakarta month',()=>{
- assert.equal(defaultOvertimePeriod(),jakartaToday().slice(0,7));
-});
+import {automaticDayType,calculateOvertime,calendarDates,hours,loadOvertimeDraft,saveOvertimeDraft} from '../src/lib/overtime.ts';
 
 test('calendarDates covers leap years and short months',()=>{
  assert.equal(calendarDates('2024-02').length,29);

@@ -4,7 +4,7 @@
     import {subscribeChanges} from '$lib/realtime';
     import OvertimeSheetView from '$lib/components/OvertimeSheetView.svelte';
     import NotificationBell from '$lib/components/NotificationBell.svelte';
-    import {automaticDayType,calendarDates,defaultOvertimePeriod,loadOvertimeDraft,overtimeStatuses,saveOvertimeDraft,type OvertimeEntry,type OvertimeSheet} from '$lib/overtime';
+    import {automaticDayType,calendarDates,defaultOvertimePeriod, loadOvertimeDraft,overtimeStatuses,saveOvertimeDraft,type OvertimeEntry,type OvertimeSheet} from '$lib/overtime';
     import '$lib/styles/workspace.css';
     import {t as translate} from '$lib/i18n';
 
@@ -227,7 +227,11 @@
     flex-wrap:wrap;
     margin-bottom:16px
 }.overtime-toolbar label,.overtime-toolbar div{
-    display:grid;gap:5px
+    display:grid;
+    gap:5px;
+    min-width:0;
+    max-width:100%;
+    overflow-wrap:anywhere
 }.overtime-toolbar small{
     color:#64748b
 }.overtime-status{
