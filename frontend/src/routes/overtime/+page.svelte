@@ -4,7 +4,7 @@
     import {subscribeChanges} from '$lib/realtime';
     import OvertimeSheetView from '$lib/components/OvertimeSheetView.svelte';
     import NotificationBell from '$lib/components/NotificationBell.svelte';
-    import {automaticDayType,calendarDates,defaultOvertimePeriod, watchOvertimePeriod, loadOvertimeDraft,overtimeStatuses,saveOvertimeDraft,type OvertimeEntry,type OvertimeSheet} from '$lib/overtime';
+    import {automaticDayType,calendarDates,defaultOvertimePeriod, loadOvertimeDraft,overtimeStatuses,saveOvertimeDraft,type OvertimeEntry,type OvertimeSheet} from '$lib/overtime';
     import '$lib/styles/workspace.css';
     import {t as translate} from '$lib/i18n';
 
@@ -22,7 +22,6 @@
         notice = $state('');
 
     const editable = $derived(sheet?.status === 'DRAFT'||sheet?.status === 'REJECTED');
-    let manualPeriod = false;
 
     const dates = $derived(calendarDates(period));
 
@@ -85,13 +84,7 @@
 
     onMount(()=>{
         void load();
-        const stopPeriod = watchOvertimePeriod(current=>{
-            if(manualPeriod || busy || loading || hasEntries || period === current)return;
-            period = current;
-            void load()
-        });
-        const stopChanges=subscribeChanges(['overtime.changed'],()=>load());
-        return ()=>{stopPeriod();stopChanges()}
+        return subscribeChanges(['overtime.changed'],()=>load())
     });
 
     async function save(showNotice=true){
@@ -179,7 +172,6 @@
         <label>{$translate('Periode')}<input type="month" value={period} onchange={(e)=>{
             const v=e.currentTarget.value;
             if(!v)return;
-            manualPeriod=true;
             period=v;
             void load()
             }}/>

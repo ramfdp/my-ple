@@ -4,7 +4,7 @@
     import {subscribeChanges} from '$lib/realtime';
     import OvertimeSheetView from '$lib/components/OvertimeSheetView.svelte';
     import NotificationBell from '$lib/components/NotificationBell.svelte';
-    import {defaultOvertimePeriod,watchOvertimePeriod,hours,overtimeStatuses,type OvertimeRosterItem,type OvertimeSheet} from '$lib/overtime';
+    import {defaultOvertimePeriod,hours,overtimeStatuses,type OvertimeRosterItem,type OvertimeSheet} from '$lib/overtime';
     import '$lib/styles/workspace.css';
     import {locale,t as translate} from '$lib/i18n';
 
@@ -15,7 +15,6 @@
     let detailElement = $state<HTMLElement|null> (null);
 
     const reviewerNoteDrafts = new Map<string,string>();
-    let manualPeriod = false;
     function updateReviewerNote(value:string){
         reviewerNote = value;
         if(selected) reviewerNoteDrafts.set(selected.id,value);
@@ -47,14 +46,7 @@
 
         onMount(()=>{
             void load();
-            const stopPeriod=watchOvertimePeriod(current=>{
-                if(manualPeriod||busy||loading||selected||period===current)return;
-                period=current;
-                offset=0;
-                void load()
-            });
-            const stopChanges=subscribeChanges(['overtime.changed'],()=>load(true));
-            return ()=>{stopPeriod();stopChanges()}
+            return subscribeChanges(['overtime.changed'],()=>load())
         });
 
         function scrollToDetail(){
@@ -119,7 +111,7 @@
         }
     }>
         <label>{$translate('Periode')}
-            <input type="month" bind:value={period} onchange={()=>{manualPeriod=true}}/>
+            <input type="month" bind:value={period} />
         </label>
         <label>{$translate('Status')}
             <select bind:value={status}>
