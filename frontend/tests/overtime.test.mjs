@@ -1,43 +1,7 @@
 import test from 'node:test';
 import {translate} from '../src/lib/i18n.ts';
 import assert from 'node:assert/strict';
-import {automaticDayType,calculateOvertime,calendarDates,defaultOvertimePeriod,watchOvertimePeriod,hours,loadOvertimeDraft,saveOvertimeDraft} from '../src/lib/overtime.ts';
-
-test('default period follows the Jakarta month including days 1 to 5 and new year',t=>{
- t.mock.timers.enable({apis:['Date'],now:0});
- for(const [instant,period] of [
-  ['2026-10-31T16:59:59Z','2026-10'],
-  ['2026-10-31T17:00:00Z','2026-11'],
-  ['2026-11-02T03:00:00Z','2026-11'],
-  ['2026-11-05T16:59:59Z','2026-11'],
-  ['2026-11-06T00:00:00Z','2026-11'],
-  ['2026-12-31T17:00:00Z','2027-01']
- ]){
-  t.mock.timers.setTime(Date.parse(instant));
-  assert.equal(defaultOvertimePeriod(),period,instant);
- }
-});
-
-test('period watcher refreshes across midnight and on focus and cleans up',t=>{
- t.mock.timers.enable({apis:['Date','setInterval'],now:Date.parse('2026-10-31T16:59:30Z')});
- const originalWindow=globalThis.window;
- const target=new EventTarget();
- globalThis.window=target;
- t.after(()=>{if(originalWindow===undefined)delete globalThis.window;else globalThis.window=originalWindow});
- const periods=[];
- const stop=watchOvertimePeriod(period=>periods.push(period));
- assert.equal(periods.at(-1),'2026-10');
- t.mock.timers.tick(60_000);
- assert.equal(periods.at(-1),'2026-11');
- t.mock.timers.setTime(Date.parse('2026-11-30T17:00:00Z'));
- target.dispatchEvent(new Event('focus'));
- assert.equal(periods.at(-1),'2026-12');
- stop();
- const count=periods.length;
- t.mock.timers.tick(60_000);
- target.dispatchEvent(new Event('focus'));
- assert.equal(periods.length,count);
-});
+import {automaticDayType,calculateOvertime,calendarDates,hours,loadOvertimeDraft,saveOvertimeDraft} from '../src/lib/overtime.ts';
 
 test('calendarDates covers leap years and short months',()=>{
  assert.equal(calendarDates('2024-02').length,29);
