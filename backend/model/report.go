@@ -34,15 +34,12 @@ func WeeklyFinalizationBoundary(now time.Time) time.Time {
 	return cutoff.AddDate(0, 0, -1)
 }
 
-// ReportingPeriodDates preserves Monday-keyed archive labels while Friday-keyed
-// periods include the closing Friday, whose input window ends Saturday.
+// ReportingPeriodDates displays Friday-Thursday periods and preserves historical
+// Monday-Sunday labels, independently of the Saturday input rollover.
 func ReportingPeriodDates(start, next time.Time) (time.Time, string) {
 	location, _ := time.LoadLocation(ReportingTimezone)
 	start, next = start.In(location), next.In(location)
 	end := next.AddDate(0, 0, -1)
-	if start.Weekday() == time.Friday {
-		end = next
-	}
 	return end, IndonesianWeekLabel(start, end.AddDate(0, 0, 1))
 }
 

@@ -7,11 +7,11 @@ import (
 
 func TestReportingPeriodSaturdayBoundary(t *testing.T) {
 	for _, tt := range []struct{ instant, start, next, label string }{
-		{"2026-10-30T16:59:59Z", "2026-10-23", "2026-10-30", "23 - 30 Oktober 2026"},
-		{"2026-10-30T17:00:00Z", "2026-10-30", "2026-11-06", "30 Oktober - 6 November 2026"},
-		{"2026-11-01T05:00:00Z", "2026-10-30", "2026-11-06", "30 Oktober - 6 November 2026"},
-		{"2026-11-06T16:59:59Z", "2026-10-30", "2026-11-06", "30 Oktober - 6 November 2026"},
-		{"2026-11-06T17:00:00Z", "2026-11-06", "2026-11-13", "6 - 13 November 2026"},
+		{"2026-10-30T16:59:59Z", "2026-10-23", "2026-10-30", "23 - 29 Oktober 2026"},
+		{"2026-10-30T17:00:00Z", "2026-10-30", "2026-11-06", "30 Oktober - 5 November 2026"},
+		{"2026-11-01T05:00:00Z", "2026-10-30", "2026-11-06", "30 Oktober - 5 November 2026"},
+		{"2026-11-06T16:59:59Z", "2026-10-30", "2026-11-06", "30 Oktober - 5 November 2026"},
+		{"2026-11-06T17:00:00Z", "2026-11-06", "2026-11-13", "6 - 12 November 2026"},
 	} {
 		t.Run(tt.instant, func(t *testing.T) {
 			now, err := time.Parse(time.RFC3339, tt.instant)
@@ -29,7 +29,7 @@ func TestReportingPeriodSaturdayBoundary(t *testing.T) {
 				t.Fatal("finalization boundary differs from period key")
 			}
 			end, label := ReportingPeriodDates(start, next)
-			if !end.Equal(next) || label != tt.label {
+			if !end.Equal(next.AddDate(0, 0, -1)) || end.Weekday() != time.Thursday || label != tt.label {
 				t.Fatalf("display = %v, %q", end, label)
 			}
 		})
@@ -48,7 +48,7 @@ func TestWeeklyArchivePreservesHistoricalMondayLabel(t *testing.T) {
 	}
 	friday := time.Date(2026, 10, 30, 0, 0, 0, 0, location)
 	period = (WeeklyArchive{WeekStart: friday, WeekEnd: friday.AddDate(0, 0, 7)}).Period()
-	if period.Label != "30 Oktober - 6 November 2026" || period.End.Format("2006-01-02") != "2026-11-06" {
+	if period.Label != "30 Oktober - 5 November 2026" || period.End.Format("2006-01-02") != "2026-11-05" {
 		t.Fatalf("Friday period: %+v", period)
 	}
 }
