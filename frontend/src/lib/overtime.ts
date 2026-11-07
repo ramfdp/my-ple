@@ -14,7 +14,19 @@ export interface OvertimeRosterItem {
 }
 export const overtimeStatuses:Record<string,string>={NO_ENTRY:'Belum mengisi',DRAFT:'Draf',SUBMITTED:'Menunggu persetujuan',APPROVED:'Disetujui',REJECTED:'Perlu diperbaiki'};
 export const jakartaToday=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-export function defaultOvertimePeriod(){const today=jakartaToday();const [year,month,day]=today.split('-').map(Number);const date=new Date(Date.UTC(year,month-1-(day<=5?1:0),1));return date.toISOString().slice(0,7)}
+export function defaultOvertimePeriod(){
+    return jakartaToday().slice(0, 7);
+}
+export function watchOvertimePeriod(update:(period:string) => void){
+    const refresh = () => update(defaultOvertimePeriod());
+    const timer = setInterval(refresh, 60_000);
+    window.addEventListener('focus', refresh);
+    refresh();
+    return () => {
+        clearInterval(timer);
+        window.removeEventListener('focus', refresh);
+    }
+}
 export function calendarDates(period:string){const [year,month]=period.split('-').map(Number);const count=new Date(Date.UTC(year,month,0)).getUTCDate();return Array.from({length:count},(_,index)=>`${period}-${String(index+1).padStart(2,'0')}`)}
 export const automaticDayType=(date:string):OvertimeDayType=>{const day=new Date(`${date}T00:00:00Z`).getUTCDay();return day===0||day===6?'HOLIDAY':'WORKDAY'};
 export function calculateOvertime(start:string,end:string,dayType:OvertimeDayType){
