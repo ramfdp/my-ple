@@ -879,7 +879,6 @@ Run these commands on the VPS from the deployed repository directory. Keep all b
    docker compose --env-file .env.production stop backend
    docker compose --env-file .env.production ps backend
    ```
-
 2. Back up the database and matching PDF storage while writes remain blocked. Use a new directory and protect the backups. Verify the dump listing and archive listing, and confirm a restore to a separate disposable database works before applying recovery.
 
    ```sh
@@ -891,7 +890,6 @@ Run these commands on the VPS from the deployed repository directory. Keep all b
    docker compose --env-file .env.production exec -T db pg_restore --list < "$recovery_backup/database.dump"
    tar -tzf "$recovery_backup/weekly-reports.tar.gz"
    ```
-
 3. Create a temporary recovery service. It inherits the production database/environment and named storage volumes, but builds a separate image. The normal backend image remains unchanged. The recovery process runs as the same UID 10001 and needs write access to the existing reports directory; fix an ownership problem on that directory deliberately rather than running the recovery as root.
 
    ```sh
@@ -914,7 +912,6 @@ Run these commands on the VPS from the deployed repository directory. Keep all b
    docker compose --env-file .env.production -f compose.yaml -f .weekly-recovery.override.yaml --profile recovery config --quiet
    docker compose --env-file .env.production -f compose.yaml -f .weekly-recovery.override.yaml --profile recovery build weekly-recovery
    ```
-
 4. Preview, inspect the count/divisions and fingerprint, then apply with those exact values. Replace `COUNT_FROM_PREVIEW` and `FINGERPRINT_FROM_PREVIEW`; never fabricate them or reuse values from a different batch.
 
    ```sh
@@ -923,7 +920,6 @@ Run these commands on the VPS from the deployed repository directory. Keep all b
    ```
 
    Preview does not run schema migration or start lifecycle workers. Apply is bounded to the recovery ledger, with a 10-minute timeout. A nonzero exit or partial failure means **keep writes stopped**. Resolve the reported PDF/storage/database problem, then retry with the same count and fingerprint. Do not delete the ledger, manually delete reports, or trigger the broad weekly worker to complete this recovery.
-
 5. Require a successful apply result for every selected division. Verify that every selected archive is finalized, its stored PDF checksum is valid, and no selected source report remains; then open the generated PDFs and confirm the selected totals and exceptional 23–30 October label. Re-running preview/apply for the same completed batch must remain idempotent and must not sweep new work. Management delivery records are queued through the normal path; this recovery command does not send email. Ordinary workers may send those queued notifications after restart.
 
    ```sh
@@ -949,7 +945,6 @@ Run these commands on the VPS from the deployed repository directory. Keep all b
    ```
 
    Require `selected` to equal the reviewed count, `remaining=0`, and `finalized_and_reset=selected`. For each returned archive, replace `ARCHIVE_ID_FROM_RESULT` in the checksum command and compare with `pdf_sha256`. Do not restart on a missing PDF, mismatched checksum, or count discrepancy.
-
 6. Restart the normal production backend image with the **previously recorded replica count** (the example uses three), verify health, then reopen report writes and inspect History. Do not start the recovery image as the regular backend.
 
    ```sh
