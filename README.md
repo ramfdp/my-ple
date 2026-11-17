@@ -721,6 +721,26 @@ Rujukan:
 
 ## Deployment production (VPS)
 
+### Pemulihan Hermes 503 setelah website takedown
+
+Jalankan pada VPS untuk membuat ulang tiga container backend dengan konfigurasi
+Hermes production:
+
+```sh
+cd /opt/my-ple
+
+docker compose \
+  -p my-ple \
+  --env-file .env.production \
+  -f compose.yaml \
+  -f compose.ai-production.yaml \
+  up -d \
+  --no-deps \
+  --force-recreate \
+  --scale backend=3 \
+  backend
+```
+
 Simpan konfigurasi production di `.env.production` pada root proyek, lalu selalu
 sertakan file tersebut pada setiap perintah Compose. Jalankan dari checkout
 production dengan working tree bersih:
