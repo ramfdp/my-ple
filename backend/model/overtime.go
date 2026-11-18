@@ -36,10 +36,10 @@ func CalculateOvertime(start, end, dayType string) (actualMinutes, weightedMinut
 	actualMinutes = endMinute - startMinute
 	if dayType == OvertimeWorkday {
 		for day := 0; day < endMinute; day += 24 * 60 {
-			actualMinutes -= max(0, min(endMinute, day+18*60)-max(startMinute, day+8*60))
+			actualMinutes -= max(0, min(endMinute, day+17*60)-max(startMinute, day+8*60))
 		}
 	}
-	actualMinutes = ((actualMinutes + 15) / 30) * 30
+	actualMinutes = ((actualMinutes + 30) / 60) * 60
 	weightedMinutes = actualMinutes
 	if dayType == OvertimeHoliday {
 		weightedMinutes *= 2
