@@ -346,6 +346,7 @@ export const messages = {
  "Divisi utama wajib diisi.": ["Divisi utama wajib diisi.", "Primary division is required."],
  "Divisi, role, dan kategori mengikuti pilihan di atas.": ["Divisi, role, dan kategori mengikuti pilihan di atas.", "Division, role, and category follow the selections above."],
  "Division": ["Divisi", "Division"],
+ "Public": ["Publik", "Public"],
  "Division — anggota divisi": ["Divisi — anggota divisi", "Division — division members"],
  "Dokumen": ["Dokumen", "Document"],
  "Dokumen ": ["Dokumen ", "Document "],

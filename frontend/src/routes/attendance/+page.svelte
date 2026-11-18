@@ -139,7 +139,7 @@
  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
  .attendance-notes { white-space: pre-wrap; overflow-wrap: break-word; word-break: normal; }
- .attendance-notes span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+ .attendance-notes span { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
  .notes-field { display: grid; margin-bottom: 1rem; gap: .5rem; }
  textarea { width: 100%; min-width: 0; box-sizing: border-box; padding: 1rem; border: 2px solid var(--his-border); border-radius: 12px; font: inherit; resize: vertical; transition: all 200ms ease; }
  textarea:focus { border-color: var(--his-primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); outline: none; }

@@ -104,7 +104,7 @@
  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
  .attendance-notes { white-space: pre-wrap; overflow-wrap: break-word; word-break: normal; }
- .attendance-notes span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+ .attendance-notes span { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
  .coords { font-family: 'Courier New', monospace; font-size: .8rem; color: var(--his-muted); display: block; margin-bottom: .25rem; }
  .overview-page { padding: var(--his-page-padding); max-width: 1400px; margin: auto; }
  header { margin-bottom: 2rem; animation: slideIn 400ms ease-out; }

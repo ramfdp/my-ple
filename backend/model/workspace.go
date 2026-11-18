@@ -17,6 +17,7 @@ const (
 	PriorityUrgent   = "URGENT"
 	PagePersonal     = "PERSONAL"
 	PageDivision     = "DIVISION"
+	PagePublic       = "PUBLIC"
 )
 
 type Workspace struct {

@@ -10,7 +10,7 @@ import (
 
 func ValidateWorkspacePage(in *model.WorkspacePageInput) error {
 	in.Title = strings.TrimSpace(in.Title)
-	if in.Title == "" || len(in.Title) > 200 || !slices.Contains([]string{model.PagePersonal, model.PageDivision}, in.Visibility) || len(in.Content) > 200 {
+	if in.Title == "" || len(in.Title) > 200 || !slices.Contains([]string{model.PagePersonal, model.PageDivision, model.PagePublic}, in.Visibility) || len(in.Content) > 200 {
 		return ErrWorkspaceInvalid
 	}
 	if in.ParentID != nil && !workspaceUUID(*in.ParentID) {
@@ -56,15 +56,16 @@ func (db *Database) WorkspacePage(ctx context.Context, userID, id string) (model
 		return p, err
 	}
 	manager, err := db.WorkspaceAccess(ctx, userID, division)
-	if err != nil {
+	member := err == nil
+	if err != nil && !(err == ErrWorkspaceForbidden && visibility == model.PagePublic) {
 		return p, err
 	}
 	if visibility == model.PagePersonal && creator != userID {
 		return p, ErrWorkspaceForbidden
 	}
-	p, err = scanWorkspacePage(db.Conn.QueryRowContext(ctx, `SELECT `+pageColumns+` FROM workspace_pages WHERE id=$1 AND (visibility='DIVISION' OR created_by=$2)`, id, userID))
-	p.CanManage = p.CreatedBy == userID || manager
-	p.CanEdit = p.CanManage || p.Visibility == model.PageDivision
+	p, err = scanWorkspacePage(db.Conn.QueryRowContext(ctx, `SELECT `+pageColumns+` FROM workspace_pages WHERE id=$1 AND (visibility='PUBLIC' OR ($3 AND (visibility='DIVISION' OR created_by=$2)))`, id, userID, member))
+	p.CanManage = member && (p.CreatedBy == userID || manager)
+	p.CanEdit = p.CanManage || member && p.Visibility != model.PagePersonal
 	for i := range p.Content {
 		p.Content[i].Origin = i + 1
 	}
@@ -76,7 +77,7 @@ func (db *Database) WorkspacePages(ctx context.Context, userID string, division 
 		return nil, err
 	}
 	// Listing excludes content; fetch a page's body only after authorization.
-	rows, err := db.Conn.QueryContext(ctx, `SELECT id,division_id,parent_id,title,'[]'::jsonb,visibility,COALESCE(created_by::text,''),updated_at,version FROM workspace_pages WHERE division_id=$1 AND (visibility='DIVISION' OR created_by=$2) ORDER BY title,id`, division, userID)
+	rows, err := db.Conn.QueryContext(ctx, `SELECT id,division_id,parent_id,title,'[]'::jsonb,visibility,COALESCE(created_by::text,''),updated_at,version FROM workspace_pages WHERE visibility='PUBLIC' OR (division_id=$1 AND (visibility='DIVISION' OR created_by=$2)) ORDER BY title,id`, division, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -87,8 +88,9 @@ func (db *Database) WorkspacePages(ctx context.Context, userID string, division 
 		if e != nil {
 			return nil, e
 		}
-		p.CanManage = manager || p.CreatedBy == userID
-		p.CanEdit = p.CanManage || p.Visibility == model.PageDivision
+		member := p.WorkspaceID == division
+		p.CanManage = member && (manager || p.CreatedBy == userID)
+		p.CanEdit = p.CanManage || member && p.Visibility != model.PagePersonal
 		items = append(items, p)
 	}
 	return items, rows.Err()

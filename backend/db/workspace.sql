@@ -53,6 +53,8 @@ CREATE TABLE IF NOT EXISTS workspace_pages (
  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), version INTEGER NOT NULL DEFAULT 1,
  CHECK(parent_id<>id), CHECK(jsonb_typeof(content)='array')
 );
+ALTER TABLE workspace_pages DROP CONSTRAINT IF EXISTS workspace_pages_visibility_check;
+ALTER TABLE workspace_pages ADD CONSTRAINT workspace_pages_visibility_check CHECK(visibility IN ('PERSONAL','DIVISION','PUBLIC'));
 CREATE INDEX IF NOT EXISTS workspace_pages_division ON workspace_pages(division_id,visibility,created_by);
 CREATE INDEX IF NOT EXISTS workspace_pages_parent ON workspace_pages(parent_id);
 
