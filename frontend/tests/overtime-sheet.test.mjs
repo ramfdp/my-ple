@@ -29,9 +29,9 @@ test('editable sheet uses existing preview and supports short months',()=>{
  assert.match(body,/value="WORKDAY"/);
 });
 
-test('payment columns and totals match Excel rules in editable and read-only sheets',()=>{
+test('payment columns show dashes for unused tiers and preserve totals in editable and read-only sheets',()=>{
  for(const editable of [true,false]){
-  for(const [endTime,dayType,actualMinutes,weightedMinutes,first,remaining] of [
+  for(const [endTime,dayType,actualMinutes,weightedMinutes,first,remaining,holidayHours=[0,0,0]] of [
    ['17:00','WORKDAY',0,0,'0,00','0,00'],
    ['17:29','WORKDAY',0,0,'0,00','0,00'],
    ['17:30','WORKDAY',60,60,'1,00','0,00'],
@@ -40,16 +40,24 @@ test('payment columns and totals match Excel rules in editable and read-only she
    ['18:30','WORKDAY',120,120,'1,00','1,00'],
    ['19:00','WORKDAY',120,120,'1,00','1,00'],
    ['21:00','WORKDAY',240,240,'1,00','3,00'],
-   ['10:00','HOLIDAY',120,240,'0,00','0,00'],
-   ['09:30','HOLIDAY',120,240,'0,00','0,00']
+   ['08:29','HOLIDAY',0,0,'0,00','0,00',[0,0,0]],
+   ['09:00','HOLIDAY',60,120,'0,00','0,00',[2,0,0]],
+   ['10:00','HOLIDAY',120,240,'0,00','0,00',[4,0,0]],
+   ['09:30','HOLIDAY',120,240,'0,00','0,00',[4,0,0]],
+   ['15:00','HOLIDAY',420,840,'0,00','0,00',[14,0,0]],
+   ['16:00','HOLIDAY',480,960,'0,00','0,00',[16,0,0]],
+   ['17:00','HOLIDAY',540,1080,'0,00','0,00',[16,2,0]],
+   ['18:00','HOLIDAY',600,1200,'0,00','0,00',[16,2,2]],
+   ['20:00','HOLIDAY',720,1440,'0,00','0,00',[16,2,6]]
   ]){
    const row={...sheet.entries[0],startTime:'08:00',endTime,dayType,actualMinutes,weightedMinutes};
    const {body}=render(Sheet,{props:{sheet:{...sheet,entries:[row],weightedMinutes},period:'2026-10',editable,rows:{[row.workDate]:row}}});
    const dateRow=body.match(/<tr\b[^>]*>[^]*?<\/tr>/g)?.find(row=>row.includes('title="2026-10-07"'));
    assert.ok(dateRow);
    const calculated=[...dateRow.matchAll(/<td class="calculated[^\"]*">([^]*?)<\/td>/g)];
-   assert.equal(calculated[2][1],first);
-   assert.equal(calculated[3][1],remaining);
+   assert.equal(calculated[2][1],dayType==='WORKDAY'&&first!=='0,00'?first:'—');
+   assert.equal(calculated[3][1],dayType==='WORKDAY'&&remaining!=='0,00'?remaining:'—');
+   assert.deepEqual(calculated.slice(4,7).map(cell=>cell[1]),holidayHours.map(value=>dayType==='HOLIDAY'&&value>0?value.toLocaleString('id-ID',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'));
    const results=[...dateRow.matchAll(/<td class="result[^\"]*">([^]*?)<\/td>/g)];
    const expectedHours=minutes=>(minutes/60).toLocaleString('id-ID',{minimumFractionDigits:2,maximumFractionDigits:2});
    assert.equal(results[0][1],expectedHours(actualMinutes));
@@ -57,6 +65,33 @@ test('payment columns and totals match Excel rules in editable and read-only she
    const footer=body.match(/<tfoot\b[^>]*>([^]*?)<\/tfoot>/);
    assert.ok(footer);
    assert.equal(footer[1].match(/<td class="result[^\"]*">([^]*?)<\/td>/)?.[1],expectedHours(weightedMinutes));
+  }
+ }
+});
+
+test('row payment total requires both project fields and incomplete drafts do not count toward the footer',()=>{
+ for(const editable of [true,false]){
+  for(const dayType of ['WORKDAY','HOLIDAY']){
+   for(const [project,description,complete] of [
+    ['','',false],['PLE','',false],['','Support',false],
+    ['   ','Support',false],['PLE',' \t ',false],[' PLE ',' Support ',true]
+   ]){
+    const actualMinutes=dayType==='HOLIDAY'?780:240;
+    const weightedMinutes=actualMinutes*(dayType==='HOLIDAY'?2:1);
+    const row={...sheet.entries[0],dayType,project,description,actualMinutes,weightedMinutes};
+    const {body}=render(Sheet,{props:{sheet:{...sheet,entries:[row],weightedMinutes},period:'2026-10',editable,rows:{[row.workDate]:row}}});
+    const dateRow=body.match(/<tr\b[^>]*>[^]*?<\/tr>/g)?.find(row=>row.includes('title="2026-10-07"'));
+    assert.ok(dateRow);
+    const results=[...dateRow.matchAll(/<td class="result[^\"]*">([^]*?)<\/td>/g)];
+    const expectedHours=minutes=>(minutes/60).toLocaleString('id-ID',{minimumFractionDigits:2,maximumFractionDigits:2});
+    assert.equal(results[0][1],expectedHours(actualMinutes));
+    assert.equal(results[1][1],complete?expectedHours(weightedMinutes):'—');
+    if(editable){
+     const footer=body.match(/<tfoot\b[^>]*>([^]*?)<\/tfoot>/);
+     assert.ok(footer);
+     assert.equal(footer[1].match(/<td class="result[^\"]*">([^]*?)<\/td>/)?.[1],expectedHours(complete?weightedMinutes:0));
+    }
+   }
   }
  }
 });

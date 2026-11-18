@@ -29,11 +29,18 @@ export function watchOvertimePeriod(update:(period:string) => void){
 }
 export function calendarDates(period:string){const [year,month]=period.split('-').map(Number);const count=new Date(Date.UTC(year,month,0)).getUTCDate();return Array.from({length:count},(_,index)=>`${period}-${String(index+1).padStart(2,'0')}`)}
 export const automaticDayType=(date:string):OvertimeDayType=>{const day=new Date(`${date}T00:00:00Z`).getUTCDay();return day===0||day===6?'HOLIDAY':'WORKDAY'};
-export function workdayPayment(actualMinutes:number,dayType:OvertimeDayType){
- return {
-  firstMinutes:dayType==='WORKDAY'&&actualMinutes>0?60:0,
-  remainingMinutes:dayType==='WORKDAY'&&actualMinutes-60>0.49*60?actualMinutes-60:0
- };
+export function overtimePayment(actualMinutes:number,dayType:OvertimeDayType){
+ if(dayType==='WORKDAY')return [
+  actualMinutes>0?60:0,
+  actualMinutes-60>0.49*60?actualMinutes-60:0,
+  0,0,0
+ ];
+ return [
+  0,0,
+  Math.min(actualMinutes,8*60)*2,
+  Math.min(Math.max(actualMinutes-8*60,0),60)*2,
+  Math.max(actualMinutes-9*60,0)*2
+ ];
 }
 export function calculateOvertime(start:string,end:string,dayType:OvertimeDayType){
  if(!/^\d{2}:\d{2}$/.test(start)||!/^\d{2}:\d{2}$/.test(end)||start===end)return null;
@@ -46,8 +53,8 @@ export function calculateOvertime(start:string,end:string,dayType:OvertimeDayTyp
     }
  }
  actualMinutes=Math.floor((actualMinutes+30)/60)*60;
- const payment=workdayPayment(actualMinutes,dayType);
- return{actualMinutes,weightedMinutes:dayType==='HOLIDAY'?actualMinutes*2:payment.firstMinutes+payment.remainingMinutes};
+ const payment=overtimePayment(actualMinutes,dayType);
+ return{actualMinutes,weightedMinutes:payment.reduce((sum,minutes)=>sum+minutes,0)};
 }
 type DraftStorage=Pick<Storage,'getItem'|'setItem'|'removeItem'>;
 export function saveOvertimeDraft(storage:DraftStorage,key:string,rows:Record<string,unknown>){storage.setItem(key,JSON.stringify(rows))}

@@ -1,5 +1,5 @@
 <script lang="ts">
- import {automaticDayType, calculateOvertime, calendarDates, hours, workdayPayment, type OvertimeEntry, type OvertimeSheet} from '$lib/overtime';
+ import {automaticDayType, calculateOvertime, calendarDates, hours, overtimePayment, type OvertimeEntry, type OvertimeSheet} from '$lib/overtime';
  type Draft = Pick<OvertimeEntry, 'workDate'|'startTime'|'endTime'|'dayType'|'overrideReason'|'project'|'description'> & Partial<Pick<OvertimeEntry, 'actualMinutes'|'weightedMinutes'>>;
  let {sheet, period, rows = $bindable({}), editable = false, busy = false, onclear, onpersist}: {
   sheet: OvertimeSheet; period: string; rows?: Record<string,Draft>; editable?: boolean; busy?: boolean;
@@ -8,9 +8,13 @@
  const dates = $derived(calendarDates(period));
  const savedRows = $derived(Object.fromEntries(sheet.entries.map(entry=>[entry.workDate,entry])));
  const month = $derived(new Intl.DateTimeFormat('id-ID',{month:'long',timeZone:'UTC'}).format(new Date(`${period}-01T00:00:00Z`)));
- const total = $derived(editable ? dates.reduce((sum,date)=>sum+(rows[date] ? calculateOvertime(rows[date].startTime,rows[date].endTime,rows[date].dayType)?.weightedMinutes??0 : 0),0) : sheet.weightedMinutes);
+ const total = $derived(editable ? dates.reduce((sum,date)=>sum+(projectComplete(rows[date]) ? calculateOvertime(rows[date].startTime,rows[date].endTime,rows[date].dayType)?.weightedMinutes??0 : 0),0) : sheet.weightedMinutes);
  const widths = [24.6,49.2,51,50.4,110.4,81.6,63,45.6,45.6,45.6,45.6,66.6,58.8,61.2,95.4,323.4,57.6];
  
+ function projectComplete(row:Draft|undefined){
+    return Boolean(row?.project.trim());
+ }
+
  function decimalTime(value:string|undefined){
     if(!value||!/^([01]\d|2[0-3]):[0-5]\d$/.test(value))return '';
     const [hour, minute] = value.split(':').map(Number);
@@ -51,7 +55,7 @@
     {#each dates as date, index (date)}
      {@const row = editable ? rows[date] : savedRows[date]}
      {@const calculation = editable && row ? calculateOvertime(row.startTime,row.endTime,row.dayType) : row}
-     {@const payment = row && calculation?.actualMinutes!=null ? workdayPayment(calculation.actualMinutes,row.dayType) : null}
+     {@const payment = row && calculation?.actualMinutes!=null ? overtimePayment(calculation.actualMinutes,row.dayType) : [0,0,0,0,0]}
      <tr>
       <td class="number">{index+1}{#if editable && row}<button class="clear" type="button" aria-label={`Kosongkan ${date}`} title="Kosongkan baris" disabled={busy} onclick={()=>onclear?.(date)}>×</button>{/if}</td>
       <th scope="row" title={date}>{index+1}</th>
@@ -59,10 +63,8 @@
       <td>{#if editable && row}<input aria-label={`Jam selesai ${date}`} type="time" bind:value={rows[date].endTime} disabled={busy}/><span class="print-value">{row.endTime}</span>{:else}{row?.endTime??''}{/if}</td>
       <td class="calculated">{decimalTime(row?.startTime)}</td><td class="calculated">{decimalTime(row?.endTime)}</td>
       <td class="result">{calculation?.actualMinutes==null?'—':hours(calculation.actualMinutes)}</td>
-      <td class="calculated">{payment?hours(payment.firstMinutes):'—'}</td>
-      <td class="calculated">{payment?hours(payment.remainingMinutes):'—'}</td>
-      {#each [1,2,3] as bucket}<td class="calculated">{@render unavailable()}</td>{/each}
-      <td class="result">{calculation?.weightedMinutes==null?'—':hours(calculation.weightedMinutes)}</td>
+      {#each payment as minutes}<td class="calculated">{minutes?hours(minutes):'—'}</td>{/each}
+      <td class="result">{!projectComplete(row)||calculation?.weightedMinutes==null?'—':hours(calculation.weightedMinutes)}</td>
       <td>{@render unavailable()}</td>
       <td>{#if editable && row}<input aria-label={`Project ${date}`} maxlength="255" bind:value={rows[date].project} disabled={busy}/><span class="print-value">{row.project}</span>{:else}{row?.project??''}{/if}</td>
       <td class="description">{#if editable && row}<textarea aria-label={`Deskripsi ${date}`} rows="2" maxlength="4000" bind:value={rows[date].description} disabled={busy}></textarea><span class="print-value">{row.description}</span>{:else}{row?.description??''}{/if}

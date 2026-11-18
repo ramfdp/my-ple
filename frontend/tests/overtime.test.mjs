@@ -1,7 +1,7 @@
 import test from 'node:test';
 import {translate} from '../src/lib/i18n.ts';
 import assert from 'node:assert/strict';
-import {automaticDayType,calculateOvertime,calendarDates,hours,workdayPayment,loadOvertimeDraft,saveOvertimeDraft} from '../src/lib/overtime.ts';
+import {automaticDayType,calculateOvertime,calendarDates,hours,overtimePayment,loadOvertimeDraft,saveOvertimeDraft} from '../src/lib/overtime.ts';
 
 test('calendarDates covers leap years and short months',()=>{
  assert.equal(calendarDates('2024-02').length,29);
@@ -43,8 +43,18 @@ test('workday payment splits first hour and remaining hours using Excel rules',(
  for(const [actualMinutes,firstMinutes,remainingMinutes] of [
   [0,0,0],[30,60,0],[60,60,0],[90,60,30],[120,60,60],[240,60,180]
  ]){
-  assert.deepEqual(workdayPayment(actualMinutes,'WORKDAY'),{firstMinutes,remainingMinutes});
-  assert.deepEqual(workdayPayment(actualMinutes,'HOLIDAY'),{firstMinutes:0,remainingMinutes:0});
+  assert.deepEqual(overtimePayment(actualMinutes,'WORKDAY'),[firstMinutes,remainingMinutes,0,0,0]);
+ }
+});
+
+test('holiday payment doubles each tier and adds up to the existing total',()=>{
+ for(const [actualHours,expected] of [
+  [0,[0,0,0]],[1,[2,0,0]],[7,[14,0,0]],[8,[16,0,0]],
+  [9,[16,2,0]],[10,[16,2,2]],[12,[16,2,6]],[24,[16,2,30]]
+ ]){
+  const payment=overtimePayment(actualHours*60,'HOLIDAY');
+  assert.deepEqual(payment,[0,0,...expected.map(hours=>hours*60)]);
+  assert.equal(payment.reduce((sum,minutes)=>sum+minutes,0),actualHours*60*2);
  }
 });
 
