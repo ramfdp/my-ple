@@ -1,5 +1,5 @@
 <script lang="ts">
- import {automaticDayType, calculateOvertime, calendarDates, hours, type OvertimeEntry, type OvertimeSheet} from '$lib/overtime';
+ import {automaticDayType, calculateOvertime, calendarDates, hours, workdayPayment, type OvertimeEntry, type OvertimeSheet} from '$lib/overtime';
  type Draft = Pick<OvertimeEntry, 'workDate'|'startTime'|'endTime'|'dayType'|'overrideReason'|'project'|'description'> & Partial<Pick<OvertimeEntry, 'actualMinutes'|'weightedMinutes'>>;
  let {sheet, period, rows = $bindable({}), editable = false, busy = false, onclear, onpersist}: {
   sheet: OvertimeSheet; period: string; rows?: Record<string,Draft>; editable?: boolean; busy?: boolean;
@@ -14,7 +14,8 @@
  function decimalTime(value:string|undefined){
     if(!value||!/^([01]\d|2[0-3]):[0-5]\d$/.test(value))return '';
     const [hour, minute] = value.split(':').map(Number);
-    return (hour + minute/60).toLocaleString('id-ID',{maximumFractionDigits:2});
+    const roundedHour = Math.round(hour + minute/60);
+    return hours((roundedHour===0?24:roundedHour)*60);
  }
 </script>
 
@@ -50,6 +51,7 @@
     {#each dates as date, index (date)}
      {@const row = editable ? rows[date] : savedRows[date]}
      {@const calculation = editable && row ? calculateOvertime(row.startTime,row.endTime,row.dayType) : row}
+     {@const payment = row && calculation?.actualMinutes!=null ? workdayPayment(calculation.actualMinutes,row.dayType) : null}
      <tr>
       <td class="number">{index+1}{#if editable && row}<button class="clear" type="button" aria-label={`Kosongkan ${date}`} title="Kosongkan baris" disabled={busy} onclick={()=>onclear?.(date)}>×</button>{/if}</td>
       <th scope="row" title={date}>{index+1}</th>
@@ -57,7 +59,9 @@
       <td>{#if editable && row}<input aria-label={`Jam selesai ${date}`} type="time" bind:value={rows[date].endTime} disabled={busy}/><span class="print-value">{row.endTime}</span>{:else}{row?.endTime??''}{/if}</td>
       <td class="calculated">{decimalTime(row?.startTime)}</td><td class="calculated">{decimalTime(row?.endTime)}</td>
       <td class="result">{calculation?.actualMinutes==null?'—':hours(calculation.actualMinutes)}</td>
-      {#each [1,2,3,4,5] as bucket}<td class="calculated">{@render unavailable()}</td>{/each}
+      <td class="calculated">{payment?hours(payment.firstMinutes):'—'}</td>
+      <td class="calculated">{payment?hours(payment.remainingMinutes):'—'}</td>
+      {#each [1,2,3] as bucket}<td class="calculated">{@render unavailable()}</td>{/each}
       <td class="result">{calculation?.weightedMinutes==null?'—':hours(calculation.weightedMinutes)}</td>
       <td>{@render unavailable()}</td>
       <td>{#if editable && row}<input aria-label={`Project ${date}`} maxlength="255" bind:value={rows[date].project} disabled={busy}/><span class="print-value">{row.project}</span>{:else}{row?.project??''}{/if}</td>
