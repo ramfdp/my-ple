@@ -63,7 +63,11 @@ func (db *Database) WorkspacePage(ctx context.Context, userID, id string) (model
 		return p, ErrWorkspaceForbidden
 	}
 	p, err = scanWorkspacePage(db.Conn.QueryRowContext(ctx, `SELECT `+pageColumns+` FROM workspace_pages WHERE id=$1 AND (visibility='DIVISION' OR created_by=$2)`, id, userID))
-	p.CanEdit = creator == userID || manager
+	p.CanManage = p.CreatedBy == userID || manager
+	p.CanEdit = p.CanManage || p.Visibility == model.PageDivision
+	for i := range p.Content {
+		p.Content[i].Origin = i + 1
+	}
 	return p, err
 }
 func (db *Database) WorkspacePages(ctx context.Context, userID string, division int) ([]model.WorkspacePage, error) {
@@ -83,7 +87,8 @@ func (db *Database) WorkspacePages(ctx context.Context, userID string, division 
 		if e != nil {
 			return nil, e
 		}
-		p.CanEdit = manager || p.CreatedBy == userID
+		p.CanManage = manager || p.CreatedBy == userID
+		p.CanEdit = p.CanManage || p.Visibility == model.PageDivision
 		items = append(items, p)
 	}
 	return items, rows.Err()
@@ -162,6 +167,11 @@ func (db *Database) SaveWorkspacePage(ctx context.Context, userID string, divisi
 			return empty, ErrWorkspaceForbidden
 		}
 	}
+	author := model.PageAuthor{ID: userID}
+	if err = tx.QueryRowContext(ctx, `SELECT name FROM users WHERE id=$1`, userID).Scan(&author.Name); err != nil {
+		return empty, err
+	}
+	attributePageContent(old.Content, in.Content, author)
 	raw, _ := json.Marshal(in.Content)
 	if id == "" {
 		id = NewID()
@@ -182,10 +192,12 @@ func (db *Database) DeleteWorkspacePage(ctx context.Context, userID, id string, 
 	if err != nil {
 		return err
 	}
-	if !p.CanEdit {
+	if !p.CanManage {
 		return ErrWorkspaceForbidden
 	}
-	if version != p.Version { return ErrWorkspaceConflict }
+	if version != p.Version {
+		return ErrWorkspaceConflict
+	}
 	tx, err := db.Conn.BeginTx(ctx, nil)
 	if err != nil {
 		return err

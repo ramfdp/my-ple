@@ -600,3 +600,18 @@ small.ws-activity-time { font-size: 12px; color: #94a3b8; }
 	.ws-dialog { padding: 16px; }
 	.ws-directory { gap: 14px; }
 }
+.ws-attributed-line {
+ display: grid;
+ grid-template-columns: minmax(0, min(30%, 10rem)) minmax(0, 1fr);
+ border-bottom: 1px solid #dde4ec;
+}
+.ws-line-author {
+ padding: .25rem .6rem;
+ background: #f1f5f9;
+ color: #475569;
+ font: .78rem/1.6 ui-monospace, monospace;
+ border-inline-end: 2px solid #94a3b8;
+ overflow-wrap: anywhere;
+}
+.ws-line-content { padding: .2rem .65rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ws-line-content h3 { margin: 0; }

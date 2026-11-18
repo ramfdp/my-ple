@@ -17,7 +17,10 @@ func DecodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
 }
 
 func DecodeStrictJSON(w http.ResponseWriter, r *http.Request, target any) bool {
-	r.Body = http.MaxBytesReader(w, r.Body, 16_384)
+	return decodeStrictJSONLimit(w, r, target, 16_384)
+}
+func decodeStrictJSONLimit(w http.ResponseWriter, r *http.Request, target any, limit int64) bool {
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {

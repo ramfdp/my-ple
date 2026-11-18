@@ -98,13 +98,20 @@ type WorkActivity struct {
 }
 
 // A bounded document: text, heading, list, checklist and links; never executable HTML.
+type PageAuthor struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
 type PageLine struct {
-	Kind    string `json:"kind"`
-	Text    string `json:"text"`
-	Checked bool   `json:"checked"`
-	URL     string `json:"url,omitempty"`
+	Origin  int          `json:"origin,omitempty"`
+	Authors []PageAuthor `json:"authors,omitempty"`
+	Kind    string       `json:"kind"`
+	Text    string       `json:"text"`
+	Checked bool         `json:"checked"`
+	URL     string       `json:"url,omitempty"`
 }
 type WorkspacePage struct {
+	CanManage   bool       `json:"canManage"`
 	ID          string     `json:"id"`
 	WorkspaceID int        `json:"workspaceId"`
 	ParentID    *string    `json:"parentId"`

@@ -410,6 +410,7 @@ export const messages = {
  "Halaman tidak valid.": ["Halaman tidak valid.", "Invalid page."],
  "Halo,": ["Halo,", "Hello,"],
  "Hapus": ["Hapus", "Delete"],
+ "Penulis belum tercatat": ["Penulis belum tercatat", "Author unrecorded"],
  "Hapus Catatan": ["Hapus Catatan", "Delete Note"],
  "Hapus halaman ini? Halaman dengan anak harus dikosongkan terlebih dahulu.": ["Hapus halaman ini? Halaman dengan anak harus dikosongkan terlebih dahulu.", "Delete this page? Move or delete its child pages first."],
  "Hapus laporan": ["Hapus laporan", "Delete report"],

@@ -21,8 +21,8 @@
   catch(e){if(selected?.id!==id||selected.version!==version||editing)return;if(e instanceof APIError&&(e.status===403||e.status===404)){selected=null;confirmDelete=false}else error=(e as Error).message}
  });return()=>{request++;stop()}});
  async function open(note:Note){if(busy)return;busy=true;selected=null;error='';try{selected=(await api<{page:Note}>('/workspace-pages/'+note.id)).page;editing=false;confirmDelete=false}catch(e){error=(e as Error).message}finally{busy=false}}
- function create(parent:Note|null=null){selected=null;input={title:'',parentId:parent?.id??null,visibility:parent?.visibility??'DIVISION',content:[{kind:'text',text:'',checked:false}],version:0};editing=true;error=''}
- function edit(){if(!selected)return;input={title:selected.title,parentId:selected.parentId,visibility:selected.visibility,content:selected.content.map(l=>({...l})),version:selected.version};editing=true}
+ function create(parent:Note|null=null){selected=null;input={title:'',parentId:parent?.id??null,visibility:parent?.visibility??'DIVISION',content:[{origin:-1,kind:'text',text:'',checked:false}],version:0};editing=true;error=''}
+ function edit(){if(!selected)return;input={title:selected.title,parentId:selected.parentId,visibility:selected.visibility,content:selected.content.map(({origin,kind,text,checked,url})=>({origin,kind,text,checked,url})),version:selected.version};editing=true}
  async function save(e:SubmitEvent){e.preventDefault();if(busy)return;busy=true;error='';try{selected=(await api<{page:Note}>(selected?'/workspace-pages/'+selected.id:'/workspaces/'+workspace.id+'/pages',{method:selected?'PATCH':'POST',body:JSON.stringify(input)})).page;editing=false;await load()}catch(e){error=(e as Error).message}finally{busy=false}}
  async function remove(){if(!selected||busy)return;busy=true;error='';try{await api('/workspace-pages/'+selected.id,{method:'DELETE',body:JSON.stringify({version:selected.version})});selected=null;confirmDelete=false;await load()}catch(e){error=(e as Error).message+' Hapus atau pindahkan halaman anak terlebih dahulu.'}finally{busy=false}}
  const kinds:{value:PageLine['kind'];label:string}[]=[{value:'text',label:'Paragraf'},{value:'heading',label:'Heading'},{value:'bold',label:'Bold'},{value:'italic',label:'Italic'},{value:'bullet',label:'List'},{value:'check',label:'Checklist'},{value:'link',label:'Link'}];
@@ -36,7 +36,7 @@
  {#if error}<p role="alert">{$translate(error)}</p>{/if}
  {#if editing}<form onsubmit={save}><fieldset disabled={busy} class="ws-note-form">
  <label>{$translate("Judul Halaman")}<input required maxlength="200" bind:value={input.title}/></label>
- <label>{$translate("Visibility")}<select bind:value={input.visibility} onchange={()=>input.parentId=null}><option value="DIVISION">{$translate("Division — anggota divisi")}</option><option value="PERSONAL">{$translate("Personal — hanya pembuat")}</option></select></label>
+ <label>{$translate("Visibility")}<select disabled={!!selected && selected.createdBy!==$currentUser?.id} bind:value={input.visibility} onchange={()=>input.parentId=null}><option value="DIVISION">{$translate("Division — anggota divisi")}</option><option value="PERSONAL">{$translate("Personal — hanya pembuat")}</option></select></label>
  <label>{$translate("Halaman Induk")}<select bind:value={input.parentId}><option value={null}>{$translate("Root / tanpa induk")}</option>{#each pages.filter(p=>p.id!==selected?.id&&p.visibility===input.visibility&&(p.visibility==='DIVISION'||p.createdBy===$currentUser?.id)) as p}<option value={p.id}>{p.title}</option>{/each}</select></label>
  <p class="ws-muted">{$translate("Tulis catatan dengan format sederhana. Maksimal 200 paragraf dan 10.000 karakter.")}</p>
  {#each input.content as line,i}<div class="ws-note-line"><label>{$translate("Format")}<select bind:value={line.kind}>{#each kinds as kind}<option value={kind.value}>{$translate(kind.label)}</option>{/each}</select></label>
@@ -44,13 +44,27 @@
  {#if line.kind==='check'}<label>{$translate("Selesai")}<input type="checkbox" bind:checked={line.checked}/></label>{/if}
  {#if line.kind==='link'}<label>{$translate("URL")}<input required type="url" bind:value={line.url}/></label>{/if}
  <button type="button" aria-label={$translate('Hapus paragraf ')+(i+1)} onclick={()=>input.content=input.content.filter((_,n)=>n!==i)}>✕</button></div>{/each}
- <button type="button" disabled={input.content.length>=200} onclick={()=>input.content=[...input.content,{kind:'text',text:'',checked:false}]}>{$translate("+ Tambah Paragraf")}</button>
- <div class="ws-row"><button class="ws-primary" type="submit">{busy?$translate('Menyimpan…'):$translate('Simpan Catatan')}</button><button type="button" onclick={()=>editing=false}>{$translate("Batal")}</button></div>
+ <button type="button" disabled={input.content.length>=200} onclick={()=>input.content=[...input.content,{origin:-1,kind:'text',text:'',checked:false}]}>{$translate("+ Tambah Paragraf")}</button>
+ <div class="ws-row"><button class="ws-primary" type="submit">{busy?$translate('Menyimpan…'):$translate('Simpan Catatan')}</button><button type="button" onclick={()=>{editing=false;if(selected)void open(selected)}}>{$translate("Batal")}</button></div>
  </fieldset></form>
- {:else if selected}<header><div class="ws-row"><h2>{selected.title}</h2><span>{selected.visibility==='PERSONAL'?$translate('Personal'):$translate('Division')}</span></div><div class="ws-row">{#if selected.canEdit}<button onclick={edit}>{$translate("Edit Catatan")}</button><button onclick={()=>create(selected)}>{$translate("+ Halaman Anak")}</button><button onclick={()=>confirmDelete=true}>{$translate("Hapus Catatan")}</button>{/if}</div></header>
+ {:else if selected}<header><div class="ws-row"><h2>{selected.title}</h2><span>{selected.visibility==='PERSONAL'?$translate('Personal'):$translate('Division')}</span></div><div class="ws-row">{#if selected.canEdit}<button onclick={edit}>{$translate("Edit Catatan")}</button>{/if}{#if selected.canManage}<button onclick={()=>create(selected)}>{$translate("+ Halaman Anak")}</button><button onclick={()=>confirmDelete=true}>{$translate("Hapus Catatan")}</button>{/if}</div></header>
  {#if confirmDelete}<p>{$translate("Hapus halaman ini? Halaman dengan anak harus dikosongkan terlebih dahulu.")}</p><button disabled={busy} onclick={remove}>{$translate("Ya, hapus")}</button> <button onclick={()=>confirmDelete=false}>{$translate("Batal")}</button>{/if}
- <article class="ws-document">{#each selected.content as line}
- {#if line.kind==='heading'}<h3>{line.text}</h3>{:else if line.kind==='bold'}<p><strong>{line.text}</strong></p>{:else if line.kind==='italic'}<p><em>{line.text}</em></p>{:else if line.kind==='bullet'}<ul><li>{line.text}</li></ul>{:else if line.kind==='check'}<p>{line.checked?'☑':'☐'} {line.text}</p>{:else if line.kind==='link'}<p><a href={line.url} target="_blank" rel="noopener noreferrer">{line.text||line.url} ↗</a></p>{:else}<p>{line.text}</p>{/if}
+ <article class="ws-document">
+ {#each selected.content as block}
+  {#each block.text.split('\n') as text,i}
+   <div class="ws-attributed-line">
+    <span class="ws-line-author">{block.authors?.[i]?.name || $translate("Penulis belum tercatat")}</span>
+    <div class="ws-line-content">
+     {#if block.kind==='heading'}<h3>{text}</h3>
+     {:else if block.kind==='bold'}<strong>{text}</strong>
+     {:else if block.kind==='italic'}<em>{text}</em>
+     {:else if block.kind==='bullet'}{i===0?'• ':''}{text}
+     {:else if block.kind==='check'}{i===0?(block.checked?'☑ ':'☐ '):''}{text}
+     {:else if block.kind==='link'}<a href={block.url} target="_blank" rel="noopener noreferrer">{text || (i===0?block.url:'')}</a>
+     {:else}{text}{/if}
+    </div>
+   </div>
+  {/each}
  {/each}</article>
  {:else}<div class="ws-empty">{$translate("Pilih catatan atau buat halaman baru untuk tim Anda.")}</div>{/if}
  </section>

@@ -23,8 +23,8 @@ export interface TaskInput {requiresQa:boolean;qaStage:Task['qaStage'];requestId
 export interface Comment {id:string;userId:string;name:string;content:string;createdAt:string}
 export interface Activity {id:string;taskId:string;actorName:string;action:string;field:string;oldValue:unknown;newValue:unknown;createdAt:string}
 export interface Workload {member:Member;activeTaskCount:number;highPriorityCount:number;dueSoonCount:number;overdueCount:number;overlapCount:number;workloadScore:number;workloadLevel:'AVAILABLE'|'NORMAL'|'BUSY'|'OVERLOADED';tasks:Task[]}
-export interface PageLine {kind:'text'|'heading'|'bullet'|'check'|'link'|'bold'|'italic';text:string;checked:boolean;url?:string}
-export interface Note {id:string;workspaceId:number;parentId:string|null;title:string;content:PageLine[];visibility:'PERSONAL'|'DIVISION';createdBy:string;updatedAt:string;version:number;canEdit:boolean}
+export interface PageLine {origin?:number;authors?:{id:string;name:string}[];kind:'text'|'heading'|'bullet'|'check'|'link'|'bold'|'italic';text:string;checked:boolean;url?:string}
+export interface Note {id:string;workspaceId:number;parentId:string|null;title:string;content:PageLine[];visibility:'PERSONAL'|'DIVISION';createdBy:string;updatedAt:string;version:number;canEdit:boolean;canManage:boolean}
 export type NoteInput=Pick<Note,'parentId'|'title'|'content'|'visibility'|'version'>;
 
 export const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());

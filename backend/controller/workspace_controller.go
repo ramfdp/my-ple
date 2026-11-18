@@ -115,7 +115,7 @@ func (c *WorkspaceController) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 			}
 			if r.Method == "POST" {
 				var in model.WorkspacePageInput
-				if !DecodeStrictJSON(w, r, &in) {
+				if !decodeStrictJSONLimit(w, r, &in, 96<<10) {
 					return
 				}
 				a, e := c.DB.SaveWorkspacePage(r.Context(), user.ID, id, "", in)
@@ -236,8 +236,19 @@ func (c *WorkspaceController) workspacePage(w http.ResponseWriter, r *http.Reque
 		return
 	case "PUT", "PATCH":
 		in := model.WorkspacePageInput{ParentID: p.ParentID, Title: p.Title, Content: p.Content, Visibility: p.Visibility}
-		if !DecodeStrictJSON(w, r, &in) {
+		// Keep the body for metadata-only patches. Decode supplied paragraphs into fresh elements.
+		var content []model.PageLine
+		patch := struct {
+			*model.WorkspacePageInput
+			Content *[]model.PageLine `json:"content"`
+		}{&in, &content}
+		if !decodeStrictJSONLimit(w, r, &patch, 96<<10) {
 			return
+		}
+		if patch.Content == nil {
+			in.Content = nil
+		} else if content != nil {
+			in.Content = content
 		}
 		updated, e := c.DB.SaveWorkspacePage(r.Context(), userID, p.WorkspaceID, id, in)
 		if e != nil {
