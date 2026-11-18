@@ -600,18 +600,23 @@ small.ws-activity-time { font-size: 12px; color: #94a3b8; }
 	.ws-dialog { padding: 16px; }
 	.ws-directory { gap: 14px; }
 }
-.ws-attributed-line {
- display: grid;
- grid-template-columns: minmax(0, min(30%, 10rem)) minmax(0, 1fr);
- border-bottom: 1px solid #dde4ec;
-}
+.ws-attributed-line { position: relative; }
 .ws-line-author {
- padding: .25rem .6rem;
- background: #f1f5f9;
- color: #475569;
- font: .78rem/1.6 ui-monospace, monospace;
- border-inline-end: 2px solid #94a3b8;
+ display: none;
+ position: absolute;
+ z-index: 2;
+ inset-inline-start: 0;
+ bottom: 100%;
+ max-width: 100%;
+ padding: .2rem .55rem;
+ border-radius: .3rem;
+ background: #24354b;
+ color: white;
+ font: .78rem/1.5 ui-monospace, monospace;
  overflow-wrap: anywhere;
 }
-.ws-line-content { padding: .2rem .65rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ws-attributed-line:hover > .ws-line-author,
+.ws-attributed-line:focus-visible > .ws-line-author,
+.ws-attributed-line:has(a:focus-visible) > .ws-line-author { display: block; }
+.ws-line-content { min-height: 1.75em; white-space: pre-wrap; overflow-wrap: anywhere; }
 .ws-line-content h3 { margin: 0; }

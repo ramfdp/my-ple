@@ -50,17 +50,20 @@
  {:else if selected}<header><div class="ws-row"><h2>{selected.title}</h2><span>{selected.visibility==='PERSONAL'?$translate('Personal'):$translate('Division')}</span></div><div class="ws-row">{#if selected.canEdit}<button onclick={edit}>{$translate("Edit Catatan")}</button>{/if}{#if selected.canManage}<button onclick={()=>create(selected)}>{$translate("+ Halaman Anak")}</button><button onclick={()=>confirmDelete=true}>{$translate("Hapus Catatan")}</button>{/if}</div></header>
  {#if confirmDelete}<p>{$translate("Hapus halaman ini? Halaman dengan anak harus dikosongkan terlebih dahulu.")}</p><button disabled={busy} onclick={remove}>{$translate("Ya, hapus")}</button> <button onclick={()=>confirmDelete=false}>{$translate("Batal")}</button>{/if}
  <article class="ws-document">
- {#each selected.content as block}
+ {#each selected.content as block,b}
   {#each block.text.split('\n') as text,i}
-   <div class="ws-attributed-line">
-    <span class="ws-line-author">{block.authors?.[i]?.name || $translate("Penulis belum tercatat")}</span>
+   {@const author = block.authors?.[i]?.name}
+   {@const tooltipId = `note-author-${selected.id}-${b}-${i}`}
+   <!-- svelte-ignore a11y_no_noninteractive_tabindex (Keyboard focus reveals the line author.) -->
+   <div class="ws-attributed-line" role="group" tabindex={author && block.kind!=='link' ? 0 : undefined} aria-describedby={author ? tooltipId : undefined}>
+    {#if author}<span class="ws-line-author" id={tooltipId} role="tooltip">{$translate("Terakhir diedit oleh")} {author}</span>{/if}
     <div class="ws-line-content">
      {#if block.kind==='heading'}<h3>{text}</h3>
      {:else if block.kind==='bold'}<strong>{text}</strong>
      {:else if block.kind==='italic'}<em>{text}</em>
      {:else if block.kind==='bullet'}{i===0?'• ':''}{text}
      {:else if block.kind==='check'}{i===0?(block.checked?'☑ ':'☐ '):''}{text}
-     {:else if block.kind==='link'}<a href={block.url} target="_blank" rel="noopener noreferrer">{text || (i===0?block.url:'')}</a>
+     {:else if block.kind==='link'}<a aria-describedby={author ? tooltipId : undefined} href={block.url} target="_blank" rel="noopener noreferrer">{text || (i===0?block.url:'')}</a>
      {:else}{text}{/if}
     </div>
    </div>
