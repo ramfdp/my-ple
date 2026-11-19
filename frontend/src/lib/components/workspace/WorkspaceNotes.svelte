@@ -1,6 +1,7 @@
 <script lang="ts">
  import { t as translate } from '$lib/i18n';
  import {onMount} from 'svelte';
+ import {SvelteSet} from 'svelte/reactivity';
  import {api,APIError,currentUser} from '$lib/api';
  import {subscribeChanges} from '$lib/realtime';
  import type {Workspace,Note,NoteInput,PageLine} from '$lib/workspace';
@@ -8,6 +9,11 @@
  let pages=$state<Note[]>([]),selected=$state<Note|null>(null),editing=$state(false),busy=$state(false),loading=$state(true),error=$state(''),confirmDelete=$state(false);
  let input=$state<NoteInput>({title:'',parentId:null,visibility:'PUBLIC',content:[],version:0});
  let request=0;
+ const expanded = new SvelteSet<string>();
+ function toggle(id:string) {
+  if (expanded.has(id)) expanded.delete(id);
+  else expanded.add(id);
+ }
  async function load(background=false){const sequence=++request;if(!background)loading=true;try{const result=await api<{pages:Note[]}>('/workspaces/'+workspace.id+'/pages');if(sequence!==request)return false;pages=result.pages;return true}catch(e){if(sequence===request)error=(e as Error).message;return false}finally{if(sequence===request)loading=false}}
  onMount(()=>{void load();const stop=subscribeChanges(['workspace.changed'],async ()=>{
   
@@ -28,7 +34,24 @@
  const kinds:{value:PageLine['kind'];label:string}[]=[{value:'text',label:'Paragraf'},{value:'heading',label:'Heading'},{value:'bold',label:'Bold'},{value:'italic',label:'Italic'},{value:'bullet',label:'List'},{value:'check',label:'Checklist'},{value:'link',label:'Link'}];
 </script>
 {#snippet tree(parentId:string|null)}
- <ul class="ws-note-tree">{#each pages.filter(p=>p.parentId===parentId) as p}<li><button disabled={editing||busy} class="ws-link" onclick={()=>open(p)}>{p.title} {p.visibility==='PERSONAL'?$translate('(Personal)'):''}</button>{@render tree(p.id)}</li>{/each}</ul>
+ <ul class="ws-note-tree">
+  {#each pages.filter(p=>p.parentId===parentId) as p (p.id)}
+   {@const hasChildren = pages.some(child=>child.parentId===p.id)}
+   <li>
+    <div class="note-row">
+     {#if hasChildren}
+      <button type="button" class="note-toggle" aria-label={p.title} aria-expanded={expanded.has(p.id)} onclick={()=>toggle(p.id)}>
+       <span aria-hidden="true">{expanded.has(p.id) ? '▾' : '▸'}</span>
+      </button>
+     {:else}
+      <span class="note-dot" aria-hidden="true">•</span>
+     {/if}
+     <button disabled={editing||busy} class="ws-link" onclick={()=>open(p)}>{p.title} {p.visibility==='PERSONAL'?$translate('(Personal)'):''}</button>
+    </div>
+    {#if hasChildren && expanded.has(p.id)}{@render tree(p.id)}{/if}
+   </li>
+  {/each}
+ </ul>
 {/snippet}
 <div class="ws-notes">
  <aside class="ws-panel"><h2>{$translate("Catatan Divisi")}</h2><button disabled={busy||editing} onclick={()=>create()}>{$translate("+ Buat Catatan")}</button>{#if loading}<p role="status">{$translate("Memuat catatan…")}</p>{:else}{@render tree(null)}{#if !pages.length}<p>{$translate("Belum ada catatan.")}</p>{/if}{/if}</aside>
@@ -76,5 +99,10 @@
 </div>
 
 <style>
+ .ws-note-tree { list-style: none; }
+ aside > .ws-note-tree { padding-left: 0; }
+ .note-row { display: flex; align-items: baseline; }
+ .note-row .note-toggle, .note-dot { flex: 0 0 1.75rem; text-align: center; }
+ .note-row .note-toggle { padding: 0; min-height: 1.75rem; border: 0; background: transparent; color: inherit; box-shadow: none; cursor: pointer; }
  .ws-row.note-actions { justify-content: flex-end; gap: 10px; }
 </style>
