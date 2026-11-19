@@ -16,6 +16,7 @@
  let error = $state(''), status = $state('');
  let active = $derived(data?.open ?? data?.today);
 
+ let now = $state(Date.now());
  let generation = 0, pending = false;
  async function load(background = false) {
   const request = ++generation;
@@ -32,7 +33,10 @@
   void load().catch(() => { error = 'Data absensi belum dapat dimuat. Coba muat ulang.'; });
   const focus = () => { void refresh(); };
   window.addEventListener('focus', focus);
-  const timer = window.setInterval(() => { if (data && data.todayDate !== jakartaDate()) void refresh(); }, 60000);
+  const timer = window.setInterval(() => {
+   now = Date.now();
+   if (data && (data.todayDate !== jakartaDate() || (data.open && now >= Date.parse(data.open.date + 'T21:00:00+07:00')))) void refresh();
+  }, 60000);
   const stop = subscribeChanges(['attendance.changed'], async () => {
    if(busy) { pending = true; return; }
    try { await load(true); } catch { error = 'Data absensi belum dapat dimuat. Coba muat ulang.'; }
@@ -94,6 +98,7 @@
   {#if loading && !data}<p role="status">{$translate("Memuat absensi…")}</p>
   {:else if active}
    {#if data?.open && data.open.date !== data.todayDate}<p class="notice">{$translate("Absensi tanggal")} {data.open.date} {$translate("masih terbuka. Selesaikan Clock Out sebelum memulai hari ini.")}</p>{/if}
+   {#if data?.open && now >= Date.parse(data.open.date + 'T17:00:00+07:00') && now < Date.parse(data.open.date + 'T21:00:00+07:00')}<p class="notice" role="status">{$translate("Jangan lupa Clock Out. Sistem akan mencatat Clock Out otomatis pukul 21.00 WIB.")}</p>{/if}
    <dl><div><dt>{$translate("Clock In")}</dt><dd>{formatTime(active.clockIn)}</dd></div><div><dt>{$translate("Clock Out")}</dt><dd>{active.clockOut ? formatTime(active.clockOut) : $translate('Belum Clock Out')}</dd></div></dl>
    <p class="attendance-notes"><strong>{$translate("Catatan")}:</strong> <span>{active.notes || "—"}</span></p>
    {#if data?.open}<button class="primary" disabled={busy || loading || !ready} onclick={clock}>{$translate("Clock Out")}</button><p class="hint">{$translate("Clock Out mencatat waktu saja dan tidak memerlukan lokasi.")}</p>

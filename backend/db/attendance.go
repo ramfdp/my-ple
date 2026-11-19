@@ -70,6 +70,14 @@ func (db *Database) attendanceNow() time.Time {
 
 const attendanceColumns = `id,attendance_date::text,mode,clock_in,clock_out,latitude,longitude,notes`
 
+const attendanceCutoff = "((attendance_date + TIME '21:00') AT TIME ZONE '" + model.ReportingTimezone + "')"
+const closeDueAttendance = "UPDATE attendance SET clock_out=GREATEST(clock_in," + attendanceCutoff + ") WHERE clock_out IS NULL AND " + attendanceCutoff + " <= $1::timestamptz"
+
+func (db *Database) AutoClockOut(ctx context.Context) error {
+	_, err := db.Conn.ExecContext(ctx, closeDueAttendance, db.attendanceNow())
+	return err
+}
+
 func scanAttendance(row interface{ Scan(...any) error }) (model.Attendance, error) {
 	var item model.Attendance
 	err := row.Scan(&item.ID, &item.Date, &item.Mode, &item.ClockIn, &item.ClockOut, &item.Latitude, &item.Longitude, &item.Notes)
@@ -164,6 +172,9 @@ func (db *Database) ClockIn(ctx context.Context, userID string, in model.Attenda
 		return item, err
 	}
 	now := db.attendanceNow()
+	if _, err = tx.ExecContext(ctx, closeDueAttendance+" AND user_id=$2", now, userID); err != nil {
+		return item, err
+	}
 	today := now.Format("2006-01-02")
 	item, err = scanAttendance(tx.QueryRowContext(ctx, `SELECT `+attendanceColumns+` FROM attendance WHERE user_id=$1 AND (attendance_date=$2::date OR clock_out IS NULL) ORDER BY attendance_date DESC LIMIT 1`, userID, today))
 	if err == nil {
@@ -179,7 +190,11 @@ func (db *Database) ClockIn(ctx context.Context, userID string, in model.Attenda
 	if in.Mode == "WFA" {
 		lat, lng = in.Latitude, in.Longitude
 	}
-	item, err = scanAttendance(tx.QueryRowContext(ctx, `INSERT INTO attendance(id,user_id,attendance_date,mode,clock_in,latitude,longitude,notes) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING `+attendanceColumns, NewID(), userID, today, in.Mode, now, lat, lng, in.Notes))
+	var clockOut *time.Time
+	if now.Hour() >= 21 {
+		clockOut = &now
+	}
+	item, err = scanAttendance(tx.QueryRowContext(ctx, `INSERT INTO attendance(id,user_id,attendance_date,mode,clock_in,latitude,longitude,notes,clock_out) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING `+attendanceColumns, NewID(), userID, today, in.Mode, now, lat, lng, in.Notes, clockOut))
 	if err != nil {
 		return item, err
 	}
@@ -199,7 +214,7 @@ func (db *Database) ClockOut(ctx context.Context, userID, id string) (model.Atte
 	if err = tx.QueryRowContext(ctx, `SELECT id FROM users WHERE id=$1 FOR UPDATE`, userID).Scan(&userID); err != nil {
 		return item, err
 	}
-	item, err = scanAttendance(tx.QueryRowContext(ctx, `UPDATE attendance SET clock_out=COALESCE(clock_out,GREATEST(clock_in,$3)) WHERE id=$1 AND user_id=$2 RETURNING `+attendanceColumns, id, userID, db.attendanceNow()))
+	item, err = scanAttendance(tx.QueryRowContext(ctx, `UPDATE attendance SET clock_out=COALESCE(clock_out,GREATEST(clock_in,LEAST($3::timestamptz,`+attendanceCutoff+`))) WHERE id=$1 AND user_id=$2 RETURNING `+attendanceColumns, id, userID, db.attendanceNow()))
 	if err != nil {
 		return item, err
 	}

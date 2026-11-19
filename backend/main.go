@@ -411,17 +411,20 @@ func startCleanup(database *db.Database) func() {
 		timer := time.NewTimer(time.Until(time.Now().Truncate(time.Minute).Add(time.Minute)))
 		defer timer.Stop()
 		weekly := controller.NewWeeklyLifecycle(database)
-		runWeekly := func() {
+		runMinuteTasks := func() {
+			if err := database.AutoClockOut(ctx); err != nil {
+				fmt.Printf("Attendance auto clock-out error: %v\n", err)
+			}
 			if err := weekly.Run(ctx, time.Now()); err != nil {
 				fmt.Printf("Weekly lifecycle error: %v\n", err)
 			}
 		}
-		runWeekly() // Catch up all completed periods after downtime.
+		runMinuteTasks() // Catch up all completed periods after downtime.
 		lastCleanup := time.Time{}
 		for {
 			select {
 			case <-timer.C:
-				runWeekly()
+				runMinuteTasks()
 				timer.Reset(time.Until(time.Now().Truncate(time.Minute).Add(time.Minute)))
 				if time.Since(lastCleanup) < time.Hour {
 					continue

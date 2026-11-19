@@ -294,6 +294,7 @@ export const messages = {
  "Clock In, Clock Out, dan riwayat absensi pribadi.": ["Clock In, Clock Out, dan riwayat absensi pribadi.", "Clock-in, clock-out, and personal attendance history."],
  "Clock Out": ["Pulang kerja", "Clock Out"],
  "Clock Out (WIB)": ["Pulang kerja (WIB)", "Clock Out (WIB)"],
+ "Jangan lupa Clock Out. Sistem akan mencatat Clock Out otomatis pukul 21.00 WIB.": ["Jangan lupa Clock Out. Sistem akan mencatat Clock Out otomatis pukul 21.00 WIB.", "Remember to clock out. The system will clock you out automatically at 9 p.m. WIB."],
  "Clock Out mencatat waktu saja dan tidak memerlukan lokasi.": ["Clock Out mencatat waktu saja dan tidak memerlukan lokasi.", "Clock Out records the time only and does not require your location."],
  "Clock Out tersimpan.": ["Clock Out tersimpan.", "Clock-out saved."],
  "Close": ["Tutup", "Close"],
