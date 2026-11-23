@@ -31,28 +31,27 @@
 </svelte:head>
 
 <main class="login-page">
-	<div class="login-sheet">
-		<header class="login-brand">
-			<img src="/harmoni%20insan%20phooto.webp" width="64" height="64" alt="" />
-			<span>MyHIS</span>
-		</header>
-		<section class="login-body" aria-labelledby="login-title">
-			<div class="login-heading">
-				<h1 id="login-title">{$translate("Selamat datang kembali.")}</h1>
-				<p>{$translate("Masuk untuk melanjutkan pekerjaan Anda.")}</p>
-			</div>
-			<form class="login-form" onsubmit={login} aria-busy={submitting}>
-				<label for="username">{$translate("Username")}</label>
-				<input id="username" name="username" autocomplete="username" required />
+	<img class="login-art" src="/login-folds.webp" alt="" width="1720" height="1000" fetchpriority="high" />
+	<header class="login-brand">
+		<img src="/harmoni%20insan%20phooto.webp" width="64" height="64" alt="" />
+		<span>MyHIS</span>
+	</header>
+	<section class="login-body" aria-labelledby="login-title">
+		<div class="login-heading">
+			<h1 id="login-title">{$translate("Masuk")}</h1>
+			<p>{$translate("Masuk untuk melanjutkan pekerjaan Anda.")}</p>
+		</div>
+		<form class="login-form" onsubmit={login} aria-busy={submitting}>
+			<label for="username">{$translate("Username")}</label>
+			<input id="username" name="username" autocomplete="username" required />
 
-				<label for="password">{$translate("Password")}</label>
-				<input id="password" name="password" type="password" autocomplete="current-password" required />
+			<label for="password">{$translate("Password")}</label>
+			<input id="password" name="password" type="password" autocomplete="current-password" required />
 
-				{#if error}<p class="login-error" role="alert">{$translate(error)}</p>{/if}
-				<button type="submit" disabled={submitting}>
-					{$translate(submitting ? "Sedang masuk…" : "Masuk")}
-				</button>
-			</form>
-		</section>
-	</div>
+			{#if error}<p class="login-error" role="alert">{$translate(error)}</p>{/if}
+			<button type="submit" disabled={submitting}>
+				{$translate(submitting ? "Sedang masuk…" : "Masuk")}
+			</button>
+		</form>
+	</section>
 </main>
