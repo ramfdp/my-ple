@@ -540,6 +540,7 @@ export const messages = {
  "Manage Employees is only available to Admin, Management, and HR.": ["Kelola Karyawan hanya tersedia untuk Admin, Management, dan HR.", "Manage Employees is only available to Admin, Management, and HR."],
  "Manage Employees | MyHIS": ["Kelola Karyawan | MyHIS", "Manage Employees | MyHIS"],
  "Management": ["Manajemen", "Management"],
+ "Sedang masuk…": ["Sedang masuk…", "Logging in…"],
  "Masuk": ["Masuk", "Log in"],
  "Masuk ke ruang kerja MyHIS untuk melanjutkan pekerjaan Anda.": ["Masuk ke ruang kerja MyHIS untuk melanjutkan pekerjaan Anda.", "Log in to MyHIS to continue your work."],
  "Masuk untuk melanjutkan pekerjaan Anda.": ["Masuk untuk melanjutkan pekerjaan Anda.", "Log in to continue your work."],
