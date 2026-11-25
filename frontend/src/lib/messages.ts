@@ -263,6 +263,7 @@ export const messages = {
  "Buka": ["Buka", "Open"],
  "Buka Booking Zoom": ["Buka Booking Zoom", "Open Zoom Booking"],
  "Buka Booking Zoom →": ["Buka Booking Zoom →", "Open Zoom Booking →"],
+ "Buka Pekerjaan →": ["Buka Pekerjaan →", "Open Assignment →"],
  "Buka Workspace": ["Buka Workspace", "Open Workspace"],
  "Buka Workspace →": ["Buka Workspace →", "Open Workspace →"],
  "Buka ↗": ["Buka ↗", "Open ↗"],

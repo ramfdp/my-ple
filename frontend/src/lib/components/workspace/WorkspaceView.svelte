@@ -4,6 +4,7 @@
  import {api,currentUser} from '$lib/api';
  import {goBack} from '$lib/navigation';
  import {untrack} from 'svelte';
+ import {replaceState} from '$app/navigation';
  import {page} from '$app/state';
  import {subscribeChanges} from '$lib/realtime';
  import {statuses,priorities,today,period,addDays,dateString,dateValue,labelDate,type Task,type Workspace,type WorkspaceJob,type Member,type Workload,type Activity} from '$lib/workspace';
@@ -41,9 +42,16 @@
   return()=>{active=false;generation++;opening++;stop()};
  });
  async function open(task:Pick<Task,'id'>){const sequence=++opening,wid=workspace?.id;try{const archived=view==='Archive'||page.url.searchParams.get('archived')==='1';const response=await api<{task:Task}>('/work-items/'+encodeURIComponent(task.id)+(archived?'?archived=true':''));if(sequence!==opening||workspace?.id!==wid)return;if(response.task.workspaceId!==wid)throw new Error('Pekerjaan tidak berada dalam Workspace ini.');selected=response.task;detail=true}catch(e){if(sequence===opening)error=(e as Error).message}}
- $effect(()=>{const taskId=page.url.searchParams.get('task');if(workspace&&taskId)untrack(()=>void open({id:taskId}))});
+ $effect(()=>{const taskId=page.url.searchParams.get('task');if(workspace&&taskId)untrack(()=>{detail=false;selected=null;void open({id:taskId})})});
  function create(){opening++;selected=null;detail=true}
- function closeDetail(){opening++;detail=false}
+ function closeDetail(){
+  opening++;detail=false;
+  const url=new URL(page.url);
+  if(url.searchParams.has('task')){
+   url.searchParams.delete('task');
+   replaceState(url,page.state);
+  }
+ }
  function changeView(v:string){if(v==='Revision History')status='';if(v==='Archive'||view==='Archive'){search='';assignee='';jobId='';status='';priority='';start='';end='';sort=v==='Archive'?'archived':'updated'}view=v;offset=0;void refresh()}
  function navigate(n:number){if(scale==='week'&&view==='Timeline')anchor=addDays(anchor,n*7);else{const d=dateValue(anchor);anchor=dateString(new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+n,1)))}offset=0;void refresh()}
 </script>

@@ -70,7 +70,7 @@
 						</div>
 						{#if item.leave}<a href={(item.type==='leave_request_created'?'/leave/approvals':'/leave')+'?request='+encodeURIComponent(item.entityId)} onclick={() => void markRead(item.id).catch(() => {})}>{$translate("Lihat Pengajuan →")}</a>{/if}
 						{#if item.overtime}<a href={item.overtime.path} onclick={() => void markRead(item.id).catch(() => {})}>{$translate('Lihat Lembur →')}</a>{/if}
-						{#if item.workspace}<a href={'/workspace/'+item.workspace.workspaceId} onclick={() => void markRead(item.id).catch(() => {})}>{$translate("Buka Workspace →")}</a>{/if}
+						{#if item.workspace}<a href={'/workspace/'+item.workspace.workspaceId+'?task='+encodeURIComponent(item.entityId)} onclick={() => void markRead(item.id).catch(() => {})}>{$translate("Buka Pekerjaan →")}</a>{/if}
 						{#if item.booking}<a href="/booking-zoom" onclick={() => void markRead(item.id).catch(() => {})}>{$translate("Buka Booking Zoom →")}</a>{/if}
 						<button class="notification-dismiss" type="button" onclick={() => void dismissNotification(item.id).catch(() => {})}>{$translate("Hapus")}</button>
 					</li>
