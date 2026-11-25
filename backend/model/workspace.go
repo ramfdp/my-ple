@@ -81,6 +81,7 @@ type WorkItemInput struct {
 	Version       int      `json:"version"`
 }
 type WorkComment struct {
+	AvatarURL  string    `json:"avatarUrl"`
 	Likes      int       `json:"like"`
 	HighFives  int       `json:"highFive"`
 	MyReaction string    `json:"myReaction"`

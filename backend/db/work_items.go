@@ -467,10 +467,10 @@ func (db *Database) WorkComments(ctx context.Context, userID, id string, archive
 	if _, err := db.WorkItem(ctx, userID, id, archived...); err != nil {
 		return nil, err
 	}
-	rows, err := db.Conn.QueryContext(ctx, `SELECT c.id,COALESCE(c.user_id::text,''),COALESCE(u.name,''),c.content,c.created_at,
+	rows, err := db.Conn.QueryContext(ctx, `SELECT c.id,COALESCE(c.user_id::text,''),COALESCE(u.name,''),COALESCE(u.avatar_url,''),c.content,c.created_at,
  count(*) FILTER (WHERE r.reaction='like'),count(*) FILTER (WHERE r.reaction='highFive'),
  COALESCE(max(r.reaction) FILTER (WHERE r.user_id=$2),'')
- FROM work_item_comments c LEFT JOIN work_comment_reactions r ON r.comment_id=c.id LEFT JOIN users u ON u.id=c.user_id WHERE c.work_item_id=$1 GROUP BY c.id,u.name ORDER BY c.created_at,c.id`, id, userID)
+ FROM work_item_comments c LEFT JOIN work_comment_reactions r ON r.comment_id=c.id LEFT JOIN users u ON u.id=c.user_id WHERE c.work_item_id=$1 GROUP BY c.id,u.name,u.avatar_url ORDER BY c.created_at,c.id`, id, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -478,7 +478,7 @@ func (db *Database) WorkComments(ctx context.Context, userID, id string, archive
 	items := []model.WorkComment{}
 	for rows.Next() {
 		var c model.WorkComment
-		if err = rows.Scan(&c.ID, &c.UserID, &c.Name, &c.Content, &c.CreatedAt, &c.Likes, &c.HighFives, &c.MyReaction); err != nil {
+		if err = rows.Scan(&c.ID, &c.UserID, &c.Name, &c.AvatarURL, &c.Content, &c.CreatedAt, &c.Likes, &c.HighFives, &c.MyReaction); err != nil {
 			return nil, err
 		}
 		items = append(items, c)

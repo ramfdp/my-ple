@@ -2,7 +2,8 @@
  import { language, locale, t as translate } from '$lib/i18n';
  import {formatActivity} from '$lib/activity';
  import {onMount} from 'svelte';
- import {api,APIError,currentUser} from '$lib/api';
+ import ProfileAvatar from '$lib/components/ProfileAvatar.svelte';
+ import {api,assetUrl,APIError,currentUser} from '$lib/api';
  import {subscribeChanges} from '$lib/realtime';
  import {commentLinks} from '$lib/utils/comment-links';
  import ProjectCombobox from './ProjectCombobox.svelte';
@@ -102,7 +103,12 @@
  {#if task&&!editable&&!archived}<label>{$translate("Priority")}<select bind:value={priorityChoice}>{#each Object.entries(priorities) as [value,label]}<option {value}>{$translate(label)}</option>{/each}</select></label><button disabled={saving||removed||!!latest} onclick={()=>action('priority',{priority:priorityChoice})}>{$translate("Simpan Priority")}</button>{/if}
  {#if confirmArchive}<div class="ws-panel"><p>{$translate("Arsipkan pekerjaan ini? Pekerjaan tidak lagi muncul pada tampilan aktif.")}</p><button disabled={saving} onclick={archive}>{$translate("Ya, arsipkan")}</button> <button onclick={()=>confirmArchive=false}>{$translate("Batal")}</button></div>{/if}
  {#if task}
- <section><h3>{$translate("Komentar")}</h3>{#if loading}<p role="status">{$translate("Memuat diskusi…")}</p>{/if}{#each comments as c (c.id)}<article class="ws-comment"><strong>{c.name}</strong><small> · {time(c.createdAt)}</small><p style="white-space:pre-wrap">{#each commentLinks(c.content) as part}{#if part.href}<a href={part.href} target="_blank" rel="noopener noreferrer">{part.text}</a>{:else}{part.text}{/if}{/each}</p>
+ <section><h3>{$translate("Komentar")}</h3>{#if loading}<p role="status">{$translate("Memuat diskusi…")}</p>{/if}<div class="discussion">{#each comments as c (c.id)}
+ <article class="ws-comment" class:outgoing={c.userId===$currentUser?.id} aria-label={c.name}>
+ <div class="sender" title={c.name}><ProfileAvatar src={assetUrl(c.avatarUrl??'')} alt={c.name} size={36} borderWidth={0}/></div>
+ <div class="message-column"><div class="bubble"><p>{#each commentLinks(c.content) as part}{#if part.href}<a href={part.href} target="_blank" rel="noopener noreferrer">{part.text}</a>{:else}{part.text}{/if}{/each}</p>
+ <time datetime={c.createdAt} title={time(c.createdAt)} aria-label={time(c.createdAt)}>{new Date(c.createdAt).toLocaleTimeString($locale,{hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).replace('.',':')}</time></div>
+
  {#if !archived}
  <button type="button" class="reaction-trigger" popovertarget={'reaction-'+c.id} aria-label={$language==='en'?'React to comment':'Beri reaksi'} onclick={(event)=>{
  const rect=event.currentTarget.getBoundingClientRect();
@@ -116,14 +122,24 @@
  void react(c,r.key)
  }}>{r.icon}</button>{/each}</div>{/if}
  {#each reactions as r}{#if c[r.key]>0}<span class:mine={c.myReaction===r.key} class="reaction-count" aria-label={($language==='en'?r.en:r.id)+' '+c[r.key]}>{r.icon} {c[r.key]}</span>{/if}{/each}
- </article>{:else}<p>{$translate("Belum ada komentar.")}</p>{/each}
+ </div></article>{:else}<p>{$translate("Belum ada komentar.")}</p>{/each}</div>
  {#if !archived}<form class="ws-comment-form" onsubmit={sendComment}><label>{$translate("Komentar baru")}<textarea required maxlength="4000" rows="2" bind:value={comment} disabled={saving} aria-autocomplete="list" aria-controls="mention-list"></textarea></label>{#if mentionChoices.length}<ul id="mention-list" class="ws-mentions" aria-label={$translate("Pilih user yang disebut")}>{#each mentionChoices as member}<li><button type="button" onclick={()=>mention(member)}>@{member.name}</button></li>{/each}</ul>{/if}<button type="submit" disabled={saving||!comment.trim()}>{$translate("Kirim Komentar")}</button></form>{/if}</section>
  <section><h3>{$translate("Activity History")}</h3><ul class="ws-activity">{#each activity as a}{@const formatted=formatActivity(a,$language)}<li>{formatted.title}<br/><small>{formatted.timestamp}</small></li>{/each}</ul></section>
  {/if}
 </dialog>
 <style>
- .ws-comment{position:relative;padding-right:2.5rem}
- .reaction-trigger{position:absolute;right:.4rem;top:.4rem;opacity:0}
+ .discussion{display:grid;gap:14px;padding:16px;background:#fafafa;border-radius:12px}
+ .ws-comment{display:flex;align-items:flex-start;gap:8px;padding:0;border:0;min-width:0}
+ .ws-comment.outgoing{flex-direction:row-reverse}
+ .sender{flex:none}
+ .message-column{position:relative;min-width:0;width:fit-content;max-width:min(calc(100% - 80px),40rem)}
+ .bubble{border-radius:16px;padding:10px 12px;background:white;color:#202020;border:1px solid #dedede}
+ .outgoing .bubble{background:#609c0c;color:white;border-color:transparent}
+ .bubble p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.9rem;line-height:1.45}
+ .bubble a{color:inherit;text-decoration:underline}
+ .bubble time{display:block;margin-top:5px;text-align:right;font-size:.72rem}
+ .reaction-trigger{position:absolute;left:100%;top:0;opacity:0}
+ .outgoing .reaction-trigger{left:auto;right:100%}
  .ws-comment:hover .reaction-trigger,.ws-comment:focus-within .reaction-trigger,.ws-comment:has(:popover-open) .reaction-trigger{opacity:1}
  @media(hover:none){.reaction-trigger{opacity:1}}
  .reaction-picker{position:fixed;inset:auto;margin:0;padding:4px;border:1px solid #ccc;border-radius:12px;background:white}
