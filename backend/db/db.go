@@ -71,6 +71,9 @@ var hermesSearchSQL string
 //go:embed rekap_seed.json
 var rekapSeedJSON string
 
+//go:embed desktop_push.sql
+var desktopPushSQL string
+
 type Database struct {
 	Conn *sql.DB
 	Now  func() time.Time
@@ -98,7 +101,7 @@ func (db *Database) Migrate(ctx context.Context) error {
 	if _, err = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(71260402)`); err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, schemaSQL+weeklyArchiveSQL+jobsSQL+reportNumberingSQL+jobPICsSQL+workspaceSQL+leaveSQL+overtimeSQL+emailDeliverySQL+collaborationSQL+qaValidationSQL+documentChecklistsSQL+attendanceSQL+billingDocumentsSQL+aiPlansSQL+lessonsLearnedSQL+hermesSearchSQL); err != nil {
+	if _, err = tx.ExecContext(ctx, schemaSQL+weeklyArchiveSQL+jobsSQL+reportNumberingSQL+jobPICsSQL+workspaceSQL+leaveSQL+overtimeSQL+emailDeliverySQL+collaborationSQL+qaValidationSQL+documentChecklistsSQL+attendanceSQL+billingDocumentsSQL+aiPlansSQL+lessonsLearnedSQL+hermesSearchSQL+desktopPushSQL); err != nil {
 		return err
 	}
 	now := time.Now()

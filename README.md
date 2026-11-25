@@ -75,6 +75,16 @@ ZOOM_EMAIL_ENABLED=false
 
 File `.env.testing` tidak masuk Git.
 
+## Notifikasi desktop
+
+Gunakan HTTPS atau localhost. Untuk setiap lingkungan, buat satu pasangan kunci VAPID P-256 dan simpan di berkas environment privat backend (`backend/.env` atau `BACKEND_ENV_FILE`). Perintah berikut menghasilkan dua baris konfigurasi. Jalankan di terminal privat dan gunakan kembali kunci yang sama setelah restart.
+
+```sh
+node -e "const k=require('node:crypto').createECDH('prime256v1'); k.generateKeys(); console.log('VAPID_PUBLIC_KEY='+k.getPublicKey().toString('base64url')); console.log('VAPID_PRIVATE_KEY='+Buffer.from(k.getPrivateKey('hex').padStart(64,'0'),'hex').toString('base64url'))"
+```
+
+Isi `VAPID_SUBJECT` dengan alamat email pengelola tanpa awalan `mailto:` atau URL kontak HTTPS. Terapkan konfigurasi saat menjalankan ulang backend. Pada setiap profil browser, masuk ke My PLE, buka lonceng, pilih **Aktifkan notifikasi desktop**, lalu izinkan notifikasi. Pengiriman mengikuti sesi login yang masih berlaku. Pengaturan notifikasi sistem operasi juga berlaku.
+
 ## Snapshot AI internal (branch `testing`)
 
 `GET /internal/ai/v1/workspaces/{id}/snapshot` hanya tersedia pada backend yang diberi `AI_SNAPSHOT_ENABLED=true`. Metode lain mendapat 405. Bearer token mesin 32 byte acak (64 karakter heksadesimal) dibaca dari `AI_SERVICE_TOKEN_FILE`; `AI_ALLOWED_WORKSPACE_IDS` berisi ID divisi yang diizinkan, dipisah koma. Tanpa token atau grant, endpoint gagal tertutup. Token manusia `my_ple_session` tidak berlaku. Token mesin tidak memberi akses ke `/users`, `/workspaces`, atau API admin biasa.

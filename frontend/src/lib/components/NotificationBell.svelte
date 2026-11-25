@@ -1,4 +1,5 @@
 <script lang="ts">
+ import DesktopPushControl from './DesktopPushControl.svelte';
  import {onDestroy, tick} from 'svelte';
  import { locale, t as translate } from '$lib/i18n';
 	import {labelDate} from '$lib/workspace';
@@ -53,6 +54,7 @@
 	</button>
 		<section bind:this={panel} popover="auto" ontoggle={(event) => open = event.newState === 'open'} class="notification-panel" style:left={left+'px'} style:top={top+'px'} style:max-height={'min(480px, calc(100dvh - '+(top+12)+'px))'} aria-label={$translate("Daftar notifikasi")}>
 			<header><strong>{$translate("Notifikasi")}</strong>{#if $notifications.unread}<button type="button" onclick={() => void markAllRead().catch(() => {})}>{$translate("Tandai semua dibaca")}</button>{/if}</header>
+			<DesktopPushControl/>
 			{#if !$notifications.items.length}<p class="notification-empty">{$translate("Belum ada notifikasi.")}</p>{/if}
 			<ul>
 				{#each $notifications.items as item (item.id)}

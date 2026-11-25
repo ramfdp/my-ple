@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { detachDesktopPush } from '$lib/desktop-push';
  import { t as translate } from '$lib/i18n';
 	import { page } from '$app/state';
 	import { onMount, tick } from 'svelte';
@@ -40,7 +41,7 @@
 	}
 	async function logout(event: MouseEvent) {
 		event.preventDefault();
-		try { await api('/auth/logout', { method: 'POST' }); } finally { setAuthenticated(null); await goto('/'); }
+		try { await api('/auth/logout', { method: 'POST' }); } finally { await detachDesktopPush(true).catch(() => {}); setAuthenticated(null); await goto('/'); }
 	}
 
 	let visibleNavItems = $derived([{key:'Dashboard',href:'/dashboard',icon:'dashboard'}, ...visibleFeatures(role)]);

@@ -1,4 +1,12 @@
 export const messages = {
+  "Coba lagi menonaktifkan notifikasi desktop": ["Coba lagi menonaktifkan notifikasi desktop", "Retry turning off desktop notifications"],
+  "Memeriksa notifikasi desktop…": ["Memeriksa notifikasi desktop…", "Checking desktop notifications…"],
+  "Nonaktifkan notifikasi desktop": ["Nonaktifkan notifikasi desktop", "Turn off desktop notifications"],
+  "Aktifkan notifikasi desktop": ["Aktifkan notifikasi desktop", "Turn on desktop notifications"],
+  "Notifikasi desktop diblokir. Ubah izin di pengaturan situs.": ["Notifikasi desktop diblokir. Ubah izin di pengaturan situs.", "Desktop notifications are blocked. Change permission in site settings."],
+  "Browser ini tidak mendukung notifikasi desktop.": ["Browser ini tidak mendukung notifikasi desktop.", "This browser does not support desktop notifications."],
+  "Notifikasi desktop belum tersedia.": ["Notifikasi desktop belum tersedia.", "Desktop notifications are unavailable."],
+  "Coba lagi mengaktifkan notifikasi desktop": ["Coba lagi mengaktifkan notifikasi desktop", "Retry enabling desktop notifications"],
   "Revision": ["Revisi", "Revision"],
   "Revision History": ["Riwayat Revisi", "Revision History"],
   "Revisi": ["Revisi", "Revision"],

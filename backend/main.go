@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -132,6 +133,10 @@ func protectedHandler(database *db.Database, authCtrl *controller.AuthController
 		}
 		if r.URL.Path == "/feedback" {
 			feedback.ServeHTTP(w, r)
+			return
+		}
+		if r.URL.Path == "/desktop-push" {
+			controller.DesktopPush(database, w, r, current.ID)
 			return
 		}
 		if r.URL.Path == "/hermes/chat" {
@@ -400,8 +405,9 @@ func main() {
 
 func startCleanup(database *db.Database) func() {
 	ctx, cancel := context.WithCancel(context.Background())
-	workerDone := make(chan struct{})
-	go func() { defer close(workerDone); (&notification.ZoomEmailWorker{DB: database}).Start(ctx) }()
+	var workers sync.WaitGroup
+	workers.Go(func() { notification.RunDesktopPush(ctx, database) })
+	workers.Go(func() { (&notification.ZoomEmailWorker{DB: database}).Start(ctx) })
 
 	// Start attendance reminder service
 	attendanceReminder := notification.NewAttendanceReminderService(database)
@@ -443,7 +449,7 @@ func startCleanup(database *db.Database) func() {
 			}
 		}
 	}()
-	return func() { cancel(); <-workerDone }
+	return func() { cancel(); workers.Wait() }
 }
 
 func envOr(key, fallback string) string {

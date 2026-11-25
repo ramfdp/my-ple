@@ -40,10 +40,6 @@ func (s *AttendanceReminderService) Start(ctx context.Context) {
 }
 
 func (s *AttendanceReminderService) checkAndSendReminders(ctx context.Context) {
-	if !email.Enabled() {
-		return
-	}
-
 	now := time.Now()
 	if s.DB.Now != nil {
 		now = s.DB.Now()
@@ -63,6 +59,35 @@ func (s *AttendanceReminderService) checkAndSendReminders(ctx context.Context) {
 		return
 	}
 
+	pushEnabled := DesktopPublicKey() != ""
+	if !pushEnabled && !email.Enabled() {
+		return
+	}
+	// Get users who haven't clocked in
+	users, err := s.DB.GetUsersNotClockInToday(ctx)
+	if err != nil {
+		log.Printf("attendance reminder: query users failed: %v", err)
+		return
+	}
+	if pushEnabled {
+		ids := make([]string, 0, len(users))
+		for _, user := range users {
+			ids = append(ids, user.ID)
+		}
+		_, err = s.DB.Conn.ExecContext(ctx, `WITH due AS (
+				UPDATE desktop_subscriptions d SET last_reminder=$1::date FROM sessions s
+				WHERE d.session_id=s.id AND s.revoked_at IS NULL AND s.expires_at>now()
+				AND s.user_id=ANY($2::uuid[]) AND last_reminder IS DISTINCT FROM $1::date RETURNING d.id
+			) INSERT INTO desktop_deliveries(subscription_id,event_key,reminder_date)
+			SELECT id,'attendance-'||$1::date::text,$1::date FROM due`, now.Format("2006-01-02"), ids)
+		if err != nil {
+			log.Printf("attendance reminder: desktop enqueue failed: %v", err)
+		}
+	}
+	if !email.Enabled() {
+		return
+	}
+
 	// Check if reminder was already sent today
 	sent, err := s.DB.HasReminderBeenSentToday(ctx)
 	if err != nil {
@@ -71,13 +96,6 @@ func (s *AttendanceReminderService) checkAndSendReminders(ctx context.Context) {
 	}
 	if sent {
 		return // Already sent today
-	}
-
-	// Get users who haven't clocked in
-	users, err := s.DB.GetUsersNotClockInToday(ctx)
-	if err != nil {
-		log.Printf("attendance reminder: query users failed: %v", err)
-		return
 	}
 
 	if len(users) == 0 {

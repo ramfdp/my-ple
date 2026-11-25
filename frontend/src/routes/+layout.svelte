@@ -8,6 +8,7 @@
 	import { api, currentUser, setAuthenticated, type User } from '$lib/api';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import { startNotifications } from '$lib/notifications';
+	import { restoreDesktopPush } from '$lib/desktop-push';
 	import '$lib/styles/base.css';
 	import '$lib/styles/login.css';
 	import '$lib/styles/dashboard.css';
@@ -32,6 +33,8 @@
 		return () => animation.cancel();
 	});
 	let auth = $derived(initializing ? 'loading' : $currentUser ? 'authenticated' : 'unauthenticated');
+	let desktopUser = $derived($currentUser?.id);
+	$effect(() => { if (desktopUser) void restoreDesktopPush(desktopUser); });
 	onMount(async () => {
  restoreLanguage();
 		localStorage.removeItem('session');
