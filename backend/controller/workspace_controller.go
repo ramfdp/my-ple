@@ -407,6 +407,27 @@ func (c *WorkspaceController) task(w http.ResponseWriter, r *http.Request, userI
 		WriteJSON(w, 200, map[string]any{"task": updated})
 		return
 	}
+	if len(path) == 4 && path[1] == "comments" && path[3] == "reaction" && (r.Method == "PUT" || r.Method == "DELETE") {
+		var in struct {
+			Reaction string `json:"reaction"`
+		}
+		if r.Method == "PUT" {
+			if !DecodeStrictJSON(w, r, &in) {
+				return
+			}
+			if in.Reaction != "like" && in.Reaction != "highFive" {
+				workspaceError(w, db.ErrWorkspaceInvalid)
+				return
+			}
+		}
+		if e := c.DB.SetWorkReaction(r.Context(), userID, t.ID, path[2], in.Reaction); e != nil {
+			workspaceError(w, e)
+			return
+		}
+		c.changed(r, userID, t.WorkspaceID)
+		w.WriteHeader(204)
+		return
+	}
 	if len(path) == 2 && path[1] == "comments" {
 		if r.Method == "GET" {
 			a, e := c.DB.WorkComments(r.Context(), userID, t.ID, archived)

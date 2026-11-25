@@ -27,6 +27,15 @@
  async function action(kind:'priority'|'qa'|'link',patch:Record<string,unknown>){if(!task||saving||latest||removed)return false;saving=true;error='';++syncGeneration;try{const result=await api<{task:Task}>(`/work-items/${task.id}${kind==='link'?'':'/'+kind}`,{method:'PATCH',body:JSON.stringify({...patch,version:task.version})});const base=taskInput(task),draft=Object.fromEntries(Object.entries(input).filter(([key,value])=>key!=='version'&&!(key in patch)&&JSON.stringify(value)!==JSON.stringify(base[key as keyof TaskInput])));if(kind==='priority'||priorityChoice===task.priority)priorityChoice=result.task.priority;task=result.task;input={...taskInput(task),...draft};if(kind==='link'){editingLink=false;linkFeedback='Link tersimpan.'}await onsaved(task);await collaboration();return true}catch(e){error=(e as Error).message;if(e instanceof APIError&&e.status===409)await sync()}finally{saving=false}}
  async function restore(){if(!task?.canRestore||saving)return;saving=true;error='';try{await api('/work-items/'+task.id+'/restore',{method:'POST',body:JSON.stringify({version:task.version})});await onsaved();onclose()}catch(e){error=(e as Error).message;if(e instanceof APIError&&e.status===409)await sync()}finally{saving=false}}
  async function archive(){if(!task||saving)return;saving=true;error='';try{await api('/work-items/'+task.id,{method:'DELETE',body:JSON.stringify({version:task.version})});await onsaved();onclose()}catch(e){error=(e as Error).message}finally{saving=false}}
+ const reactions = [{key:'like',icon:'\u{1F44D}',en:'Thumbs-up',id:'Jempol'}, {key:'highFive',icon:'\u{1F64C}',en:'High-five',id:'Tos'}] as const;
+ async function react(c:Comment,key:string){
+   if(!task||saving||archived)return;
+   saving=true;error='';
+   try{
+     await api('/work-items/'+task.id+'/comments/'+c.id+'/reaction',c.myReaction===key?{method:'DELETE'}:{method:'PUT',body:JSON.stringify({reaction:key})});
+     await collaboration(true);
+   }catch(e){error=(e as Error).message}finally{saving=false}
+ }
  function mention(member:Member){comment=comment.replace(/@[^\s@]*$/,`@${member.name} `);if(!mentionIds.includes(member.id))mentionIds=[...mentionIds,member.id]}
  async function validate(){qaDialog.close();await action('qa',{decision:qaDecision})}
  async function sendComment(e:SubmitEvent){e.preventDefault();if(!task||saving)return;saving=true;error='';try{const selected=mentionIds.filter(id=>{const member=members.find(m=>m.id===id);return member&&comment.includes('@'+member.name)});await api('/work-items/'+task.id+'/comments',{method:'POST',body:JSON.stringify({content:comment,mentionIds:selected})});comment='';mentionIds=[];await collaboration();await onsaved()}catch(e){error=(e as Error).message}finally{saving=false}}
@@ -93,12 +102,35 @@
  {#if task&&!editable&&!archived}<label>{$translate("Priority")}<select bind:value={priorityChoice}>{#each Object.entries(priorities) as [value,label]}<option {value}>{$translate(label)}</option>{/each}</select></label><button disabled={saving||removed||!!latest} onclick={()=>action('priority',{priority:priorityChoice})}>{$translate("Simpan Priority")}</button>{/if}
  {#if confirmArchive}<div class="ws-panel"><p>{$translate("Arsipkan pekerjaan ini? Pekerjaan tidak lagi muncul pada tampilan aktif.")}</p><button disabled={saving} onclick={archive}>{$translate("Ya, arsipkan")}</button> <button onclick={()=>confirmArchive=false}>{$translate("Batal")}</button></div>{/if}
  {#if task}
- <section><h3>{$translate("Komentar")}</h3>{#if loading}<p role="status">{$translate("Memuat diskusi…")}</p>{/if}{#each comments as c (c.id)}<article class="ws-comment"><strong>{c.name}</strong><small> · {time(c.createdAt)}</small><p style="white-space:pre-wrap">{#each commentLinks(c.content) as part}{#if part.href}<a href={part.href} target="_blank" rel="noopener noreferrer">{part.text}</a>{:else}{part.text}{/if}{/each}</p></article>{:else}<p>{$translate("Belum ada komentar.")}</p>{/each}
+ <section><h3>{$translate("Komentar")}</h3>{#if loading}<p role="status">{$translate("Memuat diskusi…")}</p>{/if}{#each comments as c (c.id)}<article class="ws-comment"><strong>{c.name}</strong><small> · {time(c.createdAt)}</small><p style="white-space:pre-wrap">{#each commentLinks(c.content) as part}{#if part.href}<a href={part.href} target="_blank" rel="noopener noreferrer">{part.text}</a>{:else}{part.text}{/if}{/each}</p>
+ {#if !archived}
+ <button type="button" class="reaction-trigger" popovertarget={'reaction-'+c.id} aria-label={$language==='en'?'React to comment':'Beri reaksi'} onclick={(event)=>{
+ const rect=event.currentTarget.getBoundingClientRect();
+ const panel=document.getElementById('reaction-'+c.id);
+ if(panel){panel.style.left=Math.max(4,rect.right-100)+'px';panel.style.top=Math.min(window.innerHeight-50,rect.bottom+4)+'px'}
+ }}>+</button>
+ <div id={'reaction-'+c.id} popover="auto" class="reaction-picker">{#each reactions as r}
+ <button type="button" disabled={saving} aria-label={$language==='en'?r.en:r.id} aria-pressed={c.myReaction===r.key} onclick={(event)=>{
+ const panel=event.currentTarget.parentElement;
+ panel?.hidePopover();panel?.previousElementSibling instanceof HTMLElement && panel.previousElementSibling.focus();
+ void react(c,r.key)
+ }}>{r.icon}</button>{/each}</div>{/if}
+ {#each reactions as r}{#if c[r.key]>0}<span class:mine={c.myReaction===r.key} class="reaction-count" aria-label={($language==='en'?r.en:r.id)+' '+c[r.key]}>{r.icon} {c[r.key]}</span>{/if}{/each}
+ </article>{:else}<p>{$translate("Belum ada komentar.")}</p>{/each}
  {#if !archived}<form class="ws-comment-form" onsubmit={sendComment}><label>{$translate("Komentar baru")}<textarea required maxlength="4000" rows="2" bind:value={comment} disabled={saving} aria-autocomplete="list" aria-controls="mention-list"></textarea></label>{#if mentionChoices.length}<ul id="mention-list" class="ws-mentions" aria-label={$translate("Pilih user yang disebut")}>{#each mentionChoices as member}<li><button type="button" onclick={()=>mention(member)}>@{member.name}</button></li>{/each}</ul>{/if}<button type="submit" disabled={saving||!comment.trim()}>{$translate("Kirim Komentar")}</button></form>{/if}</section>
  <section><h3>{$translate("Activity History")}</h3><ul class="ws-activity">{#each activity as a}{@const formatted=formatActivity(a,$language)}<li>{formatted.title}<br/><small>{formatted.timestamp}</small></li>{/each}</ul></section>
  {/if}
 </dialog>
 <style>
+ .ws-comment{position:relative;padding-right:2.5rem}
+ .reaction-trigger{position:absolute;right:.4rem;top:.4rem;opacity:0}
+ .ws-comment:hover .reaction-trigger,.ws-comment:focus-within .reaction-trigger,.ws-comment:has(:popover-open) .reaction-trigger{opacity:1}
+ @media(hover:none){.reaction-trigger{opacity:1}}
+ .reaction-picker{position:fixed;inset:auto;margin:0;padding:4px;border:1px solid #ccc;border-radius:12px;background:white}
+ .reaction-picker button{padding:6px;background:transparent;border:0;cursor:pointer}
+ .reaction-count{display:inline-block;padding:1px 5px;border-radius:8px}
+ .mine,.reaction-picker button[aria-pressed=true]{background:var(--his-primary-soft)}
+
  .related-link { margin: 1.5rem 0; }
  .related-link > a { display: block; overflow-wrap: break-word; margin-bottom: .75rem; }
  .related-link > button { margin: 0 .5rem .5rem 0; }

@@ -20,7 +20,7 @@ export interface Task {
  assignees:Member[];commentCount:number;canEdit:boolean;canDelete:boolean;
 }
 export interface TaskInput {requiresQa:boolean;qaStage:Task['qaStage'];requestId?:string;title:string;description:string;relatedUrl:string;jobId:number|null;startDate:string;dueDate:string;status:Status;priority:Priority;assigneeIds:string[];version:number}
-export interface Comment {id:string;userId:string;name:string;content:string;createdAt:string}
+export interface Comment {like:number;highFive:number;myReaction:string;id:string;userId:string;name:string;content:string;createdAt:string}
 export interface Activity {id:string;taskId:string;actorName:string;action:string;field:string;oldValue:unknown;newValue:unknown;createdAt:string}
 export interface Workload {member:Member;activeTaskCount:number;highPriorityCount:number;dueSoonCount:number;overdueCount:number;overlapCount:number;workloadScore:number;workloadLevel:'AVAILABLE'|'NORMAL'|'BUSY'|'OVERLOADED';tasks:Task[]}
 export interface PageLine {origin?:number;authors?:{id:string;name:string}[];kind:'text'|'heading'|'bullet'|'check'|'link'|'bold'|'italic';text:string;checked:boolean;url?:string}

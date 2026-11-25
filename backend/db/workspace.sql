@@ -38,6 +38,12 @@ CREATE TABLE IF NOT EXISTS work_item_comments (
  user_id UUID NOT NULL REFERENCES users(id), content VARCHAR(4000) NOT NULL CHECK(btrim(content)<>''),
  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+CREATE TABLE IF NOT EXISTS work_comment_reactions (
+ comment_id UUID NOT NULL REFERENCES work_item_comments(id) ON DELETE CASCADE,
+ user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ reaction TEXT NOT NULL CHECK (reaction IN ('like','highFive')),
+ PRIMARY KEY(comment_id,user_id)
+);
 CREATE INDEX IF NOT EXISTS work_comments_task ON work_item_comments(work_item_id,created_at);
 CREATE TABLE IF NOT EXISTS work_item_activity (
  id UUID PRIMARY KEY, work_item_id UUID NOT NULL REFERENCES work_items(id),

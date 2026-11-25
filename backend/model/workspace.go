@@ -81,11 +81,14 @@ type WorkItemInput struct {
 	Version       int      `json:"version"`
 }
 type WorkComment struct {
-	ID        string    `json:"id"`
-	UserID    string    `json:"userId"`
-	Name      string    `json:"name"`
-	Content   string    `json:"content"`
-	CreatedAt time.Time `json:"createdAt"`
+	Likes      int       `json:"like"`
+	HighFives  int       `json:"highFive"`
+	MyReaction string    `json:"myReaction"`
+	ID         string    `json:"id"`
+	UserID     string    `json:"userId"`
+	Name       string    `json:"name"`
+	Content    string    `json:"content"`
+	CreatedAt  time.Time `json:"createdAt"`
 }
 type WorkActivity struct {
 	ID        string          `json:"id"`

@@ -467,7 +467,10 @@ func (db *Database) WorkComments(ctx context.Context, userID, id string, archive
 	if _, err := db.WorkItem(ctx, userID, id, archived...); err != nil {
 		return nil, err
 	}
-	rows, err := db.Conn.QueryContext(ctx, `SELECT c.id,COALESCE(c.user_id::text,''),COALESCE(u.name,''),c.content,c.created_at FROM work_item_comments c LEFT JOIN users u ON u.id=c.user_id WHERE c.work_item_id=$1 ORDER BY c.created_at,c.id`, id)
+	rows, err := db.Conn.QueryContext(ctx, `SELECT c.id,COALESCE(c.user_id::text,''),COALESCE(u.name,''),c.content,c.created_at,
+ count(*) FILTER (WHERE r.reaction='like'),count(*) FILTER (WHERE r.reaction='highFive'),
+ COALESCE(max(r.reaction) FILTER (WHERE r.user_id=$2),'')
+ FROM work_item_comments c LEFT JOIN work_comment_reactions r ON r.comment_id=c.id LEFT JOIN users u ON u.id=c.user_id WHERE c.work_item_id=$1 GROUP BY c.id,u.name ORDER BY c.created_at,c.id`, id, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -475,13 +478,41 @@ func (db *Database) WorkComments(ctx context.Context, userID, id string, archive
 	items := []model.WorkComment{}
 	for rows.Next() {
 		var c model.WorkComment
-		if err = rows.Scan(&c.ID, &c.UserID, &c.Name, &c.Content, &c.CreatedAt); err != nil {
+		if err = rows.Scan(&c.ID, &c.UserID, &c.Name, &c.Content, &c.CreatedAt, &c.Likes, &c.HighFives, &c.MyReaction); err != nil {
 			return nil, err
 		}
 		items = append(items, c)
 	}
 	return items, rows.Err()
 }
+func (db *Database) SetWorkReaction(ctx context.Context, userID, taskID, commentID, reaction string) error {
+	if !workspaceUUID(commentID) {
+		return ErrWorkspaceInvalid
+	}
+	tx, err := db.Conn.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var id string
+	err = tx.QueryRowContext(ctx, `SELECT c.id FROM work_item_comments c JOIN work_items t ON t.id=c.work_item_id WHERE t.id=$1 AND c.id=$2 AND t.archived_at IS NULL FOR SHARE OF t`, taskID, commentID).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrWorkspaceInvalid
+	}
+	if err != nil {
+		return err
+	}
+	if reaction == "" {
+		_, err = tx.ExecContext(ctx, `DELETE FROM work_comment_reactions WHERE comment_id=$1 AND user_id=$2`, id, userID)
+	} else {
+		_, err = tx.ExecContext(ctx, `INSERT INTO work_comment_reactions VALUES($1,$2,$3) ON CONFLICT(comment_id,user_id) DO UPDATE SET reaction=excluded.reaction`, id, userID, reaction)
+	}
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 func (db *Database) AddWorkComment(ctx context.Context, userID, id, content string, mentionIDs []string) error {
 	if strings.TrimSpace(content) == "" || len(content) > 4000 || len(mentionIDs) > 20 {
 		return ErrWorkspaceInvalid
