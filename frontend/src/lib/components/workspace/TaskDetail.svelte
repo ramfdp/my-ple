@@ -106,7 +106,7 @@
  <section><h3>{$translate("Komentar")}</h3>{#if loading}<p role="status">{$translate("Memuat diskusi…")}</p>{/if}<div class="discussion">{#each comments as c (c.id)}
  <article class="ws-comment" class:outgoing={c.userId===$currentUser?.id} aria-label={c.name}>
  <div class="sender" title={c.name}><ProfileAvatar src={assetUrl(c.avatarUrl??'')} alt={c.name} size={36} borderWidth={0}/></div>
- <div class="message-column"><div class="bubble"><p>{#each commentLinks(c.content) as part}{#if part.href}<a href={part.href} target="_blank" rel="noopener noreferrer">{part.text}</a>{:else}{part.text}{/if}{/each}</p>
+ <div class="message-column"><strong class="author-name">{c.name}</strong><div class="bubble"><p>{#each commentLinks(c.content) as part}{#if part.href}<a href={part.href} target="_blank" rel="noopener noreferrer">{part.text}</a>{:else}{part.text}{/if}{/each}</p>
  <time datetime={c.createdAt} title={time(c.createdAt)} aria-label={time(c.createdAt)}>{new Date(c.createdAt).toLocaleTimeString($locale,{hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).replace('.',':')}</time></div>
 
  {#if !archived}
@@ -121,7 +121,7 @@
  panel?.hidePopover();panel?.previousElementSibling instanceof HTMLElement && panel.previousElementSibling.focus();
  void react(c,r.key)
  }}>{r.icon}</button>{/each}</div>{/if}
- {#each reactions as r}{#if c[r.key]>0}<span class:mine={c.myReaction===r.key} class="reaction-count" aria-label={($language==='en'?r.en:r.id)+' '+c[r.key]}>{r.icon} {c[r.key]}</span>{/if}{/each}
+ {#each reactions as r}{#if c[r.key]>0}{@const authorLabel = ($language === 'en' ? 'Comment by ' : 'Komentar oleh ') + c.name}<span class:mine={c.myReaction===r.key} class="reaction-count" role="img" title={authorLabel} aria-label={($language==='en'?r.en:r.id)+' '+c[r.key]+', '+authorLabel}>{r.icon} {c[r.key]}</span>{/if}{/each}
  </div></article>{:else}<p>{$translate("Belum ada komentar.")}</p>{/each}</div>
  {#if !archived}<form class="ws-comment-form" onsubmit={sendComment}><label>{$translate("Komentar baru")}<textarea required maxlength="4000" rows="2" bind:value={comment} disabled={saving} aria-autocomplete="list" aria-controls="mention-list"></textarea></label>{#if mentionChoices.length}<ul id="mention-list" class="ws-mentions" aria-label={$translate("Pilih user yang disebut")}>{#each mentionChoices as member}<li><button type="button" onclick={()=>mention(member)}>@{member.name}</button></li>{/each}</ul>{/if}<button type="submit" disabled={saving||!comment.trim()}>{$translate("Kirim Komentar")}</button></form>{/if}</section>
  <section><h3>{$translate("Activity History")}</h3><ul class="ws-activity">{#each activity as a}{@const formatted=formatActivity(a,$language)}<li>{formatted.title}<br/><small>{formatted.timestamp}</small></li>{/each}</ul></section>
@@ -133,6 +133,8 @@
  .ws-comment.outgoing{flex-direction:row-reverse}
  .sender{flex:none}
  .message-column{position:relative;min-width:0;width:fit-content;max-width:min(calc(100% - 80px),40rem)}
+ .author-name{display:block;margin-bottom:3px;color:#475569;font-size:.8rem;overflow-wrap:anywhere}
+ .outgoing .author-name{text-align:right}
  .bubble{border-radius:16px;padding:10px 12px;background:white;color:#202020;border:1px solid #dedede}
  .outgoing .bubble{background:#609c0c;color:white;border-color:transparent}
  .bubble p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.9rem;line-height:1.45}
