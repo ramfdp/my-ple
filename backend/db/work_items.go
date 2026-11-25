@@ -494,8 +494,8 @@ func (db *Database) SetWorkReaction(ctx context.Context, userID, taskID, comment
 		return err
 	}
 	defer tx.Rollback()
-	var id string
-	err = tx.QueryRowContext(ctx, `SELECT c.id FROM work_item_comments c JOIN work_items t ON t.id=c.work_item_id WHERE t.id=$1 AND c.id=$2 AND t.archived_at IS NULL FOR SHARE OF t`, taskID, commentID).Scan(&id)
+	var id, author string
+	err = tx.QueryRowContext(ctx, `SELECT c.id,c.user_id FROM work_item_comments c JOIN work_items t ON t.id=c.work_item_id WHERE t.id=$1 AND c.id=$2 AND t.archived_at IS NULL FOR SHARE OF t`, taskID, commentID).Scan(&id, &author)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrWorkspaceInvalid
 	}
@@ -505,7 +505,31 @@ func (db *Database) SetWorkReaction(ctx context.Context, userID, taskID, comment
 	if reaction == "" {
 		_, err = tx.ExecContext(ctx, `DELETE FROM work_comment_reactions WHERE comment_id=$1 AND user_id=$2`, id, userID)
 	} else {
-		_, err = tx.ExecContext(ctx, `INSERT INTO work_comment_reactions VALUES($1,$2,$3) ON CONFLICT(comment_id,user_id) DO UPDATE SET reaction=excluded.reaction`, id, userID, reaction)
+		var result sql.Result
+		result, err = tx.ExecContext(ctx, `INSERT INTO work_comment_reactions VALUES($1,$2,$3)
+ ON CONFLICT(comment_id,user_id) DO UPDATE SET reaction=excluded.reaction
+ WHERE work_comment_reactions.reaction<>excluded.reaction`, id, userID, reaction)
+		if err != nil {
+			return err
+		}
+		changed, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if changed > 0 && author != userID {
+			eventID := NewID()
+			_, err = tx.ExecContext(ctx, `WITH event AS (
+ INSERT INTO notifications(id,type,actor_user_id,entity_type,entity_id,workspace_division_id,data)
+ SELECT $1,'workspace_task',$2,'work_item',id,division_id,jsonb_build_object('title',title,'workspaceId',division_id,'message',$4::text)
+ FROM work_items WHERE id=$3 RETURNING id)
+ INSERT INTO notification_recipients(notification_id,user_id) SELECT id,$5 FROM event`, eventID, userID, taskID, reaction, author)
+			if err != nil {
+				return err
+			}
+			if err := queueWorkNotificationEmail(ctx, tx, eventID); err != nil {
+				return err
+			}
+		}
 	}
 	if err != nil {
 		return err

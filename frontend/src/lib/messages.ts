@@ -972,6 +972,7 @@ export const messages = {
  "priority tinggi": ["priority tinggi", "high priority"],
  "sudah berubah. Draf tetap tersedia.": ["sudah berubah. Draf tetap tersedia.", "has changed. Your draft remains available."],
  "terlambat": ["terlambat", "overdue"],
+ "{actor} bereaksi {emoji} pada komentar Anda": ["{actor} bereaksi {emoji} pada komentar Anda", "{actor} reacted {emoji} to your comment"],
  "{actor} memperbarui pekerjaan": ["{actor} memperbarui pekerjaan", "{actor} updated a task"],
  "{actor} menetapkan pekerjaan": ["{actor} menetapkan pekerjaan", "{actor} assigned a task"],
  "{actor} mengajukan izin/cuti": ["{actor} mengajukan izin/cuti", "{actor} requested time off"],

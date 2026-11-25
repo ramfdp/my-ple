@@ -13,7 +13,14 @@ import (
 func WorkAssignmentMessage(from, to, id string, a model.WorkAssignmentEmail) ([]byte, error) {
 	subject := "New Work Assignment - " + a.ProjectName + " - " + a.Title
 	body := fmt.Sprintf("Anda telah ditugaskan ke pekerjaan baru.\n\nJudul:\n%s\n\nProject:\n%s\n\nDitugaskan oleh:\n%s\n\nTanggal Mulai:\n%s\n\nDeadline:\n%s\n\nPriority:\n%s\n\nDescription:\n%s\n", a.Title, a.ProjectName, a.AssignedByName, a.StartDate, a.DueDate, a.Priority, a.Description)
-	if a.Message != "" && a.Message != "Anda ditugaskan ke pekerjaan baru" {
+	if a.Message == "like" || a.Message == "highFive" {
+		emoji := "\U0001F44D"
+		if a.Message == "highFive" {
+			emoji = "\U0001F64C"
+		}
+		subject = "Reaksi pada komentar Anda - " + a.Title
+		body = fmt.Sprintf("%s memberi reaksi %s pada komentar Anda di pekerjaan %s.\n", a.AssignedByName, emoji, a.Title)
+	} else if a.Message != "" && a.Message != "Anda ditugaskan ke pekerjaan baru" {
 		subject = a.Message + " - " + a.Title
 		body = strings.Replace(body, "Anda telah ditugaskan ke pekerjaan baru.", a.Message+" oleh "+a.AssignedByName+".", 1)
 		body = strings.Replace(body, "Ditugaskan oleh:", "Oleh:", 1)
